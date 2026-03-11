@@ -1,117 +1,171 @@
 import type React from "react";
-import { Outlet, useNavigate, useLocation } from "react-router";
+import { useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router";
+import favicon from "@/assets/favicon.svg";
 import {
-  BarChart2,
-  Home,
-  Users,
   Activity,
-  Settings,
+  BarChart2,
   Bell,
-  UserCircle,
   ChevronRight,
+  FileText,
+  Home,
+  Menu,
   MessageSquare,
   Radio,
-  FileText,
+  Settings,
+  UserCircle,
+  Users,
 } from "lucide-react";
 
 interface NavItem {
   icon: React.ReactNode;
   path: string;
   label: string;
+  section: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { icon: <Home size={18} />, path: "/", label: "홈" },
-  { icon: <BarChart2 size={18} />, path: "/analytics", label: "세그먼트 분석" },
-  { icon: <MessageSquare size={18} />, path: "/survey", label: "설문 에이전트" },
-  { icon: <Radio size={18} />, path: "/live", label: "실시간 분석" },
-  { icon: <FileText size={18} />, path: "/report", label: "분석 리포트" },
-  { icon: <Users size={18} />, path: "/persona", label: "페르소나 관리" },
-  { icon: <Activity size={18} />, path: "/reports", label: "리포트 히스토리" },
-  { icon: <Settings size={18} />, path: "/settings", label: "설정" },
+  { icon: <Home size={16} />, path: "/", label: "대시보드", section: "홈" },
+  { icon: <BarChart2 size={16} />, path: "/analytics", label: "세그먼트 분석", section: "워크플로우" },
+  { icon: <MessageSquare size={16} />, path: "/survey", label: "설문 Design Agent", section: "워크플로우" },
+  { icon: <Radio size={16} />, path: "/live", label: "실시간 설문 분석", section: "워크플로우" },
+  { icon: <FileText size={16} />, path: "/report", label: "분석 결과 리포트", section: "워크플로우" },
+  { icon: <Users size={16} />, path: "/persona", label: "페르소나 관리", section: "운영" },
+  { icon: <Activity size={16} />, path: "/reports", label: "리포트 히스토리 관리", section: "운영" },
+  { icon: <Settings size={16} />, path: "/settings", label: "설정(관리자 보드)", section: "운영" },
 ];
 
-const PAGE_TITLES: Record<string, { sub: string; title: string }> = {
-  "/": { sub: "Home", title: "대시보드" },
-  "/analytics": { sub: "Analytics", title: "세그먼트 분석" },
-  "/survey": { sub: "Survey", title: "설문 Design Agent" },
-  "/live": { sub: "Live", title: "실시간 설문 분석" },
-  "/report": { sub: "Report", title: "분석 결과 리포트" },
-  "/persona": { sub: "Persona", title: "페르소나 관리" },
-  "/reports": { sub: "Reports", title: "리포트 히스토리" },
-  "/settings": { sub: "Settings", title: "설정" },
-};
+const SECTION_ORDER = ["홈", "워크플로우", "운영"] as const;
 
 export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const pageInfo = PAGE_TITLES[location.pathname] ?? { sub: "Analytics", title: "대시보드" };
+  const [collapsed, setCollapsed] = useState(false);
+
+  const currentItem = NAV_ITEMS.find((item) => item.path === location.pathname) ?? NAV_ITEMS[0];
+  const sidebarWidthClass = collapsed ? "w-[76px]" : "w-64";
+  const contentPaddingClass = collapsed ? "lg:pl-[76px]" : "lg:pl-64";
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] flex flex-col">
-      {/* Top Header */}
-      <header className="h-14 bg-white border-b border-[#E8ECF4] flex items-center justify-between px-6 shrink-0 shadow-sm z-10">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-[#3D5AF1] rounded-lg flex items-center justify-center">
-              <BarChart2 size={15} className="text-white" />
-            </div>
-            <span style={{ fontSize: 15, fontWeight: 700, color: "#1E293B" }}>
-              Analytics
-            </span>
+    <div className="min-h-screen bg-[#F4F6FB]">
+      <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-[#E8ECF4] bg-white shadow-sm">
+        <div className="flex h-full items-center">
+          <div
+            className={`hidden h-full items-center border-r border-[#E8ECF4] px-4 lg:flex ${sidebarWidthClass}`}
+          >
+            <button
+              type="button"
+              onClick={() => setCollapsed((value) => !value)}
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#E1E8F1] bg-[#F8FAFF] text-[#64748B] transition-colors hover:bg-[#EEF4FF] hover:text-[#3D5AF1]"
+              aria-label="사이드바 토글"
+            >
+              <Menu size={16} />
+            </button>
           </div>
-          <div className="flex items-center gap-1 text-slate-400" style={{ fontSize: 13 }}>
-            <span>{pageInfo.sub}</span>
-            <ChevronRight size={13} />
-            <span className="text-[#3D5AF1]" style={{ fontWeight: 600 }}>
-              {pageInfo.title}
-            </span>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <button className="relative">
-            <Bell size={18} className="text-slate-500" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#3D5AF1] rounded-full flex items-center justify-center text-white" style={{ fontSize: 9 }}>
-              2
-            </span>
-          </button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#EEF1FF] rounded-full flex items-center justify-center">
-              <UserCircle size={18} className="text-[#3D5AF1]" />
+          <div className="flex min-w-0 flex-1 items-center justify-between px-6">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#EEF4FF]">
+                  <img src={favicon} alt="Digital Twin" className="h-5 w-5" />
+                </div>
+                <p style={{ fontSize: 16, fontWeight: 700, color: "#1E293B" }}>Digital Twin</p>
+              </div>
+
+              <div className="flex min-w-0 items-center gap-1 text-slate-400" style={{ fontSize: 13 }}>
+                <span>{currentItem.section}</span>
+                <ChevronRight size={13} />
+                <span className="truncate text-[#3D5AF1]" style={{ fontWeight: 600 }}>
+                  {currentItem.label}
+                </span>
+              </div>
             </div>
-            <div className="hidden sm:block">
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", lineHeight: 1.2 }}>관리자</p>
-              <p style={{ fontSize: 11, color: "#94A3B8" }}>admin@analytics.com</p>
+
+            <div className="flex items-center gap-4">
+              <button className="relative" aria-label="알림">
+                <Bell size={18} className="text-slate-500" />
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#3D5AF1] text-white" style={{ fontSize: 9 }}>
+                  2
+                </span>
+              </button>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EEF1FF]">
+                  <UserCircle size={18} className="text-[#3D5AF1]" />
+                </div>
+                <div className="hidden sm:block">
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", lineHeight: 1.2 }}>관리자</p>
+                  <p style={{ fontSize: 11, color: "#94A3B8" }}>admin@digitaltwin.ai</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Icon Nav */}
-        <nav className="w-14 bg-white border-r border-[#E8ECF4] flex flex-col items-center py-4 gap-2 shrink-0">
-          {NAV_ITEMS.map((item, i) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <button
-                key={i}
-                title={item.label}
-                onClick={() => navigate(item.path)}
-                className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
-                  isActive
-                    ? "bg-[#3D5AF1] text-white shadow-md"
-                    : "text-slate-400 hover:bg-[#F1F5FF] hover:text-[#3D5AF1]"
-                }`}
-              >
-                {item.icon}
-              </button>
-            );
-          })}
-        </nav>
+      <aside
+        className={`fixed bottom-0 left-0 top-14 z-20 hidden border-r border-[#E8ECF4] bg-white transition-[width] duration-200 lg:flex lg:flex-col ${sidebarWidthClass}`}
+      >
+        <div className="hide-scrollbar flex-1 overflow-y-auto px-3 py-4">
+          <div className="flex flex-col gap-5">
+            {SECTION_ORDER.map((section) => {
+              const items = NAV_ITEMS.filter((item) => item.section === section);
+              return (
+                <section key={section}>
+                  {!collapsed && (
+                    <p
+                      className="px-3 pb-2"
+                      style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "#A0AEC0" }}
+                    >
+                      {section.toUpperCase()}
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    {items.map((item) => {
+                      const isActive = location.pathname === item.path;
+                      return (
+                        <button
+                          key={item.path}
+                          type="button"
+                          onClick={() => navigate(item.path)}
+                          title={collapsed ? item.label : undefined}
+                          className={`flex items-center rounded-lg transition-colors ${
+                            collapsed ? "justify-center px-0 py-2.5" : "gap-3 px-3 py-2.5 text-left"
+                          } ${isActive ? "bg-[#EEF4FF]" : "hover:bg-[#F8FAFF]"}`}
+                        >
+                          <span
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                              isActive ? "bg-[#DCE8FF] text-[#3D5AF1]" : "text-[#7B8798]"
+                            }`}
+                          >
+                            {item.icon}
+                          </span>
+                          {!collapsed && (
+                            <span
+                              className="truncate"
+                              style={{
+                                fontSize: 13,
+                                fontWeight: isActive ? 700 : 500,
+                                color: isActive ? "#2454C8" : "#334155",
+                              }}
+                            >
+                              {item.label}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
+      </aside>
 
-        {/* Page Content */}
-        <Outlet />
+      <div className={`pt-14 transition-[padding-left] duration-200 ${contentPaddingClass}`}>
+        <div className="hide-scrollbar flex h-[calc(100vh-56px)] overflow-hidden">
+          <Outlet />
+        </div>
       </div>
     </div>
   );
