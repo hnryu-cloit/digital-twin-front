@@ -124,7 +124,7 @@ export const LiveAnalysisPage: React.FC = () => {
     <div className="flex-1 flex flex-col bg-[#EEF2FA] overflow-hidden">
       <WorkflowStepper currentPath="/live" />
       {/* Page Header */}
-      <div className="bg-white border-b border-[#E1E8F1] px-6 pt-5 pb-4">
+      <div className="app-page-header">
         <p style={{ fontSize: 11, color: "#5B7DFF", fontWeight: 600, letterSpacing: "0.06em" }}>
           LIVE
         </p>
@@ -138,7 +138,7 @@ export const LiveAnalysisPage: React.FC = () => {
 
       <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
         {/* Progress Bar Card */}
-        <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm px-6 py-4 flex items-center gap-6">
+        <div className="app-stat-card px-6 py-4 flex items-center gap-6">
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <span style={{ fontSize: 15, fontWeight: 700, color: "#1D1F3D" }}>
@@ -182,7 +182,7 @@ export const LiveAnalysisPage: React.FC = () => {
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1">
           {/* Word Cloud */}
-          <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5 flex flex-col">
+          <div className="app-stat-card p-5 flex flex-col">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <TrendingUp size={15} className="text-[#5B7DFF]" />
@@ -253,7 +253,7 @@ export const LiveAnalysisPage: React.FC = () => {
           {/* Right Column */}
           <div className="flex flex-col gap-4">
             {/* Bar Chart */}
-            <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5 flex-1">
+            <div className="app-stat-card p-5 flex-1">
               <div className="flex items-center gap-2 mb-4">
                 <div
                   className="w-6 h-6 rounded-lg bg-[#5B7DFF] text-white flex items-center justify-center"
@@ -306,7 +306,7 @@ export const LiveAnalysisPage: React.FC = () => {
             </div>
 
             {/* Real-time Feed */}
-            <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5">
+            <div className="app-stat-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1D1F3D" }}>

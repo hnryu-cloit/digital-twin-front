@@ -195,7 +195,7 @@ export const DashboardPage: React.FC = () => {
       <WorkflowStepper currentPath="/analytics" />
       <div className="flex flex-1 overflow-hidden">
       {/* ── 필터 사이드바 ── */}
-      <aside className="w-64 bg-white border-r border-[#E1E8F1] flex flex-col overflow-y-auto shrink-0">
+      <aside className="app-panel w-64 rounded-none border-r flex flex-col overflow-y-auto shrink-0">
         <div className="px-4 pt-4 pb-2 flex items-center justify-between">
           <p style={{ fontSize: 11, color: "#9BA6B8", fontWeight: 700, letterSpacing: "0.06em" }}>필터 설정</p>
           <button style={{ fontSize: 10, color: "#5B7DFF", fontWeight: 600 }}>초기화</button>
@@ -403,16 +403,16 @@ export const DashboardPage: React.FC = () => {
       </aside>
 
       {/* ── 메인 콘텐츠 ── */}
-      <main className="flex-1 p-6 overflow-y-auto bg-[#EEF2FA]">
+      <main className="flex-1 overflow-y-auto bg-[#EEF2FA] p-6">
         {/* 타이틀 */}
-        <div className="mb-5">
+        <div className="app-page-header mb-5 rounded-2xl border">
           <p style={{ fontSize: 11, color: "#5B7DFF", fontWeight: 600, letterSpacing: "0.06em" }}>SETTING</p>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1D1F3D", lineHeight: 1.3 }}>세그먼트 설정</h1>
           <p style={{ fontSize: 13, color: "#7C8397", marginTop: 4 }}>삼성전자 Galaxy 제품군 구매·사용자 30,000명 대상 실시간 세그먼트 분포</p>
         </div>
 
         {/* N수 + 도넛 차트 */}
-        <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-6 mb-4">
+        <div className="app-stat-card mb-4 p-6">
           <div className="flex flex-col md:flex-row md:items-center gap-6">
             <div className="flex-1">
               <p style={{ fontSize: 13, color: "#7C8397" }}>총 응답자 수</p>
@@ -470,7 +470,7 @@ export const DashboardPage: React.FC = () => {
         {/* 제품군별 분포 + 구매 채널 */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           {/* 제품군별 분포 */}
-          <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5">
+          <div className="app-stat-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <Smartphone size={14} className="text-[#5B7DFF]" />
               <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1D1F3D" }}>Galaxy 제품군별 분포</h3>
@@ -490,7 +490,7 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           {/* 구매 채널 */}
-          <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5">
+          <div className="app-stat-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingBag size={14} className="text-[#5B7DFF]" />
               <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1D1F3D" }}>구매 채널 분포</h3>
@@ -512,7 +512,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 세그먼트 지표 요약 */}
-        <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-6 mb-4">
+        <div className="app-stat-card mb-4 p-6">
           <div className="flex items-center gap-2 mb-5">
             <BarChart2 size={15} className="text-[#5B7DFF]" />
             <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1D1F3D" }}>세그먼트 지표 요약</h3>
@@ -542,7 +542,7 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* 지역 분포 */}
-        <div className="bg-white rounded-2xl border border-[#E1E8F1] shadow-sm p-5">
+        <div className="app-stat-card p-5">
           <div className="flex items-center gap-2 mb-4">
             <MapPin size={14} className="text-[#5B7DFF]" />
             <h3 style={{ fontSize: 13, fontWeight: 700, color: "#1D1F3D" }}>지역별 분포</h3>
