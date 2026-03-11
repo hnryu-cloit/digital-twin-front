@@ -588,7 +588,7 @@ export const HomePage: React.FC = () => {
               2026년 3월 10일 화요일
             </p>
             <h1 style={{ fontSize: 20, fontWeight: 800, color: "#1D1F3D" }}>
-              안녕하세요, 관리자님 👋
+              안녕하세요, 관리자님.
             </h1>
           </div>
           <button

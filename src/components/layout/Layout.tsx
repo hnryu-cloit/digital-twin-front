@@ -113,13 +113,6 @@ export const Layout: React.FC = () => {
                 </span>
               </button>
               <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#EEF1FF]">
-                  <UserCircle size={18} className="text-[#3D5AF1]" />
-                </div>
-                <div className="hidden sm:block">
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#1E293B", lineHeight: 1.2 }}>관리자</p>
-                  <p style={{ fontSize: 11, color: "#94A3B8" }}>admin@digitaltwin.ai</p>
-                </div>
               </div>
             </div>
           </div>
@@ -203,7 +196,7 @@ export const Layout: React.FC = () => {
                 style={{ fontSize: 13, color: "#334155" }}
               >
                 <Settings size={15} className="text-[#7B8798]" />
-                설정(관리자 보드)
+                설정
               </button>
               <div className="mx-3 h-px bg-[#F1F5F9]" />
               <button
@@ -230,7 +223,7 @@ export const Layout: React.FC = () => {
             {!collapsed && (
               <div className="min-w-0 text-left">
                 <p className="truncate" style={{ fontSize: 13, fontWeight: 600, color: "#1E293B" }}>관리자</p>
-                <p className="truncate" style={{ fontSize: 11, color: "#94A3B8" }}>admin@digitaltwin.ai</p>
+                <p className="truncate" style={{ fontSize: 11, color: "#94A3B8" }}>admin@samsung.com</p>
               </div>
             )}
           </button>
