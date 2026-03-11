@@ -474,11 +474,12 @@ const DEFAULT_FILTER: AdvancedFilter = {
   genders: [], ageGroups: [], devices: [], segments: [], intentMin: 0, intentMax: 100,
 };
 
-function AdvancedFilterPopup({ filter, onChange, onClose, onReset }: {
+function AdvancedFilterPopup({ filter, onChange, onClose, onReset, position }: {
   filter: AdvancedFilter;
   onChange: (f: AdvancedFilter) => void;
   onClose: () => void;
   onReset: () => void;
+  position: { top: number; left: number };
 }) {
   const [local, setLocal] = useState<AdvancedFilter>({ ...filter });
   const ref = useRef<HTMLDivElement>(null);
@@ -503,8 +504,11 @@ function AdvancedFilterPopup({ filter, onChange, onClose, onReset }: {
   ].reduce((a, b) => a + b, 0);
 
   return (
-    <div ref={ref} className="absolute top-full left-0 mt-2 z-40 bg-white rounded-2xl border border-[#E1E8F1] shadow-2xl w-[520px] overflow-hidden"
-      style={{ boxShadow: "0 20px 60px #0000001A" }}>
+    <div
+      ref={ref}
+      className="fixed z-[80] w-[520px] overflow-hidden rounded-2xl border border-[#E1E8F1] bg-white shadow-2xl"
+      style={{ top: position.top, left: position.left, boxShadow: "0 20px 60px #0000001A" }}
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#F1F5F9]">
         <div className="flex items-center gap-2">
@@ -677,65 +681,49 @@ function Pagination({ current, total, onChange }: { current: number; total: numb
   const FIXED_PAGES = 10;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       {/* Prev */}
       <button
         onClick={() => onChange(Math.max(1, current - 1))}
         disabled={current === 1}
-        className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[#EEF4FF]"
-        style={{ fontSize: 12, fontWeight: 600, color: "#7C8397", border: "1.5px solid #E1E8F1", backgroundColor: "#F7FAFF" }}
+        className="p-1 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:text-[#5B7DFF]"
+        style={{ color: "#9BA6B8" }}
       >
-        <ChevronLeft size={13} />
-        이전
+        <ChevronLeft size={15} />
       </button>
 
-      {/* Page number pill group */}
-      <div
-        className="flex items-center rounded-full gap-0.5"
-        style={{ backgroundColor: "#F1F5F9", border: "1.5px solid #DCE4F3", padding: "4px 6px" }}
-      >
-        {Array.from({ length: FIXED_PAGES }, (_, i) => i + 1).map((p) => {
-          const isActive = p === current;
-          const isDisabled = p > total;
-          return (
-            <button
-              key={p}
-              onClick={() => !isDisabled && onChange(p)}
-              style={{
-                width: 28, height: 28,
-                borderRadius: "50%",
-                fontSize: 12,
-                fontWeight: isActive ? 800 : 500,
-                backgroundColor: isActive ? "#5B7DFF" : "transparent",
-                color: isActive ? "#fff" : isDisabled ? "#DCE4F3" : "#7C8397",
-                cursor: isDisabled ? "default" : "pointer",
-                transition: "background-color 0.15s, color 0.15s, box-shadow 0.15s",
-                boxShadow: isActive ? "0 2px 10px #5B7DFF4D" : "none",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                border: "none", outline: "none", flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive && !isDisabled) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "#DDE3F8";
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) (e.currentTarget as HTMLButtonElement).style.backgroundColor = "transparent";
-              }}
-            >
-              {p}
-            </button>
-          );
-        })}
-      </div>
+      {/* Page numbers */}
+      {Array.from({ length: FIXED_PAGES }, (_, i) => i + 1).map((p) => {
+        const isActive = p === current;
+        const isDisabled = p > total;
+        return (
+          <button
+            key={p}
+            onClick={() => !isDisabled && onChange(p)}
+            className="rounded transition-colors"
+            style={{
+              width: 28, height: 28,
+              fontSize: 13,
+              fontWeight: isActive ? 700 : 400,
+              color: isActive ? "#5B7DFF" : isDisabled ? "#D1D8E6" : "#7C8397",
+              cursor: isDisabled ? "default" : "pointer",
+              background: "none", border: "none", outline: "none",
+              borderBottom: isActive ? "2px solid #5B7DFF" : "2px solid transparent",
+            }}
+          >
+            {p}
+          </button>
+        );
+      })}
 
       {/* Next */}
       <button
         onClick={() => onChange(Math.min(total, current + 1))}
         disabled={current >= total}
-        className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all disabled:opacity-25 disabled:cursor-not-allowed hover:bg-[#EEF4FF]"
-        style={{ fontSize: 12, fontWeight: 600, color: "#7C8397", border: "1.5px solid #E1E8F1", backgroundColor: "#F7FAFF" }}
+        className="p-1 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:text-[#5B7DFF]"
+        style={{ color: "#9BA6B8" }}
       >
-        다음
-        <ChevronRight size={13} />
+        <ChevronRight size={15} />
       </button>
     </div>
   );
@@ -748,6 +736,7 @@ export const PersonaManagerPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
   const [advFilter, setAdvFilter] = useState<AdvancedFilter>({ ...DEFAULT_FILTER });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterPosition, setFilterPosition] = useState<{ top: number; left: number } | null>(null);
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Persona | undefined>();
@@ -779,6 +768,21 @@ export const PersonaManagerPage: React.FC = () => {
 
   const handleSearch = (v: string) => { setSearch(v); setPage(1); };
   const handleFilterChange = (f: AdvancedFilter) => { setAdvFilter(f); setPage(1); };
+  const toggleFilterPopup = () => {
+    if (filterOpen) {
+      setFilterOpen(false);
+      return;
+    }
+
+    const rect = filterRef.current?.getBoundingClientRect();
+    if (rect) {
+      setFilterPosition({
+        top: rect.bottom + 8,
+        left: Math.max(16, Math.min(rect.left, window.innerWidth - 536)),
+      });
+    }
+    setFilterOpen(true);
+  };
 
   const activeFilterCount = [
     advFilter.genders.length, advFilter.ageGroups.length, advFilter.devices.length, advFilter.segments.length,
@@ -805,7 +809,7 @@ export const PersonaManagerPage: React.FC = () => {
     <div className="flex-1 flex flex-col bg-[#EEF2FA] overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white border-b border-[#E1E8F1] px-6 pt-5 pb-4 flex items-start justify-between gap-4">
+      <div className="app-page-header flex items-start justify-between gap-4">
         <div>
           <p style={{ fontSize: 11, color: "#5B7DFF", fontWeight: 600, letterSpacing: "0.06em" }}>PERSONA</p>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1D1F3D", lineHeight: 1.3 }}>페르소나 관리</h1>
@@ -819,7 +823,7 @@ export const PersonaManagerPage: React.FC = () => {
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white border-b border-[#E1E8F1] px-6 py-3 flex items-center gap-3">
+      <div className="app-toolbar flex items-center gap-3">
         {/* Search */}
         <div className="flex items-center gap-2 bg-[#EEF2FA] border border-[#E1E8F1] rounded-xl px-3 py-2 flex-1 max-w-80">
           <Search size={14} className="text-[#9BA6B8] shrink-0" />
@@ -833,7 +837,7 @@ export const PersonaManagerPage: React.FC = () => {
 
         {/* Advanced Filter Button */}
         <div className="relative" ref={filterRef}>
-          <button onClick={() => setFilterOpen((p) => !p)}
+          <button onClick={toggleFilterPopup}
             className={`flex items-center gap-2 px-3 py-2 rounded-xl border transition-colors ${
               filterOpen || activeFilterCount > 0
                 ? "bg-[#EEF4FF] border-[#5B7DFF] text-[#5B7DFF]"
@@ -849,12 +853,13 @@ export const PersonaManagerPage: React.FC = () => {
             <ChevronDown size={13} className={`transition-transform ${filterOpen ? "rotate-180" : ""}`} />
           </button>
 
-          {filterOpen && (
+          {filterOpen && filterPosition && (
             <AdvancedFilterPopup
               filter={advFilter}
               onChange={handleFilterChange}
               onClose={() => setFilterOpen(false)}
               onReset={() => { setAdvFilter({ ...DEFAULT_FILTER }); setPage(1); }}
+              position={filterPosition}
             />
           )}
         </div>
@@ -949,7 +954,7 @@ export const PersonaManagerPage: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-[#E1E8F1] bg-white shadow-sm">
+          <div className="app-stat-card overflow-hidden p-0">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[920px]">
                 <thead>
@@ -977,21 +982,9 @@ export const PersonaManagerPage: React.FC = () => {
         )}
       </div>
 
-      {/* Pagination Bar */}
-      <div className="bg-white border-t border-[#E1E8F1] px-6 py-3 flex items-center justify-between shrink-0">
-        <p style={{ fontSize: 12, color: "#9BA6B8" }}>
-          <span style={{ fontWeight: 700, color: "#1D1F3D" }}>{(safePage - 1) * PAGE_SIZE + 1}</span>
-          {" "}–{" "}
-          <span style={{ fontWeight: 700, color: "#1D1F3D" }}>{Math.min(safePage * PAGE_SIZE, filtered.length) || 0}</span>
-          {" "}/ 총{" "}
-          <span style={{ fontWeight: 700, color: "#5B7DFF" }}>{filtered.length}</span>명
-        </p>
+      {/* Pagination */}
+      <div className="flex items-center justify-center gap-2 py-4">
         <Pagination current={safePage} total={totalPages} onChange={(p) => { setPage(p); }} />
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 12, color: "#9BA6B8" }}>페이지당</span>
-          <span className="bg-[#EEF4FF] text-[#5B7DFF] px-2.5 py-1 rounded-lg border border-[#BFD4FF]"
-            style={{ fontSize: 12, fontWeight: 700 }}>{PAGE_SIZE}개</span>
-        </div>
       </div>
 
       {/* Edit/Add Modal */}
