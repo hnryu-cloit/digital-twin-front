@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
+import { AppPagination } from "@/components/ui/AppPagination";
 
 type QuestionType = "단일선택" | "복수선택" | "리커트척도" | "주관식";
 
@@ -475,47 +476,14 @@ export const SurveyChatPage: React.FC = () => {
 
         </div>
 
-        {/* Pagination — 고정 위치 */}
+        {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 px-6 py-2 bg-[#EEF2FA] border-t border-[#E1E8F1] shrink-0">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
-              className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#E1E8F1] bg-white text-[#7C8397] hover:bg-[#EEF4FF] hover:border-[#BFD4FF] hover:text-[#5B7DFF] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              style={{ fontSize: 11 }}
-            >
-              ‹
-            </button>
-
-            {getPaginationItems().map((item, i) =>
-              item === "..." ? (
-                <span key={`ellipsis-${i}`} className="w-7 h-7 flex items-center justify-center text-[#9BA6B8]" style={{ fontSize: 12 }}>
-                  …
-                </span>
-              ) : (
-                <button
-                  key={item}
-                  onClick={() => setCurrentPage(item)}
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${
-                    currentPage === item
-                      ? "bg-[#5B7DFF] border-[#5B7DFF] text-white shadow-sm"
-                      : "border-[#E1E8F1] bg-white text-[#3C4556] hover:bg-[#EEF4FF] hover:border-[#BFD4FF] hover:text-[#5B7DFF]"
-                  }`}
-                  style={{ fontSize: 12, fontWeight: currentPage === item ? 700 : 500 }}
-                >
-                  {item + 1}
-                </button>
-              )
-            )}
-
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage === totalPages - 1}
-              className="w-7 h-7 rounded-lg flex items-center justify-center border border-[#E1E8F1] bg-white text-[#7C8397] hover:bg-[#EEF4FF] hover:border-[#BFD4FF] hover:text-[#5B7DFF] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              style={{ fontSize: 11 }}
-            >
-              ›
-            </button>
+          <div className="flex items-center justify-center border-t border-[#E1E8F1] bg-[#EEF2FA] px-6 py-2 shrink-0">
+            <AppPagination
+              current={currentPage + 1}
+              total={totalPages}
+              onChange={(p) => setCurrentPage(p - 1)}
+            />
           </div>
         )}
 

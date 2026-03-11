@@ -1,9 +1,10 @@
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
+import { AppPagination } from "@/components/ui/AppPagination";
 import {
   Search, Plus, Pencil, Trash2, MoreHorizontal, Smartphone, Tag, Users, X,
   ChevronDown, Check, UserCircle2, Gamepad2, ShoppingBag, Coffee, Briefcase,
-  Music, SlidersHorizontal, ChevronLeft, ChevronRight, Filter, RotateCcw, LayoutGrid, List,
+  Music, SlidersHorizontal, ChevronLeft, ChevronRight, Filter, RotateCcw, LayoutGrid, List, Download,
 } from "lucide-react";
 
 /* ─────────────── Types ─────────────── */
@@ -50,7 +51,7 @@ const PAGE_SIZE = 6;
 
 /* ─────────────── 30 Mock Personas ─────────────── */
 const RAW_PERSONAS: Omit<Persona, "id">[] = [
-  { name:"이준혁", age:28, gender:"남성", occupation:"게임 개발자",     device:"Galaxy S24 Ultra", segments:["Gamer","Early Adopter"],   keywords:["카메라","성능","배터리"],        purchaseIntent:92, iconKey:0, color:"#5B7DFF", iconBg:"#EEF4FF", description:"최신 모바일 기술에 관심 많은 20대 남성 게이머. 고성��� 디바이스 선호." },
+  { name:"이준혁", age:28, gender:"남성", occupation:"게임 개발자",     device:"Galaxy S24 Ultra", segments:["Gamer","Early Adopter"],   keywords:["카메라","성능","배터리"],        purchaseIntent:92, iconKey:0, color:"#5B7DFF", iconBg:"#EEF4FF", description:"최신 모바일 기술에 관심 많은 20대 남성 게이머. 고성능 디바이스 선호." },
   { name:"김지연", age:34, gender:"여성", occupation:"마케터",          device:"Z Flip6",          segments:["Premium Buyer","Trendsetter"], keywords:["디자인","카메라","가격"],       purchaseIntent:78, iconKey:1, color:"#DB2777", iconBg:"#FDF2F8", description:"트렌드에 민감한 30대 마케터. 디자인과 브랜드 가치 중시." },
   { name:"박민수", age:42, gender:"남성", occupation:"중소기업 대표",   device:"Galaxy S23",       segments:["Business User","Value Seeker"],keywords:["배터리","성능","가격"],        purchaseIntent:55, iconKey:2, color:"#0284C7", iconBg:"#F0F9FF", description:"실용성과 가성비를 중시하는 40대 비즈니스 유저." },
   { name:"최수아", age:22, gender:"여성", occupation:"대학생",          device:"Z Flip6",          segments:["Trendsetter","Early Adopter"], keywords:["디자인","야간 촬영","SNS"],     purchaseIntent:70, iconKey:3, color:"#7C3AED", iconBg:"#F5F3FF", description:"SNS 콘텐츠 제작에 관심 많은 20대 대학생." },
@@ -676,59 +677,6 @@ function AdvancedFilterPopup({ filter, onChange, onClose, onReset, position }: {
   );
 }
 
-/* ─────────────── Pagination ─────────────── */
-function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
-  const FIXED_PAGES = 10;
-
-  return (
-    <div className="flex items-center gap-1">
-      {/* Prev */}
-      <button
-        onClick={() => onChange(Math.max(1, current - 1))}
-        disabled={current === 1}
-        className="p-1 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:text-[#5B7DFF]"
-        style={{ color: "#9BA6B8" }}
-      >
-        <ChevronLeft size={15} />
-      </button>
-
-      {/* Page numbers */}
-      {Array.from({ length: FIXED_PAGES }, (_, i) => i + 1).map((p) => {
-        const isActive = p === current;
-        const isDisabled = p > total;
-        return (
-          <button
-            key={p}
-            onClick={() => !isDisabled && onChange(p)}
-            className="rounded transition-colors"
-            style={{
-              width: 28, height: 28,
-              fontSize: 13,
-              fontWeight: isActive ? 700 : 400,
-              color: isActive ? "#5B7DFF" : isDisabled ? "#D1D8E6" : "#7C8397",
-              cursor: isDisabled ? "default" : "pointer",
-              background: "none", border: "none", outline: "none",
-              borderBottom: isActive ? "2px solid #5B7DFF" : "2px solid transparent",
-            }}
-          >
-            {p}
-          </button>
-        );
-      })}
-
-      {/* Next */}
-      <button
-        onClick={() => onChange(Math.min(total, current + 1))}
-        disabled={current >= total}
-        className="p-1 rounded transition-colors disabled:opacity-25 disabled:cursor-not-allowed hover:text-[#5B7DFF]"
-        style={{ color: "#9BA6B8" }}
-      >
-        <ChevronRight size={15} />
-      </button>
-    </div>
-  );
-}
-
 /* ─────────────── Main Page ─────────────── */
 export const PersonaManagerPage: React.FC = () => {
   const [personas, setPersonas] = useState<Persona[]>(PERSONA_LIST);
@@ -741,7 +689,31 @@ export const PersonaManagerPage: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Persona | undefined>();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportPos, setExportPos] = useState<{ top: number; right: number } | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const exportBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!exportOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node) &&
+          exportBtnRef.current && !exportBtnRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [exportOpen]);
+
+  const handleExportToggle = () => {
+    if (!exportOpen && exportBtnRef.current) {
+      const rect = exportBtnRef.current.getBoundingClientRect();
+      setExportPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    }
+    setExportOpen((v) => !v);
+  };
 
   const getAgeGroup = (age: number) => {
     if (age < 20) return "10대";
@@ -815,11 +787,44 @@ export const PersonaManagerPage: React.FC = () => {
           <h1 style={{ fontSize: 22, fontWeight: 700, color: "#1D1F3D", lineHeight: 1.3 }}>페르소나 관리</h1>
           <p style={{ fontSize: 13, color: "#7C8397", marginTop: 4 }}>시스템에 등록된 사용자 페르소나를 관리합니다.</p>
         </div>
-        <button onClick={() => { setEditTarget(undefined); setModalOpen(true); }}
-          className="flex items-center gap-2 bg-[#5B7DFF] text-white px-4 py-2.5 rounded-xl hover:bg-[#4562E8] transition-colors shadow-md shrink-0"
-          style={{ fontSize: 13, fontWeight: 600, boxShadow: "0 4px 12px #5B7DFF30" }}>
-          <Plus size={15} />페르소나 추가
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          {/* 내보내기 */}
+          <button
+            ref={exportBtnRef}
+            onClick={handleExportToggle}
+            className="flex items-center gap-2 rounded-xl border border-[#E1E8F1] bg-white px-4 py-2.5 text-[#334155] transition-colors hover:border-[#BFD4FF] hover:bg-[#EEF4FF] hover:text-[#5B7DFF]"
+            style={{ fontSize: 13, fontWeight: 600 }}
+          >
+            <Download size={14} />
+            내보내기
+            <ChevronDown size={13} className={`transition-transform ${exportOpen ? "rotate-180" : ""}`} />
+          </button>
+          {exportOpen && exportPos && (
+            <div
+              ref={exportRef}
+              className="fixed z-[9999] w-40 overflow-hidden rounded-xl border border-[#E8ECF4] bg-white shadow-lg"
+              style={{ top: exportPos.top, right: exportPos.right }}
+            >
+              <div className="px-1 py-1">
+                <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F4F7FF]"
+                  style={{ fontSize: 13, color: "#334155" }}>
+                  CSV 내보내기
+                </button>
+                <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-colors hover:bg-[#F4F7FF]"
+                  style={{ fontSize: 13, color: "#334155" }}>
+                  Excel 내보내기
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 페르소나 추가 */}
+          <button onClick={() => { setEditTarget(undefined); setModalOpen(true); }}
+            className="flex items-center gap-2 bg-[#5B7DFF] text-white px-4 py-2.5 rounded-xl hover:bg-[#4562E8] transition-colors shadow-md"
+            style={{ fontSize: 13, fontWeight: 600, boxShadow: "0 4px 12px #5B7DFF30" }}>
+            <Plus size={15} />페르소나 추가
+          </button>
+        </div>
       </div>
 
       {/* Toolbar */}
@@ -984,7 +989,7 @@ export const PersonaManagerPage: React.FC = () => {
 
       {/* Pagination */}
       <div className="flex items-center justify-center gap-2 py-4">
-        <Pagination current={safePage} total={totalPages} onChange={(p) => { setPage(p); }} />
+        <AppPagination current={safePage} total={totalPages} onChange={(p) => { setPage(p); }} />
       </div>
 
       {/* Edit/Add Modal */}
