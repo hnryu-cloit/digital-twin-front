@@ -1,6 +1,7 @@
+import type React from "react";
 import { Fragment } from "react";
 import { useNavigate } from "react-router";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Check } from "lucide-react";
 
 type WorkflowPath = "/analytics" | "/survey" | "/live" | "/report";
 
@@ -16,8 +17,8 @@ export const WorkflowStepper: React.FC<{ currentPath: WorkflowPath }> = ({ curre
   const currentIndex = STEPS.findIndex((step) => step.path === currentPath);
 
   return (
-    <div className="border-b border-[#E1E8F1] bg-white px-6 py-3 lg:hidden">
-      <div className="hide-scrollbar flex items-center gap-2 overflow-x-auto">
+    <div className="border-b border-border bg-card px-6 py-2.5 lg:hidden shadow-sm">
+      <div className="hide-scrollbar flex items-center gap-1.5 overflow-x-auto">
         {STEPS.map((step, index) => {
           const isActive = step.path === currentPath;
           const isDone = index < currentIndex;
@@ -27,18 +28,19 @@ export const WorkflowStepper: React.FC<{ currentPath: WorkflowPath }> = ({ curre
               <button
                 type="button"
                 onClick={() => navigate(step.path)}
-                className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 transition-colors ${
+                className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-1.5 transition-all ${
                   isActive
-                    ? "bg-[#EEF4FF] text-[#2454C8]"
+                    ? "bg-primary text-primary-foreground font-black shadow-md scale-105"
                     : isDone
-                      ? "bg-[#F7FAFF] text-[#3C4556] hover:bg-[#EEF4FF]"
-                      : "bg-transparent text-[#94A3B8] hover:bg-[#F8FAFF]"
+                      ? "bg-primary-light-bg text-primary font-bold hover:bg-primary-light-border/30"
+                      : "bg-accent/50 text-subtle-foreground font-bold hover:bg-accent"
                 }`}
-                style={{ fontSize: 12, fontWeight: isActive ? 700 : 500 }}
+                style={{ fontSize: 11 }}
               >
+                {isDone && <Check size={12} className="shrink-0" />}
                 <span>{step.label}</span>
               </button>
-              {index < STEPS.length - 1 && <ChevronRight size={14} className="shrink-0 text-[#CBD5E1]" />}
+              {index < STEPS.length - 1 && <ChevronRight size={14} className="shrink-0 text-border" />}
             </Fragment>
           );
         })}
