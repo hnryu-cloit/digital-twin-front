@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Home size={16} />, path: "/", label: "대시보드", section: "홈" },
   { icon: <BarChart2 size={16} />, path: "/analytics", label: "세그먼트 분석", section: "워크플로우" },
   { icon: <MessageSquare size={16} />, path: "/survey", label: "설문 디자인", section: "워크플로우" },
-  { icon: <Radio size={16} />, path: "/live", label: "실시간 설문 분석", section: "워크플로우" },
+  { icon: <Radio size={16} />, path: "/live", label: "실시간 응답 분석", section: "워크플로우" },
   { icon: <FileText size={16} />, path: "/report", label: "분석 결과 리포트", section: "워크플로우" },
   { icon: <Users size={16} />, path: "/persona", label: "페르소나 관리", section: "운영" },
   { icon: <Activity size={16} />, path: "/reports", label: "리포트 히스토리 관리", section: "운영" },
@@ -201,10 +201,10 @@ export const Layout: React.FC = () => {
               <div className="mx-3 h-px bg-[#F1F5F9]" />
               <button
                 type="button"
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[#FFF4F4]"
-                style={{ fontSize: 13, color: "#EF4444" }}
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors hover:bg-[#F4F7FF]"
+                style={{ fontSize: 13, color: "#334155" }}
               >
-                <LogOut size={15} />
+                <LogOut size={15} className="text-[#7B8798]" />
                 로그아웃
               </button>
             </div>

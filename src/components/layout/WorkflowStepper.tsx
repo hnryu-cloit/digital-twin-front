@@ -7,7 +7,7 @@ type WorkflowPath = "/analytics" | "/survey" | "/live" | "/report";
 const STEPS: Array<{ path: WorkflowPath; label: string }> = [
   { path: "/analytics", label: "세그먼트 분석" },
   { path: "/survey", label: "설문 디자인" },
-  { path: "/live", label: "실시간 설문 분석" },
+  { path: "/live", label: "실시간 응답 분석" },
   { path: "/report", label: "분석 결과 리포트" },
 ];
 
