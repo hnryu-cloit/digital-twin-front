@@ -1,63 +1,63 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --primary: #316bff;
-  --primary-hover: #1e5be9;
+  --primary: #2f66ff;
+  --primary-hover: #2356e0;
   --primary-foreground: #ffffff;
-  --primary-light-bg: #eef4ff;
-  --primary-light-bg2: #f3f7ff;
-  --primary-light-border: #cfe0ff;
-  --primary-active-border: #cfe0ff;
-  --primary-active-text: #2454c8;
-  --brand-strong: #2454c8;
+  --primary-light-bg: #eef3ff;
+  --primary-light-bg2: #f4f7ff;
+  --primary-light-border: #c9d8ff;
+  --primary-active-border: #b8ccff;
+  --primary-active-text: #1f48b8;
+  --brand-strong: #1f48b8;
 
-  --background: #f3f6fb;
+  --background: #f5f7fb;
   --card: #ffffff;
-  --panel-soft: #f7faff;
-  --surface-hover: #f8faff;
-  --surface-active: #eef4ff;
+  --panel-soft: #f1f4fa;
+  --surface-hover: #edf1f8;
+  --surface-active: #e5ecfb;
 
-  --foreground: #1d1f3d;
-  --card-foreground: #16192a;
-  --muted-foreground: #6e788b;
-  --subtle-foreground: #98a3b7;
+  --foreground: #1a2138;
+  --card-foreground: #1a2138;
+  --muted-foreground: #6d7890;
+  --subtle-foreground: #8f9cb6;
 
-  --border: #dce4f0;
-  --border-strong: #d6e0f0;
-  --border-hover: #bdd0ea;
+  --border: #d5deec;
+  --border-strong: #cfd9e8;
+  --border-hover: #bac9e3;
 
-  --secondary: #eef2f8;
-  --secondary-foreground: #3c4556;
-  --muted: #ecf0f6;
-  --accent: #f3f6fb;
-  --accent-foreground: #3c4556;
+  --secondary: #ebf0f8;
+  --secondary-foreground: #34415b;
+  --muted: #e9eff7;
+  --accent: #eef3fb;
+  --accent-foreground: #34415b;
 
-  --destructive: #f24545;
+  --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --success: #10b981;
-  --success-light: #d1fae5;
-  --warning: #f59e0b;
-  --warning-light: #fef3c7;
-  --info: #0284c7;
-  --info-light: #e0f2fe;
+  --success: #22b573;
+  --success-light: #d9f7e8;
+  --warning: #f2a000;
+  --warning-light: #fdf1cf;
+  --info: #1f8ecf;
+  --info-light: #dff0fb;
 
-  --shadow-sm: 0 1px 4px rgba(20, 40, 100, 0.05);
-  --shadow-md: 0 6px 18px rgba(30, 59, 109, 0.08);
-  --shadow-lg: 0 12px 30px rgba(30, 59, 109, 0.12);
+  --shadow-sm: 0 2px 8px rgba(17, 32, 72, 0.06);
+  --shadow-md: 0 10px 24px rgba(17, 32, 72, 0.09);
+  --shadow-lg: 0 18px 40px rgba(17, 32, 72, 0.14);
 
   --radius: 0.72rem;
   --input: transparent;
-  --input-background: #f7faff;
-  --ring: #95b4eb;
+  --input-background: #f2f5fb;
+  --ring: #93aeea;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
   --font-size: 16px;
 
-  --chart-1: #316bff;
-  --chart-2: #6d7af1;
-  --chart-3: #10b981;
-  --chart-4: #f59e0b;
-  --chart-5: #f24545;
+  --chart-1: #2f66ff;
+  --chart-2: #4f83ff;
+  --chart-3: #22b573;
+  --chart-4: #f2a000;
+  --chart-5: #ef4444;
 }
 
 @theme inline {
@@ -109,8 +109,8 @@
   body {
     font-family: "Pretendard", "Inter", "Noto Sans KR", -apple-system, sans-serif;
     background:
-      radial-gradient(circle at top left, rgba(49, 107, 255, 0.06), transparent 26%),
-      linear-gradient(180deg, #f8fbff 0%, var(--background) 28%, #eef3fa 100%);
+      radial-gradient(circle at top left, rgba(47, 102, 255, 0.06), transparent 26%),
+      linear-gradient(180deg, #f8faff 0%, var(--background) 28%, #edf2fa 100%);
     background-attachment: fixed;
     color: var(--foreground);
     text-rendering: optimizeLegibility;
@@ -165,6 +165,20 @@
 }
 
 @layer components {
+  .app-content-density {
+    --content-scale: 0.9;
+    zoom: var(--content-scale);
+  }
+
+  @supports not (zoom: 1) {
+    .app-content-density {
+      transform: scale(var(--content-scale));
+      transform-origin: top left;
+      width: calc(100% / var(--content-scale));
+      height: calc(100% / var(--content-scale));
+    }
+  }
+
   .app-shell-page {
     @apply min-h-screen bg-background text-foreground;
   }

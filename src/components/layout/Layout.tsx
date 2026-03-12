@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import favicon from "@/assets/favicon.svg";
+import { FloatingAiChat } from "@/components/layout/FloatingAiChat";
 import {
   Activity,
   BarChart2,
@@ -139,7 +140,7 @@ export const Layout: React.FC = () => {
                       {section.toUpperCase()}
                     </p>
                   )}
-                  <div className="flex flex-col gap-1 px-2">
+                  <div className="flex flex-col gap-0.5 px-2">
                     {items.map((item) => {
                       const isActive = location.pathname === item.path;
                       return (
@@ -148,13 +149,17 @@ export const Layout: React.FC = () => {
                           type="button"
                           onClick={() => navigate(item.path)}
                           title={collapsed ? item.label : undefined}
-                          className={`flex items-center rounded-lg py-1.5 transition-colors ${
-                            collapsed ? "justify-center px-0" : "gap-3 px-3 text-left"
-                          } ${isActive ? "bg-[#EEF4FF]" : "hover:bg-[#F8FAFF]"}`}
+                          className={`relative flex w-full items-center rounded-lg py-2 transition-all ${
+                            collapsed ? "justify-center px-2" : "gap-2.5 px-3 text-left"
+                          } ${isActive ? "bg-[#EEF4FF]" : "hover:bg-[#F4F7FF]"}`}
                         >
+                          {/* Selected left accent bar */}
+                          {isActive && (
+                            <span className="absolute left-0.5 top-1.5 bottom-1.5 w-[2.5px] rounded-full bg-[#3D5AF1]" />
+                          )}
                           <span
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                              isActive ? "bg-[#DCE8FF] text-[#3D5AF1]" : "text-[#7B8798]"
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors ${
+                              isActive ? "text-[#3D5AF1]" : "text-[#94A3B8]"
                             }`}
                           >
                             {item.icon}
@@ -231,10 +236,12 @@ export const Layout: React.FC = () => {
       </aside>
 
       <div className={`pt-14 transition-[padding-left] duration-200 ${collapsed ? CONTENT_MINI : CONTENT_FULL}`}>
-        <div className="hide-scrollbar flex h-[calc(100vh-56px)] overflow-hidden">
+        <div className="app-content-density hide-scrollbar flex h-[calc((100vh-56px)/0.9)] overflow-hidden">
           <Outlet />
         </div>
       </div>
+
+      <FloatingAiChat />
     </div>
   );
 };
