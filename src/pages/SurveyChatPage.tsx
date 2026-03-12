@@ -478,7 +478,7 @@ export const SurveyChatPage: React.FC = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center border-t border-[#E1E8F1] bg-[#EEF2FA] px-6 py-2 shrink-0">
+          <div className="flex items-center justify-center bg-[#EEF2FA] px-6 py-2 shrink-0">
             <AppPagination
               current={currentPage + 1}
               total={totalPages}
