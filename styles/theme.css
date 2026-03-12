@@ -58,6 +58,26 @@
   --chart-3: #22b573;
   --chart-4: #f2a000;
   --chart-5: #ef4444;
+
+  /* ── Rainbow Tag Palette ── */
+  --tag-red: #ef4444;
+  --tag-red-bg: #fef2f2;
+  --tag-orange: #f97316;
+  --tag-orange-bg: #fff7ed;
+  --tag-amber: #f59e0b;
+  --tag-amber-bg: #fffbeb;
+  --tag-green: #22c55e;
+  --tag-green-bg: #f0fdf4;
+  --tag-teal: #14b8a6;
+  --tag-teal-bg: #f0fdfa;
+  --tag-blue: #3b82f6;
+  --tag-blue-bg: #eff6ff;
+  --tag-indigo: #6366f1;
+  --tag-indigo-bg: #eef2ff;
+  --tag-purple: #a855f7;
+  --tag-purple-bg: #faf5ff;
+  --tag-pink: #ec4899;
+  --tag-pink-bg: #fdf2f8;
 }
 
 @theme inline {

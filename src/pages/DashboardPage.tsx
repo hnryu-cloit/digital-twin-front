@@ -2,34 +2,27 @@ import type React from "react";
 import { useState } from "react";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
 import {
-  Users, Smartphone, Tag, RefreshCw,
+  Users, Smartphone, RefreshCw,
   ChevronDown, ChevronUp, BarChart2,
   MapPin, ShoppingBag, TrendingUp, TrendingDown, Minus,
-  SlidersHorizontal, Clock,
+  SlidersHorizontal, Clock, Briefcase, Wallet, Globe, Tag
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 
-/* ─── 도넛 차트 데이터 (모노크롬 블루) ─── */
+/* ─── Mock Data ─── */
 const donutData = [
-  { name: "MZ 얼리어답터", value: 31 },
-  { name: "프리미엄 바이어", value: 28 },
-  { name: "패밀리 유저", value: 19 },
-  { name: "게이머", value: 14 },
-  { name: "비즈니스", value: 8 },
+  { name: "타겟 그룹 A", value: 31 },
+  { name: "타겟 그룹 B", value: 28 },
+  { name: "타겟 그룹 C", value: 19 },
+  { name: "타겟 그룹 D", value: 14 },
+  { name: "기타 그룹 E", value: 8 },
 ];
-const DONUT_COLORS = ["#316BFF", "#648EFF", "#CBD5E1", "#E2E8F0", "#F1F5F9"];
 
-const CUSTOM_LABEL = ({ cx, cy }: { cx: number; cy: number }) => (
-  <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-    <tspan x={cx} dy="-0.6em" className="text-[11px] fill-[var(--subtle-foreground)] font-bold">전체 표본</tspan>
-    <tspan x={cx} dy="1.5em" className="text-[16px] fill-foreground font-black">30,000</tspan>
-  </text>
-);
+const DONUT_COLORS = ["var(--primary)", "var(--primary-active-border)", "var(--primary-light-border)", "var(--primary-light-bg)", "var(--panel-soft)"];
 
-/* ─── 제품군별 분포 차트 (차분한 컬러) ─── */
 const productData = [
   { name: "S25 Ultra", value: 26 },
   { name: "S25+", value: 18 },
@@ -39,118 +32,82 @@ const productData = [
   { name: "A55", value: 6 },
   { name: "기타", value: 4 },
 ];
-const BAR_COLORS = ["#316BFF", "#316BFF", "#316BFF", "#94A3B8", "#94A3B8", "#CBD5E1", "#E2E8F0"];
 
-/* ─── 세그먼트 지표 데이터 ─── */
-interface SegmentMetric {
-  label: string;
-  value: number;
-  count: number;
-  color: string;
-  trend: "up" | "down" | "flat";
-  trendVal: string;
-  sub: string;
-}
+const BAR_COLORS = ["var(--primary)", "var(--primary)", "var(--primary)", "var(--primary-light-border)", "var(--primary-light-border)", "var(--border)", "var(--panel-soft)"];
 
-const SEGMENT_METRICS: SegmentMetric[] = [
-  { label: "MZ 얼리어답터", value: 31, count: 9300, color: "#316BFF", trend: "up", trendVal: "+4.2%p", sub: "20~34세 · 출시 즉시 구매 의향 72%" },
-  { label: "프리미엄 바이어", value: 28, count: 8400, color: "#316BFF", trend: "up", trendVal: "+1.8%p", sub: "35~49세 · S Ultra/Fold 선호 · 고가 모델 집중" },
-  { label: "패밀리 유저", value: 19, count: 5700, color: "#94A3B8", trend: "flat", trendVal: "0%p", sub: "30~50세 · 통신사 구매 비중 81% · AS 중시" },
-  { label: "게이머", value: 14, count: 4200, color: "#94A3B8", trend: "down", trendVal: "-1.1%p", sub: "18~30세 · 120Hz·발열 관심 높음 · Z Flip 선호" },
-  { label: "비즈니스 유저", value: 8, count: 2400, color: "#94A3B8", trend: "flat", trendVal: "0%p", sub: "40~55세 · 보안·DeX 기능 중시 · 자급제 비중 높음" },
+const SEGMENT_METRICS = [
+  { label: "타겟 그룹 A", value: 31, count: 9300, color: "var(--primary)", trend: "up", trendVal: "+4.2%p", sub: "분석을 통해 도출된 핵심 타겟 세그먼트 A" },
+  { label: "타겟 그룹 B", value: 28, count: 8400, color: "var(--primary)", trend: "up", trendVal: "+1.8%p", sub: "분석을 통해 도출된 핵심 타겟 세그먼트 B" },
+  { label: "타겟 그룹 C", value: 19, count: 5700, color: "var(--primary-active-border)", trend: "flat", trendVal: "0%p", sub: "잠재적 기회를 보유한 분석 그룹 C" },
 ];
 
-/* ─── 구매 채널 데이터 ─── */
-const CHANNEL_DATA = [
-  { label: "통신사 대리점", value: 44, color: "#316BFF" },
-  { label: "삼성 공식몰", value: 27, color: "#648EFF" },
-  { label: "자급제 (온라인)", value: 18, color: "#94A3B8" },
-  { label: "오프라인 유통", value: 11, color: "#CBD5E1" },
-];
-
-/* ─── 지역 데이터 ─── */
 const REGION_DATA = [
-  { label: "수도권", value: 48, color: "#316BFF" },
-  { label: "경상권", value: 21, color: "#94A3B8" },
-  { label: "전라권", value: 12, color: "#CBD5E1" },
-  { label: "충청권", value: 10, color: "#E2E8F0" },
-  { label: "기타", value: 9, color: "#F1F5F9" },
+  { label: "수도권", value: 48, color: "var(--primary)" },
+  { label: "경상권", value: 21, color: "var(--primary-active-border)" },
+  { label: "전라권", value: 12, color: "var(--primary-light-border)" },
+  { label: "충청권", value: 10, color: "var(--primary-light-bg)" },
+  { label: "기타", value: 9, color: "var(--panel-soft)" },
 ];
 
-/* ─── 체크박스 공통 컴포넌트 ─── */
+const CHANNEL_DATA = [
+  { label: "통신사 대리점", value: 44, color: "var(--primary)" },
+  { label: "삼성 공식몰", value: 27, color: "var(--primary-active-border)" },
+  { label: "자급제 (온라인)", value: 18, color: "var(--primary-light-border)" },
+  { label: "오프라인 유통", value: 11, color: "var(--primary-light-bg)" },
+];
+
+/* ─── UI Components ─── */
 function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
   return (
     <div
       onClick={onChange}
-      className={`w-4 h-4 rounded flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
-        checked ? "bg-primary border-primary shadow-sm" : "border-[var(--border)] bg-card hover:border-primary/50"
+      className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
+        checked ? "bg-primary border-primary shadow-[0_2px_6px_rgba(47,102,255,0.2)]" : "border-[var(--border)] bg-card hover:border-[var(--border-hover)]"
       }`}
     >
       {checked && (
-        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="block animate-in zoom-in-50 duration-200">
+          <path d="M1.5 4L4 6.5L8.5 1.5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )}
     </div>
   );
 }
 
-/* ─── 섹션 헤더 ─── */
-interface SectionHeaderProps {
-  icon: React.ReactNode;
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  count?: number;
-}
-
-function SectionHeader({ icon, title, open, onToggle, count }: SectionHeaderProps) {
+function SectionHeader({ icon, title, open, onToggle, count }: any) {
   return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors rounded-xl group"
-    >
-      <div className="flex items-center gap-2.5">
-        <span className="text-[var(--subtle-foreground)] group-hover:text-primary transition-colors">{icon}</span>
-        <span className="text-[13px] font-bold text-[var(--secondary-foreground)]">{title}</span>
-        {count !== undefined && count > 0 && (
-          <span className="bg-[var(--panel-soft)] text-[var(--muted-foreground)] px-2 py-0.5 rounded-full text-[10px] font-black">{count}</span>
-        )}
+    <button onClick={onToggle} className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors rounded-xl group">
+      <div className="flex items-center gap-3">
+        <span className={`transition-colors ${open ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"}`}>{icon}</span>
+        <span className={`text-[12px] font-bold tracking-tight ${open ? "text-foreground" : "text-[var(--secondary-foreground)] group-hover:text-foreground"}`}>{title}</span>
+        {count > 0 && <span className="bg-[var(--primary-light-bg)] text-primary px-2 py-0.5 rounded-full text-[9px] font-bold border border-[var(--primary-light-border)]">{count}</span>}
       </div>
-      {open ? <ChevronUp size={14} className="text-[var(--muted-foreground)]" /> : <ChevronDown size={14} className="text-[var(--muted-foreground)]" />}
+      <div className="text-[var(--subtle-foreground)] group-hover:text-primary transition-all">{open ? <ChevronUp size={14} strokeWidth={2.5} /> : <ChevronDown size={14} strokeWidth={2.5} />}</div>
     </button>
   );
 }
 
-/* ─── 트렌드 아이콘 ─── */
-function TrendBadge({ trend, val }: { trend: "up" | "down" | "flat"; val: string }) {
-  if (trend === "up") return (
-    <span className="flex items-center gap-0.5 text-primary text-[11px] font-black">
-      <TrendingUp size={11} />{val}
-    </span>
-  );
-  if (trend === "down") return (
-    <span className="flex items-center gap-0.5 text-[var(--subtle-foreground)] text-[11px] font-black">
-      <TrendingDown size={11} />{val}
-    </span>
-  );
-  return (
-    <span className="flex items-center gap-0.5 text-[var(--muted-foreground)] text-[11px] font-black">
-      <Minus size={11} />{val}
-    </span>
-  );
+const CUSTOM_LABEL = ({ cx, cy }: { cx: number; cy: number }) => (
+  <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+    <tspan x={cx} dy="-0.6em" className="text-[10px] fill-[var(--subtle-foreground)] font-semibold uppercase tracking-[0.1em]">전체 표본</tspan>
+    <tspan x={cx} dy="1.4em" className="text-[22px] fill-foreground font-bold tracking-tight">30,000</tspan>
+  </text>
+);
+
+function TrendBadge({ trend, val }: { trend: string; val: string }) {
+  if (trend === "up") return <span className="flex items-center gap-0.5 text-primary text-[11px] font-bold"><TrendingUp size={11} />{val}</span>;
+  return <span className="flex items-center gap-0.5 text-[var(--subtle-foreground)] text-[11px] font-bold"><Minus size={11} />{val}</span>;
 }
 
-/* ─── 메인 컴포넌트 ─── */
+/* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
   const [openSections, setOpenSections] = useState({
     demographic: true,
     gender: true,
     product: true,
-    segment: true,
-    channel: false,
     region: false,
-    appHistory: false,
+    household: false,
+    interest: false,
   });
 
   const toggle = (key: keyof typeof openSections) =>
@@ -162,107 +119,107 @@ export const DashboardPage: React.FC = () => {
     s25ultra: true, s25plus: true, s25: true,
     zfold6: false, zflip6: true, a55: false,
   });
-  const [segments, setSegments] = useState({
-    mz: true, premium: true, family: false, gamer: true, business: false,
-  });
 
   const productCount = Object.values(products).filter(Boolean).length;
-  const segmentCount = Object.values(segments).filter(Boolean).length;
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background">
       <WorkflowStepper currentPath="/analytics" />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* ── 필터 사이드바 ── */}
-        <aside className="w-72 shrink-0 flex flex-col border-r border-[var(--border)] bg-card overflow-hidden shadow-sm">
-          <div className="h-16 flex items-center justify-between px-6 border-b border-[var(--border)] shrink-0">
+        {/* ── 필터 사이드바 (인구통계 항목 강화) ── */}
+        <aside className="w-72 shrink-0 flex flex-col border-r border-[var(--border)] bg-card overflow-hidden shadow-[var(--shadow-sm)]">
+          <div className="h-16 flex items-center justify-between px-6 border-b border-[var(--border)] shrink-0 bg-[var(--panel-soft)]">
             <div className="flex items-center gap-2">
-              <SlidersHorizontal size={16} className="text-primary" />
-              <p className="text-[13px] text-foreground font-black uppercase tracking-widest">분석 필터 설정</p>
+              <SlidersHorizontal size={15} className="text-primary" />
+              <p className="text-[12px] text-foreground font-bold uppercase tracking-[0.14em]">분석 필터 설정</p>
             </div>
-            <button className="text-[11px] text-primary font-black hover:underline uppercase tracking-tighter">초기화</button>
+            <button className="text-[10px] text-primary font-bold hover:underline">초기화</button>
           </div>
 
           <div className="flex-1 overflow-y-auto px-2 py-4 hide-scrollbar">
             <div className="flex flex-col gap-1">
-              {/* 인구통계 */}
               <div className="rounded-2xl overflow-hidden">
-                <SectionHeader icon={<Users size={15} />} title="연령 범위" open={openSections.demographic} onToggle={() => toggle("demographic")} />
+                <SectionHeader icon={<Users size={14} />} title="연령 범위" open={openSections.demographic} onToggle={() => toggle("demographic")} />
                 {openSections.demographic && (
                   <div className="px-5 pb-5">
                     <div className="flex items-center justify-between mb-4">
-                      <span className="text-[11px] text-[var(--subtle-foreground)] font-bold uppercase">연령대 선택</span>
-                      <span className="bg-primary text-white px-3 py-0.5 rounded-full text-[11px] font-black shadow-md shadow-blue-100">{ageRange[0]}~{ageRange[1]}세</span>
+                      <span className="text-[10px] text-[var(--subtle-foreground)] font-semibold uppercase">연령대 선택</span>
+                      <span className="bg-primary text-white px-3 py-0.5 rounded-full text-[11px] font-bold shadow-[var(--shadow-sm)]">{ageRange[0]}~{ageRange[1]}세</span>
                     </div>
                     <div className="relative h-6 flex items-center mb-2 px-1">
                       <div className="w-full h-1.5 bg-[var(--panel-soft)] rounded-full" />
                       <div className="absolute h-1.5 bg-primary rounded-full" style={{ left: "12%", right: "28%" }} />
-                      <div className="absolute w-4 h-4 bg-card border-2 border-primary rounded-full shadow-lg" style={{ left: "calc(12% - 8px)" }} />
-                      <div className="absolute w-4 h-4 bg-primary rounded-full shadow-lg shadow-blue-200" style={{ left: "calc(72% - 8px)" }} />
-                    </div>
-                    <div className="flex justify-between px-1 text-[10px] text-[var(--muted-foreground)] font-black uppercase tracking-tighter">
-                      <span>최소 18세</span>
-                      <span>최대 65세</span>
+                      <div className="absolute w-4 h-4 bg-card border-2 border-primary rounded-full shadow-[var(--shadow-sm)]" style={{ left: "calc(12% - 8px)" }} />
+                      <div className="absolute w-4 h-4 bg-primary rounded-full shadow-[var(--shadow-sm)]" style={{ left: "calc(72% - 8px)" }} />
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* 성별 분포 */}
               <div className="rounded-2xl overflow-hidden">
-                <SectionHeader icon={<Users size={15} />} title="성별 분포" open={openSections.gender} onToggle={() => toggle("gender")} />
+                <SectionHeader icon={<Users size={14} />} title="성별 선택" open={openSections.gender} onToggle={() => toggle("gender")} />
                 {openSections.gender && (
                   <div className="px-5 pb-4 flex gap-2">
-                    {([
-                      { key: "male", label: "남성", pct: "58%" },
-                      { key: "female", label: "여성", pct: "42%" },
-                    ] as { key: keyof typeof gender; label: string; pct: string }[]).map((g) => (
-                      <button key={g.key}
-                        onClick={() => setGender((p) => ({ ...p, [g.key]: !p[g.key] }))}
-                        className={`flex-1 py-3 rounded-xl border transition-all flex flex-col items-center gap-1 ${gender[g.key] ? "border-primary bg-primary-light-bg text-primary shadow-sm" : "border-[var(--border)] bg-card text-[var(--subtle-foreground)]"}`}>
-                        <span className="text-[12px] font-black">{g.label}</span>
-                        <span className="text-[10px] font-bold opacity-70">{g.pct}</span>
-                      </button>
-                    ))}
+                    <button onClick={() => setGender(p => ({ ...p, male: !p.male }))} className={`flex-1 py-3 rounded-xl border transition-all flex items-center justify-center ${gender.male ? "border-primary bg-[var(--primary-light-bg)] text-primary font-bold shadow-sm" : "border-[var(--border)] bg-card text-[var(--subtle-foreground)] hover:border-[var(--border-hover)]"}`}><span className="text-[13px]">남성</span></button>
+                    <button onClick={() => setGender(p => ({ ...p, female: !p.female }))} className={`flex-1 py-3 rounded-xl border transition-all flex items-center justify-center ${gender.female ? "border-primary bg-[var(--primary-light-bg)] text-primary font-bold shadow-sm" : "border-[var(--border)] bg-card text-[var(--subtle-foreground)] hover:border-[var(--border-hover)]"}`}><span className="text-[13px]">여성</span></button>
                   </div>
                 )}
               </div>
 
-              {/* 제품군 */}
               <div className="rounded-2xl overflow-hidden">
-                <SectionHeader icon={<Smartphone size={15} />} title="Galaxy 제품군" open={openSections.product} onToggle={() => toggle("product")} count={productCount} />
-                {openSections.product && (
-                  <div className="px-5 pb-4 flex flex-col gap-2.5">
-                    {([
-                      { key: "s25ultra", label: "Galaxy S25 Ultra", pct: 26 },
-                      { key: "s25plus", label: "Galaxy S25+", pct: 18 },
-                      { key: "s25", label: "Galaxy S25", pct: 22 },
-                      { key: "zflip6", label: "Galaxy Z Flip6", pct: 13 },
-                    ] as { key: keyof typeof products; label: string; pct: number }[]).map((d) => (
-                      <label key={d.key} className="flex items-center gap-3 cursor-pointer group">
-                        <Checkbox checked={products[d.key]} onChange={() => setProducts((p) => ({ ...p, [d.key]: !p[d.key] }))} />
-                        <span className={`text-[12px] font-bold flex-1 ${products[d.key] ? "text-foreground" : "text-[var(--subtle-foreground)] group-hover:text-[var(--secondary-foreground)]"}`}>{d.label}</span>
-                        <span className="text-[11px] text-[var(--muted-foreground)] font-black">{d.pct}%</span>
+                <SectionHeader icon={<Globe size={14} />} title="거주 지역" open={openSections.region} onToggle={() => toggle("region")} />
+                {openSections.region && (
+                  <div className="px-5 pb-4 flex flex-col gap-2">
+                    {["수도권", "경상권", "전라권", "충청권"].map(r => (
+                      <label key={r} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 cursor-pointer transition-all border-[var(--border)] bg-card hover:border-[var(--border-hover)]`}>
+                        <Checkbox checked={false} onChange={() => {}} />
+                        <span className="text-[12px] font-semibold text-[var(--secondary-foreground)]">{r}</span>
                       </label>
                     ))}
                   </div>
                 )}
               </div>
 
-              {/* 세그먼트 */}
               <div className="rounded-2xl overflow-hidden">
-                <SectionHeader icon={<Tag size={15} />} title="사용자 세그먼트" open={openSections.segment} onToggle={() => toggle("segment")} count={segmentCount} />
-                {openSections.segment && (
+                <SectionHeader icon={<Briefcase size={14} />} title="가구 형태" open={openSections.household} onToggle={() => toggle("household")} />
+                {openSections.household && (
                   <div className="px-5 pb-4 flex flex-col gap-2">
-                    {([
-                      { key: "mz", label: "MZ 얼리어답터" },
-                      { key: "premium", label: "프리미엄 바이어" },
-                      { key: "gamer", label: "게이머" },
-                    ] as { key: keyof typeof segments; label: string }[]).map((s) => (
-                      <label key={s.key} className={`flex items-center gap-3 rounded-xl border px-4 py-3 cursor-pointer transition-all ${segments[s.key] ? "border-primary bg-primary-light-bg/30 shadow-sm" : "border-[var(--border)] bg-card"}`}>
-                        <Checkbox checked={segments[s.key]} onChange={() => setSegments((p) => ({ ...p, [s.key]: !p[s.key] }))} />
-                        <span className={`text-[12px] truncate ${segments[s.key] ? "font-black text-primary" : "font-bold text-[var(--subtle-foreground)]"}`}>{s.label}</span>
+                    {["1인 가구", "2인 가구", "3인 이상 가구", "딩크족"].map(h => (
+                      <label key={h} className="flex items-center gap-3 px-1 cursor-pointer group">
+                        <Checkbox checked={false} onChange={() => {}} />
+                        <span className="text-[12px] font-semibold text-[var(--subtle-foreground)] group-hover:text-foreground">{h}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl overflow-hidden">
+                <SectionHeader icon={<Tag size={14} />} title="주요 관심사" open={openSections.interest} onToggle={() => toggle("interest")} />
+                {openSections.interest && (
+                  <div className="px-5 pb-4 flex flex-wrap gap-2">
+                    {["IT/테크", "게임", "패션", "육아", "재테크", "여행"].map(i => (
+                      <button key={i} className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-card text-[11px] font-bold text-[var(--subtle-foreground)] hover:border-primary hover:text-primary transition-all">{i}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl overflow-hidden">
+                <SectionHeader icon={<Smartphone size={14} />} title="Galaxy 제품군" open={openSections.product} onToggle={() => toggle("product")} count={productCount} />
+                {openSections.product && (
+                  <div className="px-5 pb-4 flex flex-col gap-3">
+                    {[
+                      { id: "s25ultra", label: "Galaxy S25 Ultra", pct: 26 },
+                      { id: "s25plus", label: "Galaxy S25+", pct: 18 },
+                      { id: "s25", label: "Galaxy S25", pct: 22 },
+                      { id: "zflip6", label: "Galaxy Z Flip6", pct: 13 },
+                    ].map((d) => (
+                      <label key={d.id} className="flex items-center gap-3 cursor-pointer group">
+                        <Checkbox checked={(products as any)[d.id]} onChange={() => setProducts(p => ({ ...p, [d.id]: !(p as any)[d.id] }))} />
+                        <span className={`text-[12px] font-semibold flex-1 ${(products as any)[d.id] ? "text-foreground" : "text-[var(--subtle-foreground)] group-hover:text-[var(--secondary-foreground)]"}`}>{d.label}</span>
+                        <span className="text-[10px] text-[var(--muted-foreground)] font-bold">{d.pct}%</span>
                       </label>
                     ))}
                   </div>
@@ -272,14 +229,13 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <div className="p-6 border-t border-[var(--border)] bg-card shrink-0">
-            <button className="w-full bg-primary text-white rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-[0.98]">
-              <RefreshCw size={15} />
-              <span className="text-[14px] font-black uppercase tracking-tight">분석 필터 적용</span>
+            <button className="w-full bg-primary text-white rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-[var(--shadow-sm)] hover:bg-primary-hover active:scale-[0.98] transition-all">
+              <RefreshCw size={14} />
+              <span className="text-[13px] font-bold uppercase tracking-tight">분석 필터 적용</span>
             </button>
           </div>
         </aside>
 
-        {/* ── 메인 영역 ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="app-page-header shrink-0">
             <p className="app-page-eyebrow">Segment Intelligence</p>
@@ -288,51 +244,50 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <main className="flex-1 overflow-y-auto px-10 py-8 hide-scrollbar space-y-8">
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-8">
-              {/* N수 + 도넛 차트 */}
-              <div className="app-card p-10 flex flex-col md:flex-row md:items-center gap-12 relative overflow-hidden group">
+            <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.6fr] gap-8">
+              <div className="app-card p-8 flex flex-col md:flex-row md:items-center gap-10 relative overflow-hidden transition-colors hover:border-[var(--border-hover)]" style={{ boxShadow: "var(--shadow-md)" }}>
                 <div className="flex-1 relative z-10">
-                  <p className="text-[14px] text-[var(--subtle-foreground)] font-black uppercase tracking-widest mb-2">전체 분석 대상</p>
-                  <div className="flex items-end gap-3 mb-6">
-                    <span className="text-[56px] font-black text-foreground tracking-tighter leading-none">30,000</span>
-                    <span className="text-[20px] text-[var(--subtle-foreground)] font-black pb-1.5 uppercase">명</span>
+                  <p className="text-[12px] text-[var(--subtle-foreground)] font-bold uppercase tracking-[0.14em] mb-2">전체 분석 대상</p>
+                  <div className="flex items-end gap-2 mb-6">
+                    <span className="text-[48px] font-bold text-foreground tracking-tighter leading-none">30,000</span>
+                    <span className="text-[18px] text-[var(--subtle-foreground)] font-bold pb-1 uppercase">명</span>
                   </div>
-                  <div className="inline-flex items-center gap-2 bg-[var(--panel-soft)] text-[var(--muted-foreground)] px-4 py-2 rounded-xl border border-[var(--border)]">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse" />
-                    <span className="text-[13px] font-black uppercase">실시간 데이터 연산 중</span>
+                  <div className="inline-flex items-center gap-2 bg-[var(--panel-soft)] text-[var(--primary-active-text)] px-3 py-1.5 rounded-lg border border-[var(--primary-light-border)]">
+                    <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+                    <span className="text-[12px] font-semibold uppercase tracking-tight">실시간 데이터 연산 중</span>
                   </div>
-                  <div className="mt-10 grid grid-cols-3 gap-3">
+                  <div className="mt-8 grid grid-cols-3 gap-4">
                     {[
                       { label: "평균 연령", value: "33.4세", icon: <Clock size={12} /> },
                       { label: "남성 비율", value: "58%", icon: <Users size={12} /> },
                       { label: "수도권 비중", value: "48%", icon: <MapPin size={12} /> },
                     ].map((s) => (
-                      <div key={s.label} className="bg-[var(--panel-soft)] rounded-xl p-4 border border-[var(--border)] hover:bg-[var(--surface-hover)] hover:shadow-md transition-all group/stat">
-                        <p className="text-[10px] text-[var(--subtle-foreground)] font-black uppercase flex items-center gap-1">{s.icon}{s.label}</p>
-                        <p className="text-[17px] font-black text-[var(--secondary-foreground)] group-hover/stat:text-primary">{s.value}</p>
+                      <div key={s.label} className="bg-[var(--panel-soft)] rounded-xl p-3.5 border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-all group/stat min-w-0">
+                        <p className="text-[10px] text-[var(--subtle-foreground)] font-bold uppercase flex items-center gap-1 whitespace-nowrap overflow-hidden">{s.icon}{s.label}</p>
+                        <p className="text-[16px] font-bold text-[var(--secondary-foreground)] group-hover/stat:text-primary mt-0.5">{s.value}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-10 bg-[var(--panel-soft)] p-10 rounded-[32px] border border-[var(--border)] shadow-inner relative z-10">
-                  <div style={{ width: 200, height: 200 }}>
+                <div className="flex items-center gap-8 bg-[var(--panel-soft)] p-8 rounded-3xl border border-[var(--border)] shadow-inner relative z-10 shrink-0">
+                  <div style={{ width: 180, height: 180 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={donutData} cx="50%" cy="50%" innerRadius={65} outerRadius={95} startAngle={90} endAngle={-270} dataKey="value" labelLine={false} label={CUSTOM_LABEL} strokeWidth={0}>
+                        <Pie data={donutData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} startAngle={90} endAngle={-270} dataKey="value" labelLine={false} label={CUSTOM_LABEL} strokeWidth={0}>
                           {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i]} />)}
                         </Pie>
-                        <Tooltip formatter={(v: number) => [`${v}%`, ""]} contentStyle={{ borderRadius: 16, border: "none", fontSize: 13, fontWeight: 800, boxShadow: "var(--shadow-lg)" }} />
+                        <Tooltip formatter={(v: number) => [`${v}%`, ""]} contentStyle={{ borderRadius: 12, border: "none", fontSize: 12, fontWeight: 600, boxShadow: "var(--shadow-lg)" }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3 min-w-[100px]">
                     {donutData.map((d, i) => (
-                      <div key={d.name} className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: DONUT_COLORS[i] }} />
-                        <div>
-                          <p className="text-[11px] text-[var(--subtle-foreground)] font-bold leading-none mb-1">{d.name}</p>
-                          <p className="text-[15px] font-black leading-none" style={{ color: i < 2 ? DONUT_COLORS[i] : "var(--secondary-foreground)" }}>{d.value}%</p>
+                      <div key={d.name} className="flex items-center gap-2.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: DONUT_COLORS[i] }} />
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-[var(--subtle-foreground)] font-semibold leading-none mb-1 truncate">{d.name}</p>
+                          <p className="text-[14px] font-bold leading-none text-[var(--secondary-foreground)]">{d.value}%</p>
                         </div>
                       </div>
                     ))}
@@ -340,20 +295,19 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 구매 채널 분포 */}
-              <div className="app-card p-10 border-[var(--border)]">
-                <div className="flex items-center gap-3 mb-10">
-                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border border-[var(--border)] shadow-sm"><ShoppingBag size={18} /></div>
-                  <h3 className="text-[16px] font-black text-foreground uppercase">주요 구매 채널 분포</h3>
+              <div className="app-card p-8 border-[var(--border)]" style={{ boxShadow: "var(--shadow-md)" }}>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-primary border border-[var(--border)] shadow-sm"><ShoppingBag size={16} /></div>
+                  <h3 className="text-[14px] font-bold text-foreground uppercase tracking-tight">주요 채널 분포</h3>
                 </div>
-                <div className="flex flex-col gap-8">
+                <div className="flex flex-col gap-6">
                   {CHANNEL_DATA.map((c) => (
                     <div key={c.label} className="group">
-                      <div className="flex justify-between mb-3 text-[13px] font-black">
-                        <span className="text-[var(--secondary-foreground)] group-hover:text-primary">{c.label}</span>
-                        <span className="text-foreground">{c.value}%</span>
+                      <div className="flex justify-between mb-2 text-[12px] font-semibold">
+                        <span className="text-[var(--secondary-foreground)] group-hover:text-primary transition-colors truncate pr-2">{c.label}</span>
+                        <span className="text-foreground shrink-0">{c.value}%</span>
                       </div>
-                      <div className="h-2 bg-[var(--panel-soft)] rounded-full overflow-hidden shadow-inner">
+                      <div className="h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden shadow-inner">
                         <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${c.value}%`, backgroundColor: c.color }} />
                       </div>
                     </div>
@@ -362,31 +316,30 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 세그먼트 지표 요약 */}
-            <div className="app-card p-10 border-[var(--border)] shadow-sm">
-              <div className="flex items-center justify-between mb-10 border-b border-[var(--border)] pb-8">
+            <div className="app-card p-8 border-[var(--border)]" style={{ boxShadow: "var(--shadow-md)" }}>
+              <div className="flex items-center justify-between mb-8 border-b border-[var(--border)] pb-6">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border border-[var(--border)] shadow-sm"><BarChart2 size={20} /></div>
-                  <h3 className="text-[18px] font-black text-foreground uppercase">세그먼트 지표 요약</h3>
+                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-primary border border-[var(--border)] shadow-sm"><BarChart2 size={18} /></div>
+                  <h3 className="text-[16px] font-bold text-foreground uppercase tracking-tight">세그먼트 지표 요약</h3>
                 </div>
-                <div className="bg-[var(--panel-soft)] px-4 py-1.5 rounded-full border border-[var(--border)] text-[11px] text-[var(--subtle-foreground)] font-black uppercase italic tracking-widest">전월 대비 분석 결과</div>
+                <div className="bg-[var(--panel-soft)] px-3 py-1 rounded-full border border-[var(--border)] text-[10px] text-[var(--subtle-foreground)] font-semibold uppercase tracking-[0.1em]">전월 대비 분석 결과</div>
               </div>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3">
                 {SEGMENT_METRICS.map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-[var(--border)] p-8 hover:bg-[var(--surface-hover)]/50 transition-all group flex items-center gap-12">
-                    <div className="w-48 shrink-0">
-                      <div className="flex items-center gap-3 mb-2.5">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-[15px] font-black text-foreground group-hover:text-primary">{item.label}</span>
+                  <div key={item.label} className="rounded-xl border border-[var(--border)] p-6 hover:bg-[var(--surface-hover)] hover:border-[var(--border-hover)] transition-all group flex items-center gap-10">
+                    <div className="w-40 shrink-0">
+                      <div className="flex items-center gap-2.5 mb-2">
+                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                        <span className="text-[14px] font-bold text-foreground group-hover:text-primary">{item.label}</span>
                       </div>
                       <TrendBadge trend={item.trend} val={item.trendVal} />
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between items-end mb-3">
-                        <p className="text-[12px] text-[var(--subtle-foreground)] font-bold max-w-sm">{item.sub}</p>
+                      <div className="flex justify-between items-end mb-2.5">
+                        <p className="text-[11px] text-[var(--muted-foreground)] font-medium max-w-sm">{item.sub}</p>
                         <div className="text-right">
-                          <span className="text-[12px] text-[var(--muted-foreground)] font-black mr-4">{item.count.toLocaleString()} N</span>
-                          <span className="text-[24px] font-black tracking-tighter" style={{ color: item.color }}>{item.value}%</span>
+                          <span className="text-[11px] text-[var(--subtle-foreground)] font-bold mr-3">{item.count.toLocaleString()} N</span>
+                          <span className="text-[20px] font-bold tracking-tight text-foreground">{item.value}%</span>
                         </div>
                       </div>
                       <div className="h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden shadow-inner">
@@ -398,20 +351,20 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-              {/* 제품군별 분포 */}
-              <div className="app-card p-10 border-[var(--border)]">
-                <div className="flex items-center gap-3 mb-10">
-                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border border-[var(--border)] shadow-sm"><Smartphone size={18} /></div>
-                  <h3 className="text-[16px] font-black text-foreground uppercase">Galaxy 기기별 분포 현황</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 pb-10">
+              <div className="app-card p-8 border-[var(--border)]" style={{ boxShadow: "var(--shadow-md)" }}>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-primary border border-[var(--border)] shadow-sm"><Smartphone size={16} /></div>
+                  <h3 className="text-[14px] font-bold text-foreground uppercase tracking-tight">Galaxy 기기별 분포 현황</h3>
                 </div>
-                <div style={{ height: 240 }}>
+                <div style={{ height: 220 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={productData} margin={{ top: 0, right: 20, bottom: 0, left: -10 }} barSize={24}>
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "var(--subtle-foreground)", fontWeight: 700 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: "var(--muted-foreground)", fontWeight: 700 }} axisLine={false} tickLine={false} unit="%" />
-                      <Tooltip cursor={{ fill: "var(--panel-soft)" }} contentStyle={{ borderRadius: 16, border: "none", fontSize: 12, fontWeight: 800, boxShadow: "var(--shadow-lg)" }} />
-                      <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    <BarChart data={productData} margin={{ top: 0, right: 20, bottom: 0, left: -10 }} barSize={20}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.5} />
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--subtle-foreground)", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: "var(--subtle-foreground)", fontWeight: 600 }} axisLine={false} tickLine={false} unit="%" />
+                      <Tooltip cursor={{ fill: "var(--panel-soft)" }} contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, fontWeight: 700, boxShadow: "var(--shadow-lg)" }} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                         {productData.map((_, i) => <Cell key={i} fill={BAR_COLORS[i]} />)}
                       </Bar>
                     </BarChart>
@@ -419,21 +372,20 @@ export const DashboardPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 지역별 분포 */}
-              <div className="app-card p-10 border-[var(--border)]">
-                <div className="flex items-center gap-3 mb-10">
-                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border border-[var(--border)] shadow-sm"><MapPin size={18} /></div>
-                  <h3 className="text-[16px] font-black text-foreground uppercase">지역별 분포 현황</h3>
+              <div className="app-card p-8 border-[var(--border)]" style={{ boxShadow: "var(--shadow-md)" }}>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="p-2 rounded-xl bg-[var(--panel-soft)] text-primary border border-[var(--border)] shadow-sm"><MapPin size={16} /></div>
+                  <h3 className="text-[14px] font-bold text-foreground uppercase tracking-tight">지역별 분포 현황</h3>
                 </div>
-                <div className="grid grid-cols-5 gap-6">
+                <div className="grid grid-cols-5 gap-4">
                   {REGION_DATA.map((r) => (
-                    <div key={r.label} className="flex flex-col items-center gap-5 group">
-                      <div className="w-full bg-[var(--panel-soft)] rounded-2xl overflow-hidden flex flex-col justify-end p-1 border border-[var(--border)] shadow-inner group-hover:bg-[var(--surface-hover)] transition-all" style={{ height: 160 }}>
-                        <div className="w-full rounded-xl transition-all duration-1000" style={{ height: `${r.value * 1.8}%`, minHeight: 8, backgroundColor: r.color }} />
+                    <div key={r.label} className="flex flex-col items-center gap-4 group">
+                      <div className="w-full bg-[var(--panel-soft)] rounded-xl overflow-hidden flex flex-col justify-end p-0.5 border border-[var(--border)] shadow-inner group-hover:bg-[var(--surface-hover)] transition-all" style={{ height: 140 }}>
+                        <div className="w-full rounded-lg transition-all duration-1000" style={{ height: `${r.value * 1.8}%`, minHeight: 4, backgroundColor: r.color }} />
                       </div>
                       <div className="text-center">
-                        <span className="text-[15px] font-black block mb-1" style={{ color: r.color === "#316BFF" ? "#316BFF" : "var(--secondary-foreground)" }}>{r.value}%</span>
-                        <span className="text-[11px] text-[var(--subtle-foreground)] font-black uppercase tracking-tighter">{r.label}</span>
+                        <span className="text-[13px] font-bold block mb-0.5 text-[var(--secondary-foreground)]">{r.value}%</span>
+                        <span className="text-[10px] text-[var(--subtle-foreground)] font-semibold uppercase tracking-tight">{r.label}</span>
                       </div>
                     </div>
                   ))}
