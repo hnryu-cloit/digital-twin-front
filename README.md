@@ -1,0 +1,172 @@
+# Digital Twin Front
+
+디지털 트윈 기반 가상 페르소나 리서치용 프론트엔드입니다.  
+현재 버전은 React + TypeScript 기반의 **UI/UX MVP 화면**이며, 분석 워크플로우(세그먼트 분석 → 설문 설계 → 실시간 응답 분석 → 리포트)를 목업 데이터로 제공합니다.
+
+---
+
+## 전체 시스템 구조
+
+```text
+[Frontend (본 레포)]  ->  [Mock Data / Local State]
+     :5173                   (src/pages 내부 정적 데이터)
+```
+
+- **Frontend** (본 레포): React SPA
+- **Data Source**: 페이지 내부 하드코딩 목업 데이터 + 로컬 상태
+- **Backend/API 연동**: 현재 미연동
+
+---
+
+## 기술 스택
+
+| 분류 | 라이브러리 | 버전 |
+|------|-----------|------|
+| Framework | React | 18.3.1 |
+| Language | TypeScript | 5.6.x |
+| Build Tool | Vite | 6.3.5 |
+| Routing | react-router | 7.13.0 |
+| Styling | Tailwind CSS | 4.1.12 |
+| Charts | Recharts | 2.15.2 |
+| UI Primitive | Radix UI | 1.1~2.2 |
+| Icons | Lucide React | 0.487.0 |
+| Utility | clsx + tailwind-merge | 2.1.1 / 3.2.0 |
+
+---
+
+## 시작하기
+
+### 사전 요구사항
+
+- Node.js 20+
+- npm
+
+### 설치 및 실행
+
+```bash
+# 의존성 설치
+npm install
+
+# 개발 서버 실행
+npm run dev
+
+# 프로덕션 빌드
+npm run build
+
+# 빌드 미리보기
+npm run preview
+
+# 린트
+npm run lint
+```
+
+### 환경변수 (`.env`)
+
+현재 코드에서 `import.meta.env` 사용이 없어 **필수 환경변수가 없습니다**.
+
+---
+
+## 화면 구성
+
+| 경로 | 페이지 | 설명 |
+|------|--------|------|
+| `/` | HomePage | 프로젝트 시작, 최근 활동, 템플릿 라이브러리, 생성 위저드 |
+| `/analytics` | DashboardPage | 세그먼트 필터링 및 분포/지표 차트 대시보드 |
+| `/survey` | SurveyChatPage | AI 설문 에이전트 채팅 + 문항 리스트 편집 |
+| `/live` | LiveAnalysisPage | 실시간 응답 피드/문항별 분포/CoT 검증 모달 |
+| `/report` | ReportPage | 최종 리포트, 섹션 네비게이션, 다운로드 포맷 선택 |
+| `/persona` | PersonaManagerPage | 페르소나 카드/리스트 관리, 상세 프로필 모달 |
+| `/reports` | ReportHistoryPage | 리포트 아카이브 목록 및 개별 다운로드 |
+| `/settings` | SettingsPage | 운영 설정/프롬프트 편집/모델 파라미터 UI |
+
+---
+
+## 주요 기능
+
+### 공통 레이아웃
+- 고정 헤더 + 좌측 사이드바 + 콘텐츠 영역 레이아웃
+- 현재 경로 기반 breadcrumb 표시
+- 사이드바 접기/펼치기 및 사용자 메뉴 팝업
+
+### 분석 워크플로우
+- 세그먼트 분석 필터 패널 및 차트 시각화
+- 설문 에이전트 대화형 문항 편집(추가/수정/삭제/페이지네이션)
+- 실시간 응답 스트림 시뮬레이션 및 CoT 상세 확인
+- 인사이트 중심 최종 리포트와 포맷별 다운로드 UI
+
+### 운영/관리
+- 페르소나 목록(카드/리스트) 및 상세 분석 모달
+- 리포트 히스토리 아카이브 및 검색/필터 UI
+- 프롬프트 파인튜닝 및 모델 파라미터 설정 UI
+
+### 보조 인터랙션
+- 전역 플로팅 AI 챗봇
+- 공통 페이지네이션 컴포넌트
+- 각 페이지별 모달/드롭다운/탭/토글 인터랙션
+
+---
+
+## 프로젝트 구조
+
+```text
+src/
+├── assets/                    # 로고/파비콘
+├── components/
+│   ├── figma/                 # 이미지 fallback 컴포넌트
+│   ├── layout/                # Layout, WorkflowStepper, FloatingAiChat
+│   └── ui/                    # 공통 UI 컴포넌트(Radix 기반 포함)
+├── lib/                       # 공용 유틸(cn)
+├── pages/                     # 라우트 페이지
+│   ├── HomePage.tsx
+│   ├── DashboardPage.tsx
+│   ├── SurveyChatPage.tsx
+│   ├── LiveAnalysisPage.tsx
+│   ├── ReportPage.tsx
+│   ├── PersonaManagerPage.tsx
+│   ├── ReportHistoryPage.tsx
+│   └── SettingsPage.tsx
+├── App.tsx                    # 라우팅 정의
+└── main.tsx                   # 엔트리 포인트
+
+styles/
+├── index.css                  # 글로벌 스타일 진입점
+├── theme.css                  # 테마 토큰
+├── tailwind.css               # Tailwind 레이어
+└── fonts.css                  # 폰트 설정
+```
+
+---
+
+## 아키텍처
+
+### 라우팅
+- `react-router v7` 사용
+- `Layout` 하위에 업무 페이지 라우트 구성
+- 현재는 별도 404 라우트 없이 정의된 경로 중심 운영
+
+### 상태 관리
+- 전역 상태 라이브러리 없이 `useState` 기반 로컬 상태 중심
+- 페이지 단위로 모달/드롭다운/필터/채팅 상태 관리
+
+### UI 시스템
+- Tailwind CSS + CSS 토큰(`styles/theme.css`) 기반 스타일링
+- `components/ui`에 Radix 기반 공통 컴포넌트 보유
+- `cn()` 유틸로 `clsx` + `tailwind-merge` 조합 사용
+
+---
+
+## 개발 현황
+
+| 항목 | 상태 |
+|------|------|
+| 공통 레이아웃/라우팅 구성 | 완료 |
+| 분석 워크플로우 UI(분석/설문/실시간/리포트) | 완료 |
+| 페르소나/리포트 관리 화면 | 완료 |
+| 백엔드 API 연동 | 미구현 |
+| 테스트 코드 | 미구현 |
+
+---
+
+## 참고 파일
+
+- `feature list/front.csv`
