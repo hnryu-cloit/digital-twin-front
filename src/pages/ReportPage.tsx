@@ -13,7 +13,6 @@ import {
  Maximize2,
  ExternalLink,
  Layers,
- Brain
 } from"lucide-react";
 import {
  Bar,
@@ -58,33 +57,51 @@ const TREND_DATA = [
 ];
 
 const FINDINGS = [
- {
- rank: 1,
- label:"최우선 전환 세그먼트",
- value:"30대 테크 게이머",
- delta:"+23.4%",
- desc:"고성능 하드웨어와 AI 소프트웨어 시너지를 가장 높게 평가하는 그룹입니다.",
- detail:"해당 그룹은 단순 스펙을 넘어 '실시간 레이트레이싱'과 'AI 화질 업스케일링' 기능에 압도적인 지불 용의(WTP)를 보이고 있습니다. 런칭 캠페인의 핵심 소구점으로 활용이 필요합니다.",
- tag:"Primary Target"
- },
- {
- rank: 2,
- label:"카메라 경험의 결정적 요인",
- value:"야간 시인성 (64.2%)",
- delta:"+11.8%",
- desc:"단순 화소수보다 저조도 환경에서의 AI 노이즈 억제력을 주요 구매 동인으로 선택했습니다.",
- detail:"전문가용 RAW 파일 편집 기능보다 자동 보정된 결과물의 'SNS 즉시 공유성'에 더 높은 가치를 부여합니다. '찍으면 바로 작품이 되는' 직관적 편의성을 강조하세요.",
- tag:"Core Value"
- },
- {
- rank: 3,
- label:"가격 저항선 및 이탈 리스크",
- value:"50대 실용주의층",
- delta:"-8.5%",
- desc:"AI 기능의 효용성보다 기기 출고가 인상에 대한 민감도가 임계치에 도달했습니다.",
- detail:"고연령 일반 사용자는 AI 기능을 '필수'가 아닌 '부가' 서비스로 인지합니다. 초기 구매 혜택보다는 '장기 사용 시의 잔존 가치 보전' 프로그램 제시가 효과적일 것입니다.",
- tag:"Risk Alert"
- },
+  {
+    rank: 1,
+    tag: "Primary Target",
+    label: "최우선 전환 세그먼트",
+    value: "30대 테크 게이머",
+    delta: "+23.4%",
+    isPositive: true,
+    desc: "고성능 하드웨어와 AI 소프트웨어 시너지를 가장 높게 평가하는 핵심 수익원입니다.",
+    evidence: [
+      { label: "AI 기능 지불 용의(WTP)", value: "76.3%" },
+      { label: "실시간 레이트레이싱 선호도", value: "88.1%" },
+      { label: "경쟁사 대비 브랜드 선호", value: "+2.1배" },
+    ],
+    action: "런칭 캠페인 핵심 소구점을 '레이트레이싱 + AI 업스케일링' 조합으로 집중 배치하고, 게이밍 인플루언서 파트너십을 통한 체험형 바이럴 마케팅을 선제 집행하세요.",
+  },
+  {
+    rank: 2,
+    tag: "Core Value",
+    label: "카메라 경험의 결정적 요인",
+    value: "야간 시인성 (64.2%)",
+    delta: "+11.8%",
+    isPositive: true,
+    desc: "단순 화소수보다 저조도 AI 노이즈 억제력이 실구매 전환의 핵심 변수입니다.",
+    evidence: [
+      { label: "야간 촬영 만족도 우선 응답", value: "64.2%" },
+      { label: "SNS 즉시 공유 의향", value: "71.5%" },
+      { label: "RAW 편집 대비 자동보정 선호", value: "3.2배" },
+    ],
+    action: "'찍으면 바로 작품이 되는' 직관적 편의성을 전면에 내세우고, 야간 촬영 비교 시연 콘텐츠를 온·오프라인 체험 마케팅의 핵심 크리에이티브로 활용하세요.",
+  },
+  {
+    rank: 3,
+    tag: "Risk Alert",
+    label: "가격 저항선 및 이탈 리스크",
+    value: "50대 실용주의층",
+    delta: "-8.5%",
+    isPositive: false,
+    desc: "AI 기능의 효용성보다 기기 출고가 인상에 대한 심리적 저항이 임계치에 도달했습니다.",
+    evidence: [
+      { label: "출고가 인상 거부 응답률", value: "72.8%" },
+      { label: "타 그룹 대비 가격 민감도", value: "2.4배" },
+      { label: "AI 기능 '부가' 인식 비율", value: "61.0%" },
+    ],
+    action: "초기 구매 할인보다 보상 판매·장기 보증 강화 등 '잔존 가치 보전' 프로그램을 전면에 제시하고, AI 기능을 '비용'이 아닌 '생활 절감 도구'로 재프레이밍하는 메시지를 별도 운용하세요.",
+  },
 ];
 
 const SECTIONS = [
@@ -181,6 +198,8 @@ export const ReportPage: React.FC = () => {
  });
 
  return () => observer.disconnect();
+ // sectionRefs는 렌더마다 재생성되는 객체이므로 deps 제외
+ // eslint-disable-next-line react-hooks/exhaustive-deps
  }, []);
 
  useEffect(() => {
@@ -347,35 +366,62 @@ export const ReportPage: React.FC = () => {
  </section>
 
  {/* SECTION 02: 핵심 인사이트 */}
- <section id="findings" ref={sectionRefs.findings} className="app-card p-12 relative overflow-hidden">
- <SectionHeader num="02" title="전략적 핵심 인사이트" badge="Key Findings & Decisions" />
- <div className="grid grid-cols-1 gap-8">
- {FINDINGS.map(f => (
- <div key={f.rank} className="app-soft p-10 hover:bg-card hover:shadow-[var(--shadow-lg)] transition-all duration-500 group border-[var(--border)] bg-[var(--panel-soft)]">
- <div className="flex items-center gap-10 mb-8 pb-8 border-b border-[var(--border)]/50">
- <div className="w-16 h-16 rounded-[24px] bg-card border border-[var(--border)] flex items-center justify-center text-[24px] font-black text-primary shadow-[var(--shadow-sm)] group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500">#{f.rank}</div>
- <div className="flex-1">
- <div className="flex items-center gap-3 mb-1.5">
- <span className="text-[10px] font-black text-primary bg-[var(--primary-light-bg)] px-2 py-0.5 rounded uppercase tracking-tighter">{f.tag}</span>
- <p className="text-[11px] font-black text-[var(--subtle-foreground)] uppercase tracking-widest">{f.label}</p>
- </div>
- <h4 className="text-[22px] font-black text-foreground tracking-tight">{f.value}</h4>
- </div>
- <div className="text-right">
- <span className={`text-[24px] font-black ${f.delta.startsWith('+') ? 'text-primary' : 'text-[var(--subtle-foreground)]'}`}>{f.delta}</span>
- <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase mt-1 tracking-widest">Impact Score</p>
- </div>
- </div>
- <div className="space-y-4">
- <p className="text-[15px] text-[var(--secondary-foreground)] font-bold leading-relaxed">{f.desc}</p>
- <div className="p-6 bg-white/80 rounded-2xl border border-[var(--border)] shadow-inner italic">
- <p className="text-[14px] text-[var(--muted-foreground)] font-medium leading-relaxed opacity-90">"{f.detail}"</p>
- </div>
- </div>
- </div>
- ))}
- </div>
- </section>
+        <section id="findings" ref={sectionRefs.findings} className="app-card p-12 relative overflow-hidden">
+          <SectionHeader num="02" title="전략적 핵심 인사이트" badge="Key Findings & Decisions" />
+          <div className="grid grid-cols-1 gap-6">
+            {FINDINGS.map(f => {
+              const isRisk = !f.isPositive;
+              return (
+                <div key={f.rank} className={`rounded-3xl border transition-all duration-300 group overflow-hidden ${isRisk ? "border-red-200 bg-red-50/30 hover:border-red-300" : "border-[var(--border)] bg-[var(--panel-soft)]/40 hover:border-primary/30"}`}>
+                  {/* 카드 헤더 */}
+                  <div className={`flex items-center gap-6 px-10 py-6 border-b ${isRisk ? "border-red-100 bg-red-50/50" : "border-[var(--border)] bg-card"}`}>
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-[18px] font-black shrink-0 shadow-[var(--shadow-sm)] transition-all duration-300 group-hover:scale-110 ${isRisk ? "bg-red-100 text-red-500" : "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)]"}`}>
+                      #{f.rank}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider ${isRisk ? "bg-red-100 text-red-500" : "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)]"}`}>{f.tag}</span>
+                        <span className="text-[11px] font-black text-[var(--subtle-foreground)] uppercase tracking-widest">{f.label}</span>
+                      </div>
+                      <h4 className="text-[20px] font-black text-foreground tracking-tight truncate">{f.value}</h4>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-[26px] font-black leading-none ${isRisk ? "text-red-500" : "text-primary"}`}>{f.delta}</p>
+                      <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mt-1">Impact Score</p>
+                    </div>
+                  </div>
+
+                  {/* 카드 바디 */}
+                  <div className="grid grid-cols-[1fr_320px] divide-x divide-[var(--border)]">
+                    {/* 좌측: 요약 + 근거 수치 */}
+                    <div className="p-8 space-y-6">
+                      <p className="text-[14px] text-[var(--secondary-foreground)] font-semibold leading-relaxed">{f.desc}</p>
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-[0.18em]">근거 데이터</p>
+                        {f.evidence.map((ev, i) => (
+                          <div key={i} className="flex items-center justify-between py-2.5 border-b border-[var(--border)]/50 last:border-0">
+                            <span className="text-[13px] font-semibold text-[var(--secondary-foreground)]">{ev.label}</span>
+                            <span className={`text-[14px] font-black tabular-nums ${isRisk ? "text-red-500" : "text-primary"}`}>{ev.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 우측: 전략 액션 */}
+                    <div className={`p-8 flex flex-col gap-4 ${isRisk ? "bg-red-50/40" : "bg-[var(--primary-light-bg)]/20"}`}>
+                      <p className={`text-[10px] font-black uppercase tracking-[0.18em] ${isRisk ? "text-red-400" : "text-primary"}`}>전략적 권장 액션</p>
+                      <p className="text-[14px] font-bold text-foreground leading-[1.75] flex-1">{f.action}</p>
+                      <div className={`flex items-center gap-2 text-[12px] font-black ${isRisk ? "text-red-400" : "text-primary"}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isRisk ? "bg-red-400" : "bg-primary"} animate-pulse`} />
+                        즉시 실행 권장
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
  {/* SECTION 03: 상세 분석 */}
  <section id="detail" ref={sectionRefs.detail} className="app-card p-12">
