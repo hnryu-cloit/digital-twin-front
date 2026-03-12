@@ -304,25 +304,33 @@ export const DashboardPage: React.FC = () => {
             {openSections.segment && (
               <div className="px-4 pb-3 flex flex-col gap-2">
                 {([
-                  { key: "mz", label: "MZ 얼리어답터", color: "#5B7DFF", bg: "#EEF4FF" },
-                  { key: "premium", label: "프리미엄 바이어", color: "#6366F1", bg: "#F0F0FF" },
-                  { key: "family", label: "패밀리 유저", color: "#818CF8", bg: "#F5F3FF" },
-                  { key: "gamer", label: "게이머", color: "#EA580C", bg: "#FFF7ED" },
-                  { key: "business", label: "비즈니스 유저", color: "#0284C7", bg: "#F0F9FF" },
-                ] as { key: keyof typeof segments; label: string; color: string; bg: string }[]).map((s) => (
-                  <label key={s.key} className="flex items-center gap-2 cursor-pointer">
+                  { key: "mz", label: "MZ 얼리어답터", color: "#5B7DFF" },
+                  { key: "premium", label: "프리미엄 바이어", color: "#7C3AED" },
+                  { key: "family", label: "패밀리 유저", color: "#94A3B8" },
+                  { key: "gamer", label: "게이머", color: "#0F766E" },
+                  { key: "business", label: "비즈니스 유저", color: "#0284C7" },
+                ] as { key: keyof typeof segments; label: string; color: string }[]).map((s) => (
+                  <label
+                    key={s.key}
+                    className="flex items-center gap-2 rounded-xl border px-2.5 py-2 cursor-pointer transition-colors"
+                    style={{
+                      borderColor: segments[s.key] ? "#BFD4FF" : "#E2E8F0",
+                      backgroundColor: segments[s.key] ? "#F8FBFF" : "#FFFFFF",
+                    }}
+                  >
                     <Checkbox checked={segments[s.key]} onChange={() => setSegments((p) => ({ ...p, [s.key]: !p[s.key] }))} />
-                    <span
-                      className="px-2 py-0.5 rounded-full border"
-                      style={{
-                        fontSize: 10, fontWeight: 600,
-                        backgroundColor: segments[s.key] ? s.bg : "#F7FAFF",
-                        color: segments[s.key] ? s.color : "#9BA6B8",
-                        borderColor: segments[s.key] ? s.color + "44" : "#DCE4F3",
-                      }}
-                    >
-                      {s.label}
-                    </span>
+                    <div className="flex min-w-0 flex-1 items-center gap-2">
+                      <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.color, opacity: segments[s.key] ? 1 : 0.35 }} />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: segments[s.key] ? 700 : 500,
+                          color: segments[s.key] ? "#1D1F3D" : "#64748B",
+                        }}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
                   </label>
                 ))}
               </div>
