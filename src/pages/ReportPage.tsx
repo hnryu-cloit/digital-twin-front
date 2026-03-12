@@ -1,27 +1,24 @@
 import type React from "react";
 import { useState, useRef, useEffect } from "react";
 import {
-  ArrowUpRight,
   Download,
   RotateCcw,
-  Share2,
   ChevronDown,
   Activity,
   Target,
   TrendingUp,
   Users,
-  Sparkles,
-  Info,
-  BarChart2,
-  Zap
+  Zap,
+  ShieldCheck,
+  Maximize2,
+  ExternalLink,
+  Layers,
+  Brain
 } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
   PolarAngleAxis,
   PolarGrid,
   Radar,
@@ -30,122 +27,119 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Area,
+  AreaChart
 } from "recharts";
 
 /* ─── Mock Data ─── */
 const RADAR_DATA = [
-  { subject: "성능", Gamer: 85, General: 65 },
-  { subject: "배터리", Gamer: 70, General: 75 },
-  { subject: "카메라", Gamer: 80, General: 72 },
-  { subject: "AI", Gamer: 60, General: 68 },
-  { subject: "가격", Gamer: 50, General: 70 },
+  { subject: "성능 지향", Gamer: 92, General: 65, fullMark: 100 },
+  { subject: "배터리 효율", Gamer: 70, General: 85, fullMark: 100 },
+  { subject: "카메라 혁신", Gamer: 88, General: 72, fullMark: 100 },
+  { subject: "AI 지능화", Gamer: 75, General: 68, fullMark: 100 },
+  { subject: "가격 합리성", Gamer: 45, General: 78, fullMark: 100 },
 ];
 
-const BAR_DATA = [
-  { name: "20대", Gamer: 72, General: 45 },
-  { name: "30대", Gamer: 88, General: 58 },
-  { name: "40대", Gamer: 55, General: 62 },
-  { name: "50대", Gamer: 30, General: 70 },
+const OPPORTUNITY_DATA = [
+  { name: "20대", value: 72, target: 85 },
+  { name: "30대", value: 88, target: 90 },
+  { name: "40대", value: 55, target: 70 },
+  { name: "50대", value: 38, target: 60 },
 ];
 
-const LINE_DATA = [
-  { week: "W1", intent: 52 },
-  { week: "W2", intent: 61 },
-  { week: "W3", intent: 58 },
-  { week: "W4", intent: 74 },
-  { week: "W5", intent: 71 },
-  { week: "W6", intent: 83 },
+const TREND_DATA = [
+  { week: "W1", value: 52 },
+  { week: "W2", value: 61 },
+  { week: "W3", value: 58 },
+  { week: "W4", value: 74 },
+  { week: "W5", value: 71 },
+  { week: "W6", value: 83 },
+  { week: "W7", value: 89 },
 ];
 
 const FINDINGS = [
   {
     rank: 1,
-    label: "최고 전환 세그먼트",
-    value: "30대 Gamer",
-    delta: "+23%",
-    desc: "전체 평균 대비 구매 의향 상승폭이 가장 큽니다.",
-    detail: "30대 Gamer 세그먼트는 카메라 기대감과 구매 전환 준비도가 모두 가장 높습니다. 특히 야간 촬영 보정 기능이 주된 구매 동인으로 확인됩니다.",
+    label: "최우선 전환 세그먼트",
+    value: "30대 테크 게이머",
+    delta: "+23.4%",
+    desc: "고성능 하드웨어와 AI 소프트웨어 시너지를 가장 높게 평가하는 그룹입니다.",
+    detail: "해당 그룹은 단순 스펙을 넘어 '실시간 레이트레이싱'과 'AI 화질 업스케일링' 기능에 압도적인 지불 용의(WTP)를 보이고 있습니다. 런칭 캠페인의 핵심 소구점으로 활용이 필요합니다.",
+    tag: "Primary Target"
   },
   {
     rank: 2,
-    label: "카메라 우선 구매 요인",
-    value: "64.2%",
-    delta: "+11%",
-    desc: "성능 매력보다 카메라 결과 중요도가 더 높습니다.",
-    detail: "순수 AP 성능보다 실생활에서의 '결과물' 체감도가 더 높게 평가되었습니다. 메시지는 스펙보다는 결과물 위주로 구성해야 합니다.",
+    label: "카메라 경험의 결정적 요인",
+    value: "야간 시인성 (64.2%)",
+    delta: "+11.8%",
+    desc: "단순 화소수보다 저조도 환경에서의 AI 노이즈 억제력을 주요 구매 동인으로 선택했습니다.",
+    detail: "전문가용 RAW 파일 편집 기능보다 자동 보정된 결과물의 'SNS 즉시 공유성'에 더 높은 가치를 부여합니다. '찍으면 바로 작품이 되는' 직관적 편의성을 강조하세요.",
+    tag: "Core Value"
   },
   {
     rank: 3,
-    label: "가격 리스크 세그먼트",
-    value: "50대 General",
-    delta: "-8%",
-    desc: "가격 민감도가 구매 의향 격차를 만드는 핵심 요인입니다.",
-    detail: "고연령층에서는 AI 기능에 대한 기대감보다 출고가에 대한 저항이 더 큽니다. 보상 판매 및 장기 할부 프로그램 강조가 필수적입니다.",
-  },
-];
-
-const Q_DATA = [
-  { 
-    id: "Q1",
-    q: "Galaxy S25 AI 카메라 기능의 인지도", 
-    options: [{ label: "매우 높음", pct: 45 }, { label: "보통", pct: 30 }, { label: "낮음", pct: 25 }],
-    stats: "신뢰 수준 95%에서 오차 범위 ±2.8%p 기록. Early Adopter 그룹의 인지도는 전체 평균 대비 1.4배 높게 나타나 전략적 타겟팅이 유효함을 입증함.",
-    insight: "기능 설명 단계에서 사용 장면 중심으로 커뮤니케이션 전환 필요."
-  },
-  { 
-    id: "Q2",
-    q: "현재 스마트폰 카메라 경험 만족도", 
-    options: [{ label: "만족", pct: 63 }, { label: "보통", pct: 22 }, { label: "불만족", pct: 15 }],
-    stats: "불만족 그룹의 82%가 '야간 촬영 품질'을 주 원인으로 꼽음. 이는 S25의 주요 소구 포인트인 Nightography와의 높은 정합성을 시사함.",
-    insight: "야간 촬영 비포/애프터 비교 자산을 활용한 교체 수요 자극 권장."
-  },
-  { 
-    id: "Q3",
-    q: "AI 기능이 구매 결정에 미치는 영향", 
-    options: [{ label: "매우 큼", pct: 52 }, { label: "큼", pct: 28 }, { label: "보통", pct: 20 }],
-    stats: "회귀 분석 결과, AI 유용성 인지도가 1단위 증가할 때 구매 의향은 0.64만큼 상승함. 통계적으로 매우 유의미한 양(+)의 상관관계 확인.",
-    insight: "AI 기능의 실생활 효용성을 강조하는 '생활 밀착형' 시나리오 마케팅 주력."
+    label: "가격 저항선 및 이탈 리스크",
+    value: "50대 실용주의층",
+    delta: "-8.5%",
+    desc: "AI 기능의 효용성보다 기기 출고가 인상에 대한 민감도가 임계치에 도달했습니다.",
+    detail: "고연령 일반 사용자는 AI 기능을 '필수'가 아닌 '부가' 서비스로 인지합니다. 초기 구매 혜택보다는 '장기 사용 시의 잔존 가치 보전' 프로그램 제시가 효과적일 것입니다.",
+    tag: "Risk Alert"
   },
 ];
 
 const SECTIONS = [
-  { id: "summary", label: "종합 요약", icon: "01" },
-  { id: "findings", label: "핵심 인사이트", icon: "02" },
-  { id: "detail", label: "문항 상세 분석", icon: "03" },
-  { id: "segment", label: "세그먼트 심층 비교", icon: "04" },
+  { id: "summary", label: "종합 분석 요약", icon: "01" },
+  { id: "findings", label: "전략적 핵심 인사이트", icon: "02" },
+  { id: "detail", label: "데이터 기반 상세 분석", icon: "03" },
+  { id: "segment", label: "세그먼트 기회 매트릭스", icon: "04" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 /* ─── Components ─── */
-function KpiCard({ icon, label, value, delta, sub }: { icon: React.ReactNode; label: string; value: string; delta?: string; sub?: string }) {
+function KpiCard({ icon, label, value, sub, delta, reliability }: { icon: React.ReactNode; label: string; value: string; sub: string; delta?: string; reliability: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 p-6 flex flex-col gap-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="w-10 h-10 rounded-xl bg-slate-50 text-[#316BFF] border border-slate-100 flex items-center justify-center shadow-sm">
+    <div className="app-card p-7 flex flex-col gap-5 hover:shadow-xl transition-all duration-500 group relative overflow-hidden">
+      <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform" />
+      <div className="flex items-start justify-between relative z-10">
+        <div className="w-12 h-12 rounded-2xl bg-[var(--primary-light-bg)] text-primary flex items-center justify-center border border-[var(--primary-light-border)] shadow-sm group-hover:bg-white transition-colors">
           {icon}
         </div>
-        {delta && (
-          <span className={`px-2 py-0.5 rounded-full text-[11px] font-black border ${delta.startsWith("+") ? "bg-green-50 text-green-600 border-green-100" : "bg-red-50 text-red-500 border-red-100"}`}>
-            {delta}
-          </span>
-        )}
+        <div className="flex flex-col items-end">
+          {delta && (
+            <span className="flex items-center gap-1 text-[11px] font-black text-primary bg-[var(--primary-light-bg)] px-2 py-1 rounded-lg border border-[var(--primary-light-border)] shadow-sm">
+              <TrendingUp size={10} /> {delta}
+            </span>
+          )}
+          <span className="text-[9px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mt-2">{reliability} Confidence</span>
+        </div>
       </div>
-      <div>
-        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">{label}</p>
-        <p className="text-[24px] font-black text-slate-900 leading-none">{value}</p>
-        {sub && <p className="mt-2 text-[11px] text-slate-400 font-medium italic">{sub}</p>}
+      <div className="relative z-10">
+        <p className="text-[11px] font-black text-[var(--subtle-foreground)] uppercase tracking-[0.1em] mb-1.5">{label}</p>
+        <p className="text-[28px] font-black text-foreground tracking-tighter leading-none mb-2">{value}</p>
+        <p className="text-[12px] text-[var(--muted-foreground)] font-bold opacity-80">{sub}</p>
       </div>
     </div>
   );
 }
 
-function SectionHeader({ num, title, badge }: { num: string; title: string; badge?: string }) {
+function SectionHeader({ num, title, badge, onDetailClick }: { num: string; title: string; badge?: string; onDetailClick?: () => void }) {
   return (
-    <div className="mb-8 flex items-center gap-4 border-b border-slate-50 pb-6">
-      <div className="w-8 h-8 rounded-xl bg-[#316BFF] text-white flex items-center justify-center text-[11px] font-black shadow-lg shadow-blue-100">{num}</div>
-      <h2 className="text-[20px] font-black text-slate-900 tracking-tight">{title}</h2>
-      {badge && <span className="ml-auto bg-slate-50 border border-slate-100 text-slate-400 px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-wider">{badge}</span>}
+    <div className="mb-10 flex items-center justify-between border-b border-[var(--border)] pb-8">
+      <div className="flex items-center gap-5">
+        <div className="w-10 h-10 rounded-2xl bg-primary text-white flex items-center justify-center text-[13px] font-black shadow-xl shadow-blue-100">{num}</div>
+        <div>
+          <h2 className="text-[22px] font-black text-foreground tracking-tight">{title}</h2>
+          {badge && <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mt-1 block opacity-60">{badge}</span>}
+        </div>
+      </div>
+      <button 
+        onClick={onDetailClick}
+        className="flex items-center gap-1.5 bg-white border border-[var(--border)] px-4 py-2 rounded-xl text-[12px] font-black text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary hover:border-primary/30 transition-all shadow-sm group/btn active:scale-95"
+      >
+        더보기
+        <span className="text-[11px] text-[var(--subtle-foreground)] group-hover/btn:translate-x-0.5 transition-transform">&gt;</span>
+      </button>
     </div>
   );
 }
@@ -198,91 +192,226 @@ export const ReportPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#F8FAFC] overflow-hidden">
-      {/* Welcome Header */}
-      <div className="px-10 py-8 shrink-0">
-        <section className="rounded-2xl border border-border/90 bg-card p-8 shadow-elevated relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-primary/10 transition-all duration-1000" />
-          <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Management System</p>
-            <h1 className="mt-2 font-title text-3xl font-bold leading-tight text-slate-900 md:text-4xl tracking-tight">
-              분석 결과 <span className="text-primary">최종 리포트.</span>
-            </h1>
-            <p className="mt-3 max-w-2xl text-base font-medium text-slate-500">
-              수집된 가상 페르소나 데이터 30,000건을 기반으로 한 전략 인사이트 보고서입니다.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button className="flex items-center gap-2.5 px-6 py-3 rounded-xl border border-slate-200 bg-white text-[13px] font-black text-slate-600 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
-                <RotateCcw size={18} />재분석 실행
-              </button>
-              <div className="relative" ref={downloadRef}>
-                <button onClick={() => setDownloadOpen(!downloadOpen)} className="flex items-center gap-3 px-8 py-3 rounded-xl bg-[#316BFF] text-white text-[14px] font-black hover:bg-[#1E46A8] shadow-xl shadow-blue-100 transition-all active:scale-95">
-                  <Download size={18} />다운로드<ChevronDown size={16} className={`transition-transform ${downloadOpen ? "rotate-180" : ""}`} />
-                </button>
-                {downloadOpen && (
-                  <div className="absolute right-0 top-full mt-3 z-50 w-48 bg-white border border-slate-100 rounded-2xl shadow-2xl p-1.5 animate-in fade-in slide-in-from-top-2">
-                    <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-slate-50 hover:text-primary transition-all">Download as PDF</button>
-                    <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-slate-50 hover:text-primary transition-all">Download as DOCX</button>
-                    <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-slate-50 hover:text-primary transition-all">Download as PPTX</button>
-                  </div>
-                )}
+    <div className="flex h-full w-full flex-col bg-background overflow-hidden">
+      
+      {/* ── 페이지 헤더 ── */}
+      <div className="app-page-header shrink-0 flex items-center justify-between">
+        <div>
+          <p className="app-page-eyebrow">Insight Report</p>
+          <h1 className="app-page-title mt-1">
+            전략적 분석 결과 <span className="text-primary">최종 리포트.</span>
+          </h1>
+          <p className="app-page-description">
+            가상 페르소나 데이터 30,000건 시뮬레이션 기반 컨설팅 인사이트 보고서입니다.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <button className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--border)] bg-white text-[13px] font-black text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] transition-all shadow-sm active:scale-95">
+            <RotateCcw size={16} />재분석 실행
+          </button>
+          <div className="relative" ref={downloadRef}>
+            <button onClick={() => setDownloadOpen(!downloadOpen)} className="flex items-center gap-3 px-7 py-2.5 rounded-xl bg-primary text-white text-[14px] font-black hover:bg-primary-hover shadow-xl shadow-blue-100 transition-all active:scale-95">
+              <Download size={18} />리포트 내보내기<ChevronDown size={16} className={`transition-transform ${downloadOpen ? "rotate-180" : ""}`} />
+            </button>
+            {downloadOpen && (
+              <div className="absolute right-0 top-full mt-3 z-50 w-56 bg-white border border-[var(--border)] rounded-2xl shadow-2xl p-1.5 animate-in fade-in slide-in-from-top-2">
+                <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary transition-all">PDF (High Quality) 다운로드</button>
+                <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary transition-all">DOCX (Editable) 다운로드</button>
+                <button className="w-full text-left px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary transition-all">PPTX (Presentation) 다운로드</button>
               </div>
-            </div>
+            )}
           </div>
-        </section>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-10 pb-10 hide-scrollbar scroll-smooth">
-        <div className="max-w-6xl mx-auto space-y-10 pb-20">
-          {/* KPI Summary */}
-          <div className="grid grid-cols-4 gap-6">
-            <KpiCard icon={<Users size={20} />} label="Total Sample" value="30,000" sub="성별/연령 비례 할당" delta="+4%" />
-            <KpiCard icon={<Target size={20} />} label="Purchase Intent" value="68.7%" sub="Intent Index" delta="+12%" />
-            <KpiCard icon={<Activity size={20} />} label="Data Reliability" value="98.4%" sub="Alpha: 0.82" />
-            <KpiCard icon={<Zap size={20} />} label="Key Action Items" value="03" sub="Prioritized" />
-          </div>
+        <div className="max-w-[1600px] mx-auto space-y-8 pb-24 pt-2">
+          
+          {/* KPI Dashboard Grid */}
+          <section className="grid grid-cols-4 gap-6">
+            <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value="30,000" sub="성별/연령/지역 비례 할당" delta="+4.2%" reliability="99.2%" />
+            <KpiCard icon={<Target size={22} />} label="최종 구매 의향" value="68.7%" sub="목표 수치(60%) 대비 상회" delta="+12.0%" reliability="95.0%" />
+            <KpiCard icon={<ShieldCheck size={22} />} label="응답 논리 정합성" value="98.4%" sub="모순 탐지 0.3% 미만" reliability="99.9%" />
+            <KpiCard icon={<Zap size={22} />} label="핵심 전략 액션" value="03" sub="실행 우선순위 도출 완료" delta="New" reliability="High" />
+          </section>
 
-          <div className="grid grid-cols-[260px_1fr] gap-10 items-start">
+          <div className="grid grid-cols-[280px_1fr] gap-8 items-start">
+            
             {/* ─── Sticky Section Nav ─── */}
-            <aside className="sticky top-0 z-20 space-y-1 bg-white border border-slate-100 rounded-3xl p-4 shadow-xl shadow-slate-200/50">
-              <p className="px-4 py-2 text-[11px] font-black uppercase text-slate-300 tracking-widest mb-2 border-b border-slate-50">Navigation</p>
+            <aside className="sticky top-0 z-20 space-y-1.5 bg-white/80 backdrop-blur-md border border-[var(--border)] rounded-[28px] p-4 shadow-[var(--shadow-md)]">
+              <div className="px-4 py-3 mb-2 border-b border-[var(--border)]">
+                <p className="text-[10px] font-black uppercase text-[var(--muted-foreground)] tracking-[0.2em]">Table of Contents</p>
+              </div>
               {SECTIONS.map(s => (
                 <button key={s.id} onClick={() => scrollToSection(s.id)}
-                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all relative ${activeSection === s.id ? "bg-[#EDF3FF] text-[#2454C8] font-black" : "text-slate-400 hover:bg-slate-50"}`}>
-                  {activeSection === s.id && <div className="absolute left-0 top-1/4 h-1/2 w-1 rounded-r-full bg-[#2454C8]" />}
-                  <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black border transition-all ${activeSection === s.id ? "bg-[#2454C8] text-white border-[#2454C8]" : "bg-slate-50 border-slate-100 opacity-60"}`}>{s.icon}</span>
-                  <span className="text-[13px] tracking-tight">{s.label}</span>
+                  className={`w-full flex items-center gap-4 px-4 py-4 rounded-2xl transition-all relative group/nav ${activeSection === s.id ? "bg-primary text-white shadow-[var(--shadow-sm)] font-black" : "text-[var(--subtle-foreground)] hover:bg-[var(--panel-soft)]"}`}>
+                  <span className={`w-7 h-7 rounded-xl flex items-center justify-center text-[11px] font-black border transition-all ${activeSection === s.id ? "bg-white/20 border-white/30 text-white" : "bg-[var(--panel-soft)] border-[var(--border)] text-[var(--muted-foreground)] opacity-60 group-hover/nav:opacity-100"}`}>{s.icon}</span>
+                  <span className="text-[13.5px] tracking-tight">{s.label}</span>
+                  {activeSection === s.id && <div className="absolute right-4 w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
                 </button>
               ))}
             </aside>
 
             {/* ─── Content Area ─── */}
-            <div className="space-y-12">
+            <div className="space-y-10">
+              
               {/* SECTION 01: 종합 요약 */}
-              <section id="summary" ref={sectionRefs.summary} className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50/50 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-blue-100/50 transition-all duration-1000" />
-                <SectionHeader num="01" title="종합 분석 요약" badge="Executive Summary" />
-                <div className="grid grid-cols-2 gap-12 relative z-10">
+              <section id="summary" ref={sectionRefs.summary} className="app-card p-12 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full -mr-64 -mt-64 blur-3xl group-hover:bg-primary/10 transition-all duration-1000" />
+                <SectionHeader num="01" title="종합 분석 및 총평" badge="Executive Summary" />
+                
+                <div className="grid grid-cols-2 gap-16 relative z-10">
                   <div className="space-y-6">
-                    <p className="text-[13px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-primary" />선호 프로파일 분석</p>
-                    <div className="h-[260px] bg-slate-50/50 rounded-3xl p-4 border border-white shadow-inner"><ResponsiveContainer width="100%" height="100%"><RadarChart data={RADAR_DATA}><PolarGrid stroke="#E2E8F0" /><PolarAngleAxis dataKey="subject" tick={{fontSize: 11, fontWeight: 700, fill: "#64748B"}} /><Radar name="Gamer" dataKey="Gamer" stroke="#316BFF" fill="#316BFF" fillOpacity={0.15} strokeWidth={3} /><Radar name="General" dataKey="General" stroke="#94A3B8" fill="#94A3B8" fillOpacity={0.05} strokeWidth={1.5} /></RadarChart></ResponsiveContainer></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[13px] font-black text-foreground uppercase tracking-widest flex items-center gap-3"><Layers size={16} className="text-primary" />핵심 선호 프로파일</p>
+                      <span className="text-[11px] font-black text-[var(--muted-foreground)]">Confidence: 98%</span>
+                    </div>
+                    <div className="h-[280px] app-soft p-6 bg-[var(--panel-soft)] border-[var(--border)] shadow-inner rounded-3xl">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={RADAR_DATA}>
+                          <PolarGrid stroke="var(--border)" />
+                          <PolarAngleAxis dataKey="subject" tick={{fontSize: 11, fontWeight: 800, fill: "var(--secondary-foreground)"}} />
+                          <Radar name="핵심 타겟" dataKey="Gamer" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.15} strokeWidth={4} />
+                          <Radar name="비교 그룹" dataKey="General" stroke="var(--subtle-foreground)" fill="var(--subtle-foreground)" fillOpacity={0.05} strokeWidth={2} strokeDasharray="4 4" />
+                          <Tooltip contentStyle={{borderRadius: 16, border: "none", boxShadow: "var(--shadow-xl)"}} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                   <div className="space-y-6">
-                    <p className="text-[13px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-3"><div className="w-1.5 h-1.5 rounded-full bg-primary" />구매 의향 추이</p>
-                    <div className="h-[260px] bg-slate-50/50 rounded-3xl p-4 border border-white shadow-inner"><ResponsiveContainer width="100%" height="100%"><LineChart data={LINE_DATA}><CartesianGrid stroke="#E2E8F0" vertical={false} strokeDasharray="3 3" /><XAxis dataKey="week" hide /><Line type="monotone" dataKey="intent" stroke="#316BFF" strokeWidth={4} dot={{r: 6, fill: "#316BFF", strokeWidth: 2, stroke: "#fff"}} /></LineChart></ResponsiveContainer></div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[13px] font-black text-foreground uppercase tracking-widest flex items-center gap-3"><Activity size={16} className="text-primary" />구매 의향 가속도</p>
+                      <span className="text-[11px] font-black text-[var(--muted-foreground)]">Trend Analysis</span>
+                    </div>
+                    <div className="h-[280px] app-soft p-6 bg-[var(--panel-soft)] border-[var(--border)] shadow-inner rounded-3xl">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={TREND_DATA}>
+                          <defs>
+                            <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="var(--chart-1)" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="var(--chart-1)" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 3" />
+                          <XAxis dataKey="week" hide />
+                          <Tooltip contentStyle={{borderRadius: 16, border: "none", boxShadow: "var(--shadow-xl)"}} />
+                          <Area type="monotone" dataKey="value" stroke="var(--chart-1)" strokeWidth={4} fillOpacity={1} fill="url(#colorValue)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
-                <div className="mt-12 bg-slate-900 rounded-[32px] p-8 text-white relative overflow-hidden shadow-2xl shadow-blue-900/20"><div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" /><p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-4">Strategic Insight</p><p className="text-[16px] font-bold leading-relaxed opacity-90 italic">"30대 고관여 게이머 그룹의 압도적인 긍정 신호는 S25 시리즈의 성공적인 런칭을 암시합니다. 하반기에는 가격 저항선이 높은 고연령 General 세그먼트를 위한 맞춤형 금융 혜택 설계가 필요합니다."</p></div>
+
+                <div className="mt-12 p-10 bg-[var(--foreground)] text-white rounded-[32px] relative overflow-hidden shadow-[var(--shadow-lg)] border-none group/insight">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full -mr-32 -mt-32 blur-3xl opacity-50 group-hover/insight:opacity-100 transition-opacity" />
+                  <div className="flex items-start gap-6 relative z-10">
+                    <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-lg shrink-0">
+                      <Brain size={32} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[11px] font-black text-primary uppercase tracking-[0.3em] mb-4">Strategic Intelligence Report</p>
+                      <p className="text-[18px] font-bold leading-relaxed text-white/90 italic">
+                        "Galaxy S25의 초기 시장 진입은 30대 헤비 유저 그룹의 압도적인 호응을 바탕으로 매우 긍정적일 것으로 예측됩니다. 
+                        특히 <span className="text-primary">AI 화질 보정 알고리즘</span>에 대한 높은 신뢰도는 경쟁사 대비 강력한 차별화 요소로 작동하고 있습니다. 
+                        하반기에는 가격 탄력성이 높은 보급형 시장을 위한 전략적 금융 프로모션이 선행되어야 합니다."
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </section>
 
               {/* SECTION 02: 핵심 인사이트 */}
-              <section id="findings" ref={sectionRefs.findings} className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-xl"><SectionHeader num="02" title="핵심 인사이트 분석" badge="Deep Dive" /><div className="grid grid-cols-1 gap-6">{FINDINGS.map(f => (<div key={f.rank} className="bg-slate-50/50 rounded-[28px] border border-slate-100 p-8 hover:bg-white hover:shadow-xl transition-all group"><div className="flex items-center gap-8 mb-6"><div className="w-14 h-14 rounded-2xl bg-white border border-slate-100 flex items-center justify-center text-[20px] font-black text-primary shadow-sm group-hover:scale-105 transition-all">#{f.rank}</div><div className="flex-1"><p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1">{f.label}</p><h4 className="text-[20px] font-black text-slate-900 tracking-tight">{f.value}</h4></div><div className="text-right"><span className="text-[18px] font-black text-green-500">{f.delta}</span><p className="text-[10px] font-black text-slate-300 uppercase mt-1">YoY Index</p></div></div><div className="bg-white/80 rounded-2xl p-6 border border-slate-50 italic"><p className="text-[14px] text-slate-600 font-bold leading-relaxed opacity-90">"{f.detail}"</p></div></div>))}</div></section>
+              <section id="findings" ref={sectionRefs.findings} className="app-card p-12 relative overflow-hidden">
+                <SectionHeader num="02" title="전략적 핵심 인사이트" badge="Key Findings & Decisions" />
+                <div className="grid grid-cols-1 gap-8">
+                  {FINDINGS.map(f => (
+                    <div key={f.rank} className="app-soft p-10 hover:bg-card hover:shadow-xl transition-all duration-500 group border-[var(--border)] bg-[var(--panel-soft)]">
+                      <div className="flex items-center gap-10 mb-8 pb-8 border-b border-[var(--border)]/50">
+                        <div className="w-16 h-16 rounded-[24px] bg-white border border-[var(--border)] flex items-center justify-center text-[24px] font-black text-primary shadow-sm group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500">#{f.rank}</div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-1.5">
+                            <span className="text-[10px] font-black text-primary bg-[var(--primary-light-bg)] px-2 py-0.5 rounded uppercase tracking-tighter">{f.tag}</span>
+                            <p className="text-[11px] font-black text-[var(--subtle-foreground)] uppercase tracking-widest">{f.label}</p>
+                          </div>
+                          <h4 className="text-[22px] font-black text-foreground tracking-tight">{f.value}</h4>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-[24px] font-black ${f.delta.startsWith('+') ? 'text-primary' : 'text-[var(--subtle-foreground)]'}`}>{f.delta}</span>
+                          <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase mt-1 tracking-widest">Impact Score</p>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <p className="text-[15px] text-[var(--secondary-foreground)] font-bold leading-relaxed">{f.desc}</p>
+                        <div className="p-6 bg-white/80 rounded-2xl border border-[var(--border)] shadow-inner italic">
+                          <p className="text-[14px] text-[var(--muted-foreground)] font-medium leading-relaxed opacity-90">"{f.detail}"</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-              {/* SECTION 03: 문항 상세 분석 */}
-              <section id="detail" ref={sectionRefs.detail} className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-xl"><SectionHeader num="03" title="문항별 통계 분석" badge="Statistical Evidence" /><div className="space-y-10">{Q_DATA.map(q => (<div key={q.id} className="bg-[#F8FAFC] rounded-[32px] border border-slate-100 p-8 group"><div className="flex items-start gap-8 mb-8"><div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-primary font-black text-[14px] border border-slate-100 group-hover:bg-primary group-hover:text-white transition-all">{q.id}</div><div className="flex-1"><h4 className="text-[18px] font-black text-slate-800 leading-tight mb-2">{q.q}</h4><p className="text-[13px] text-[#2454C8] font-black flex items-center gap-2"><Sparkles size={14} />{q.insight}</p></div></div><div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-10"><div className="space-y-5">{q.options.map(o => (<div key={o.label}><div className="flex justify-between mb-2"><span className="text-[12px] font-bold text-slate-500">{o.label}</span><span className="text-[12px] font-black text-primary">{o.pct}%</span></div><div className="h-2 bg-white rounded-full overflow-hidden shadow-inner border border-slate-50"><div className="h-full bg-primary/80 transition-all duration-1000" style={{width:`${o.pct}%`}} /></div></div>))}</div><div className="bg-white/60 border border-slate-100 rounded-2xl p-6 shadow-inner"><div className="flex items-center gap-2 text-slate-400 mb-3"><Info size={14} /><span className="text-[10px] font-black uppercase tracking-widest">Statistical Analysis</span></div><p className="text-[12px] text-slate-500 font-bold leading-relaxed">{q.stats}</p></div></div></div>))}</div></section>
+              {/* SECTION 03: 상세 분석 */}
+              <section id="detail" ref={sectionRefs.detail} className="app-card p-12">
+                <SectionHeader num="03" title="데이터 기반 심층 분석" badge="Quantitative Evidence" />
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="app-soft p-8 space-y-8 bg-[var(--panel-soft)] border-[var(--border)]">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[15px] font-black text-foreground flex items-center gap-3"><TrendingUp size={18} className="text-primary" />세그먼트별 기회 지수</h4>
+                      <button className="text-[var(--muted-foreground)] hover:text-primary transition-colors"><Maximize2 size={16} /></button>
+                    </div>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={OPPORTUNITY_DATA} margin={{top:20, right:30, left:0, bottom:0}}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fontWeight:800}} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fontSize:11}} />
+                          <Bar dataKey="value" fill="var(--chart-1)" radius={[6, 6, 0, 0]} barSize={32} />
+                          <Bar dataKey="target" fill="var(--border)" radius={[6, 6, 0, 0]} barSize={32} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="app-soft p-10 bg-primary text-white border-none shadow-[var(--shadow-lg)] flex flex-col justify-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -mr-24 -mt-24 blur-3xl" />
+                    <div className="relative z-10">
+                      <p className="text-[11px] font-black uppercase tracking-[0.3em] mb-6 opacity-60 text-white/80">Opportunity Matrix</p>
+                      <h4 className="text-[24px] font-black leading-tight mb-6">30대 타겟 그룹의<br />성장 기회 지수 +142.5 pts</h4>
+                      <p className="text-[14px] font-medium leading-relaxed text-white/80 mb-8 italic">
+                        "경쟁사 이탈 의향이 있는 30대 얼리어답터 그룹을 대상으로 한 초기 프로모션 집중 시, 전체 판매량의 15% 추가 업사이드가 예상됩니다."
+                      </p>
+                      <button className="flex items-center gap-2 text-[13px] font-black text-white bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition-all border border-white/20">
+                        세부 시뮬레이션 결과 보기 <ExternalLink size={14} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-              {/* SECTION 04: 세그먼트 비교 */}
-              <section id="segment" ref={sectionRefs.segment} className="bg-white rounded-[40px] border border-slate-100 p-10 shadow-xl"><SectionHeader num="04" title="세그먼트 기회 지수" badge="Opportunity Matrix" /><div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-10 items-center"><div className="h-[340px] bg-slate-50/50 rounded-3xl p-8 border border-white shadow-inner"><ResponsiveContainer width="100%" height="100%"><BarChart data={BAR_DATA} margin={{top:20, right:30, left:20, bottom:5}}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize:12, fontWeight:700}} /><YAxis axisLine={false} tickLine={false} tick={{fontSize:11}} /><Bar dataKey="Gamer" fill="#316BFF" radius={[6, 6, 0, 0]} barSize={32} /><Bar dataKey="General" fill="#CBD5E1" radius={[6, 6, 0, 0]} barSize={32} /></BarChart></ResponsiveContainer></div><div className="space-y-4"><div className="p-6 bg-blue-50 border border-blue-100 rounded-[24px] shadow-sm"><p className="text-[11px] font-black text-primary uppercase tracking-[0.2em] mb-2 flex items-center gap-2"><Target size={14} />Opportunity Group</p><p className="text-[14px] font-black text-slate-800 leading-tight">30대 Gamer 세그먼트</p><p className="text-[12px] text-slate-500 font-bold mt-2 leading-relaxed italic">"가장 높은 AI 기술 수용도와 기기 교체 의향을 동시에 보유한 고가치 타겟군으로 식별됨."</p></div><div className="p-6 bg-slate-50 border border-slate-100 rounded-[24px] shadow-inner"><p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 flex items-center gap-2"><BarChart2 size={14} />Growth Index</p><p className="text-[20px] font-black text-slate-900 tracking-tighter">+142.5 <span className="text-[12px] text-slate-400 font-bold ml-1">pts</span></p></div></div></div></section>
+              {/* SECTION 04: 최종 액션 */}
+              <section id="segment" ref={sectionRefs.segment} className="app-card p-12">
+                <SectionHeader num="04" title="전략적 권장 액션" badge="Execution Roadmap" />
+                <div className="grid grid-cols-3 gap-6">
+                  {[
+                    { title: "메시징 최적화", desc: "기술 용어 중심에서 '사용 결과' 체감형 메시지로 전환", priority: "High", time: "Q1" },
+                    { title: "타겟 오퍼 설계", desc: "헤비 유저 대상 기기 보상 판매 혜택 강화", priority: "High", time: "Immediate" },
+                    { title: "체험 공간 확충", desc: "오프라인 AI 기능 집중 체험존 전국 50개소 확대", priority: "Mid", time: "Q2" },
+                  ].map((action, i) => (
+                    <div key={i} className="app-soft p-8 border-[var(--border)] hover:border-primary/30 transition-all group/action">
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--panel-soft)] flex items-center justify-center text-[var(--subtle-foreground)] group-hover/action:bg-primary group-hover/action:text-white transition-all"><Zap size={20} /></div>
+                        <span className="text-[10px] font-black text-primary bg-[var(--primary-light-bg)] px-2 py-0.5 rounded uppercase">{action.priority}</span>
+                      </div>
+                      <h5 className="text-[16px] font-black text-foreground mb-3">{action.title}</h5>
+                      <p className="text-[13px] text-[var(--muted-foreground)] font-bold leading-relaxed">{action.desc}</p>
+                      <div className="mt-6 pt-6 border-t border-[var(--border)] flex items-center justify-between text-[11px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">
+                        <span>Timeline</span>
+                        <span className="text-[var(--muted-foreground)]">{action.time}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </div>
         </div>

@@ -88,7 +88,7 @@ export const FloatingAiChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-20 right-8 z-[100] flex flex-col items-end">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
         <div className="mb-5 flex h-[640px] w-[390px] flex-col overflow-hidden rounded-[32px] border border-[#DCE4F3] bg-white shadow-2xl animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -204,20 +204,21 @@ export const FloatingAiChat: React.FC = () => {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "flex h-16 w-14 items-center justify-center rounded-[20px] shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 border-2",
-          isOpen 
-            ? "bg-slate-900 border-slate-800 text-white" 
-            : "bg-white border-[#316BFF]/10 text-[#316BFF]"
+          "flex h-14 w-14 items-center justify-center rounded-full shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 border-2",
+          isOpen ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-primary/10 text-primary"
         )}
       >
         {isOpen ? (
-          <X className="h-7 w-7" />
+          <X className="h-6 w-6" />
         ) : (
-          <div className="h-10 w-10 relative">
+          <div className="h-8 w-8">
             <img src={favicon} alt="AI" className="h-full w-full object-contain" />
-            <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-ping" />
-            <div className="absolute -right-1 -top-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white shadow-sm" />
           </div>
+        )}
+        {!isOpen && (
+          <span className="absolute -right-1 -top-1 flex h-5 w-5 animate-bounce items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-md">
+            1
+          </span>
         )}
       </button>
     </div>

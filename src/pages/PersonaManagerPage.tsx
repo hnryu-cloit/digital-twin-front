@@ -473,7 +473,7 @@ export const PersonaManagerPage: React.FC = () => {
       {/* ── 페이지 헤더 ── */}
       <div className="app-page-header shrink-0 flex items-start justify-between gap-8">
         <div>
-          <p className="app-page-eyebrow">운영 관리 시스템</p>
+          <p className="app-page-eyebrow">Persona Lifecycle</p>
           <h1 className="app-page-title mt-1">
             가상 페르소나 <span className="text-primary">자산 관리.</span>
           </h1>
@@ -529,22 +529,31 @@ export const PersonaManagerPage: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
             {paginated.map(p => {
               const riskFlag = 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3));
-              const engagement = Math.round((p.brandAttitude + p.purchaseIntent + p.marketingAcceptance) / 3);
+              const riskMeta =
+                riskFlag >= 50
+                  ? { label: "High Risk", cls: "border-red-200 bg-red-50 text-red-600" }
+                  : riskFlag >= 35
+                    ? { label: "Watch", cls: "border-amber-200 bg-amber-50 text-amber-600" }
+                    : { label: "Stable", cls: "border-emerald-200 bg-emerald-50 text-emerald-600" };
+
               return (
-                <div key={p.id} className="app-card group relative flex flex-col overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--border-hover)] hover:shadow-lg">
-                  <div className="absolute left-0 top-0 h-full w-1.5" style={{ background: `linear-gradient(180deg, ${p.color}, transparent)` }} />
-
-                  <div className="mb-4 flex items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm" style={{ backgroundColor: p.iconBg, borderColor: `${p.color}2e` }}>
-                      <PersonaIcon iconKey={p.iconKey} size={21} />
+                <article key={p.id} className="app-card flex flex-col gap-4 p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-md">
+                  <header className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm" style={{ backgroundColor: p.iconBg, borderColor: `${p.color}2e` }}>
+                        <PersonaIcon iconKey={p.iconKey} size={21} />
+                      </div>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-[15px] font-bold text-foreground">{p.name}</h3>
+                        <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">{p.age}세 · {p.gender} · {p.occupation}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-[15px] font-bold text-foreground">{p.name}</h3>
-                      <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">{p.age}세 · {p.gender} · {p.occupation}</p>
-                    </div>
-                  </div>
+                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${riskMeta.cls}`}>
+                      {riskMeta.label}
+                    </span>
+                  </header>
 
-                  <div className="mb-3 flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5">
                     {p.segments.map(seg => (
                       <span
                         key={seg}
@@ -556,45 +565,25 @@ export const PersonaManagerPage: React.FC = () => {
                     ))}
                   </div>
 
-                  <p className="mb-4 line-clamp-2 text-[12px] font-medium leading-relaxed text-[var(--muted-foreground)]">
+                  <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[var(--muted-foreground)]">
                     "{p.description}"
                   </p>
 
-                  <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-3">
-                    <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-[var(--subtle-foreground)]">
-                      <span>종합 참여도</span>
-                      <span className="text-foreground">{engagement}%</span>
+                  <footer className="flex items-center justify-between border-t border-[var(--border)] pt-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--subtle-foreground)]">Future Value</p>
+                      <p className="text-[13px] font-bold text-foreground">{p.futureValue}%</p>
                     </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
-                      <div className="h-full rounded-full bg-primary" style={{ width: `${engagement}%` }} />
-                    </div>
-                  </div>
-
-                  <div className="mb-5 grid grid-cols-3 gap-2">
-                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Brand</p>
-                      <p className="mt-1 text-[14px] font-bold text-primary">{p.brandAttitude}</p>
-                    </div>
-                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Intent</p>
-                      <p className="mt-1 text-[14px] font-bold text-foreground">{p.purchaseIntent}%</p>
-                    </div>
-                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
-                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Risk</p>
-                      <p className={`mt-1 text-[14px] font-bold ${riskFlag >= 50 ? "text-red-500" : riskFlag >= 35 ? "text-amber-500" : "text-emerald-600"}`}>
-                        {riskFlag}%
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => setDetailTarget(p)}
-                    className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2.5 text-[12px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary"
-                  >
-                    상세 프로필 <ChevronRight size={13} />
-                  </button>
-                </div>
-              )})}
+                    <button
+                      onClick={() => setDetailTarget(p)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3.5 py-2 text-[12px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary"
+                    >
+                      상세 프로필 <ChevronRight size={13} />
+                    </button>
+                  </footer>
+                </article>
+              );
+            })}
           </div>
         ) : (
           /* ── 리스트 뷰 ── */
@@ -602,66 +591,73 @@ export const PersonaManagerPage: React.FC = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[var(--panel-soft)] border-b border-border">
-                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">Persona</th>
-                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">핵심지표</th>
-                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">세그먼트</th>
-                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Risk</th>
-                  <th className="px-6 py-4 text-right text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] pr-8">Action</th>
+                  <th className="px-8 py-5 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">Persona Profile</th>
+                  <th className="px-8 py-5 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Brand / Intent</th>
+                  <th className="px-8 py-5 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Future Val</th>
+                  <th className="px-8 py-5 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Marketing</th>
+                  <th className="px-8 py-5 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Risk</th>
+                  <th className="px-8 py-5 text-right text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] pr-10">Analysis</th>
                 </tr>
               </thead>
               <tbody>
-                {paginated.map(p => {
-                  const risk = 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3));
-                  return (
+                {paginated.map(p => (
                   <tr key={p.id} className="border-b border-border/30 last:border-0 hover:bg-[var(--surface-hover)] transition-colors group">
-                    <td className="px-6 py-4">
+                    <td className="px-8 py-5">
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm transition-colors group-hover:border-primary/30" style={{ backgroundColor: p.iconBg, borderColor: p.color + "22" }}>
+                        <div className="w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm group-hover:border-primary/30 transition-colors" style={{ backgroundColor: p.iconBg, borderColor: p.color + "22" }}>
                           <PersonaIcon iconKey={p.iconKey} size={18} />
                         </div>
-                        <div className="min-w-0">
+                        <div>
                           <p className="text-[14px] font-bold text-foreground mb-0.5">{p.name}</p>
                           <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">{p.age}세 · {p.gender} · {p.occupation}</p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {p.segments.slice(0, 2).map((seg) => (
+                              <span
+                                key={seg}
+                                className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                                style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}
+                              >
+                                {seg}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <p className="text-[12px] font-semibold text-foreground">Brand {p.brandAttitude}</p>
-                      <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">Intent {p.purchaseIntent}% · MKT {p.marketingAcceptance}%</p>
+                    <td className="px-8 py-5 text-center">
+                      <p className="text-[14px] font-bold text-primary">{p.brandAttitude}</p>
+                      <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">Intent {p.purchaseIntent}%</p>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex flex-wrap justify-center gap-1.5">
-                        {p.segments.slice(0, 2).map((seg) => (
-                          <span
-                            key={seg}
-                            className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-                            style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}
-                          >
-                            {seg}
-                          </span>
-                        ))}
-                      </div>
+                    <td className="px-8 py-5 text-center">
+                      <p className="text-[13px] font-semibold text-foreground">{p.futureValue}%</p>
                     </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${risk >= 50 ? "border-red-200 bg-red-50 text-red-600" : risk >= 35 ? "border-amber-200 bg-amber-50 text-amber-600" : "border-emerald-200 bg-emerald-50 text-emerald-600"}`}>
-                        {risk}%
+                    <td className="px-8 py-5 text-center">
+                      <p className="text-[13px] font-semibold text-foreground">{p.marketingAcceptance}%</p>
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <span
+                        className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${
+                          100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3)) >= 50
+                            ? "border-red-200 bg-red-50 text-red-600"
+                            : 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3)) >= 35
+                              ? "border-amber-200 bg-amber-50 text-amber-600"
+                              : "border-emerald-200 bg-emerald-50 text-emerald-600"
+                        }`}
+                      >
+                        {100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3))}%
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right pr-8">
-                      <button
-                        onClick={() => setDetailTarget(p)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-1.5 text-[11px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary"
-                      >
+                    <td className="px-8 py-5 text-right pr-10">
+                      <button onClick={() => setDetailTarget(p)} className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-1.5 text-[11px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary">
                         상세 <ChevronRight size={12} />
                       </button>
                     </td>
                   </tr>
-                )})}
+                ))}
               </tbody>
             </table>
           </div>
         )}
-
         <div className="flex justify-center pt-2 pb-6">
           <AppPagination current={page} total={totalPages} onChange={setPage} />
         </div>
