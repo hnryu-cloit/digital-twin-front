@@ -1,13 +1,13 @@
 import type React from "react";
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { AppPagination } from "@/components/ui/AppPagination";
 import {
-  Search, Plus, Pencil, Trash2, MoreHorizontal, Smartphone, Users, X,
-  ChevronDown, Check, UserCircle2, Gamepad2, ShoppingBag, Coffee, Briefcase,
-  Music, SlidersHorizontal, RotateCcw, LayoutGrid, List, Download,
-  Eye, Brain, Heart, Zap, Info, ShieldCheck, Activity, Target, AlertCircle,
+  Search, Plus, Smartphone, X,
+  UserCircle2, Gamepad2, Coffee, Briefcase,
+  Music, LayoutGrid, List,
+  Brain, Heart, Zap, ShieldCheck, Activity, Target, AlertCircle,
   TrendingUp, History, MessageSquare, BarChart2, Star, CreditCard, MousePointer2,
-  ChevronRight
+  ChevronRight, Cpu, Package
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -41,19 +41,19 @@ interface Persona {
 }
 
 const SEGMENT_COLORS: Record<Segment, { bg: string; text: string; border: string }> = {
-  "MZ 얼리어답터": { bg: "#EEF4FF", text: "#316BFF", border: "#CFE0FF" },
-  "프리미엄 구매자": { bg: "#FDF2F8", text: "#DB2777", border: "#FBCFE8" },
-  "실용 중시 가족형": { bg: "#F0FDF4", text: "#16A34A", border: "#DCFCE7" },
-  "게이밍 성향군": { bg: "#F5F3FF", text: "#7C3AED", border: "#DDD6FE" },
-  "비즈니스 프로": { bg: "#F0F9FF", text: "#0284C7", border: "#E0F2FE" },
+  "MZ 얼리어답터": { bg: "var(--primary-light-bg)", text: "var(--primary)", border: "var(--primary-light-border)" },
+  "프리미엄 구매자": { bg: "#E0E7FF", text: "#4338CA", border: "#C7D2FE" },
+  "실용 중시 가족형": { bg: "#F1F5F9", text: "#475569", border: "#E2E8F0" },
+  "게이밍 성향군": { bg: "#EEF2FF", text: "#4F46E5", border: "#C7D2FE" },
+  "비즈니스 프로": { bg: "#F0F9FF", text: "#0369A1", border: "#B9E6FE" },
 };
 
 const ICON_META = [
-  { bg: "#EEF4FF", color: "#316BFF" },
-  { bg: "#FDF2F8", color: "#DB2777" },
-  { bg: "#F0F9FF", color: "#0284C7" },
-  { bg: "#F5F3FF", color: "#7C3AED" },
-  { bg: "#F0FDF4", color: "#16A34A" },
+  { bg: "var(--primary-light-bg)", color: "var(--primary)" },
+  { bg: "#E0E7FF", color: "#4338CA" },
+  { bg: "#F0F9FF", color: "#0369A1" },
+  { bg: "#EEF2FF", color: "#4F46E5" },
+  { bg: "#F1F5F9", color: "#475569" },
 ];
 const PAGE_SIZE = 6;
 
@@ -89,77 +89,370 @@ function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number })
   return <span style={{ color: ICON_META[iconKey % 5].color }}>{icons[iconKey % 5]}</span>;
 }
 
-function FutureValueBadge({ value }: { value: number }) {
-  let label = "High";
-  let color = "text-green-600 bg-green-50 border-green-100";
-  if (value < 40) { label = "Low"; color = "text-slate-400 bg-slate-50 border-slate-100"; }
-  else if (value < 75) { label = "Mid"; color = "text-blue-600 bg-blue-50 border-blue-100"; }
-  return <span className={`rounded px-1.5 py-0.5 text-[10px] font-black border uppercase ${color}`}>{label} {value}</span>;
-}
-
 /* ─── Detail Modal ─── */
 function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => void }) {
+  const [detailTab, setDetailTab] = useState<"summary" | "activity" | "campaign">("summary");
+  const engagementScore = Math.round(
+    persona.purchaseIntent * 0.35 + persona.marketingAcceptance * 0.3 + persona.brandAttitude * 0.35,
+  );
+  const churnRisk = Math.max(
+    5,
+    Math.min(
+      95,
+      100 - Math.round(persona.brandAttitude * 0.4 + persona.marketingAcceptance * 0.25 + persona.purchaseIntent * 0.35),
+    ),
+  );
+  const dataConfidence = Math.round((engagementScore + persona.futureValue) / 2);
+
+  const spendTier =
+    persona.monthlyTechSpend.includes("50") || persona.monthlyTechSpend.includes("30")
+      ? "high"
+      : persona.monthlyTechSpend.includes("20") || persona.monthlyTechSpend.includes("10")
+        ? "mid"
+        : "low";
+  const priceSensitivity = spendTier === "high" ? "낮음" : spendTier === "mid" ? "보통" : "높음";
+  const adoptionStage =
+    persona.purchaseIntent >= 85 ? "즉시 전환 가능" : persona.purchaseIntent >= 65 ? "관심 단계" : "관망 단계";
+  const preferredChannel =
+    persona.interests.some((v) => v.includes("유튜브") || v.includes("영상"))
+      ? "영상 캠페인"
+      : persona.interests.some((v) => v.includes("뉴스") || v.includes("경제"))
+        ? "텍스트 브리핑"
+        : "SNS 숏폼";
+
+  const actionPlan = [
+    {
+      title: "개인화 메시지 집행",
+      detail: `${preferredChannel} 채널에서 ${persona.keywords[0]} 중심 소재를 노출`,
+      impact: `예상 반응률 +${Math.max(6, Math.round(persona.marketingAcceptance / 12))}%`,
+    },
+    {
+      title: "가격/혜택 패키지 제안",
+      detail: `가격 민감도 ${priceSensitivity} 기준으로 혜택 강도 차등 적용`,
+      impact: `구매의향 개선 +${Math.max(4, Math.round(persona.purchaseIntent / 20))}%p`,
+    },
+    {
+      title: "리텐션 후속 액션",
+      detail: `최근 활동 로그 기반 ${persona.device} 관련 후속 콘텐츠 큐레이션`,
+      impact: `이탈 위험 ${Math.max(3, Math.round(churnRisk / 8))}%p 완화`,
+    },
+  ];
+
+  const insightText =
+    persona.futureValue >= 85
+      ? "즉시 전환 타겟으로 분류됩니다. 혜택보다 경험 중심 메시지의 효율이 높습니다."
+      : persona.futureValue >= 70
+        ? "중기 성장 타겟으로 분류됩니다. 기능 신뢰와 가격 납득을 함께 설계해야 합니다."
+        : "장기 육성 타겟으로 분류됩니다. 강한 세일즈보다 브랜드 친숙도 축적이 우선입니다.";
+
+  const urgencyTone = churnRisk >= 55 ? "주의" : churnRisk >= 35 ? "관찰" : "안정";
+  const urgencyCls =
+    churnRisk >= 55
+      ? "bg-red-50 text-red-600 border-red-100"
+      : churnRisk >= 35
+        ? "bg-amber-50 text-amber-600 border-amber-100"
+        : "bg-emerald-50 text-emerald-600 border-emerald-100";
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-md px-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-[#DCE4F3] w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-        <div className="px-10 py-8 border-b border-slate-50 bg-[#F7FAFF] flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center shadow-xl border border-blue-50" style={{ color: persona.color }}><PersonaIcon iconKey={persona.iconKey} size={32} /></div>
-            <div>
-              <div className="flex items-center gap-3"><h2 className="text-[26px] font-black text-slate-900 tracking-tight">{persona.name} 상세 분석</h2><span className="bg-blue-50 text-[#2454C8] px-3 py-1 rounded-lg text-[11px] font-black uppercase tracking-widest border border-blue-100 shadow-sm">LV.{Math.floor(persona.futureValue/10)} Priority</span></div>
-              <p className="text-[14px] text-[#2454C8] font-black mt-1 uppercase italic tracking-[0.15em] opacity-70">{persona.segments.join(" · ")}</p>
+    <div className="app-modal-overlay">
+      <div className="app-modal h-[86vh] max-w-6xl animate-in zoom-in-95 duration-300">
+
+        {/* Modal Header */}
+        <div className="app-modal-header">
+          <div className="flex min-w-0 items-center gap-5">
+            <div
+              className="flex h-18 w-18 shrink-0 items-center justify-center rounded-2xl border bg-card shadow-lg"
+              style={{ color: persona.color, borderColor: persona.color + "33" }}
+            >
+              <PersonaIcon iconKey={persona.iconKey} size={34} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2.5">
+                <h2 className="truncate text-[26px] font-black tracking-tight text-foreground">{persona.name}</h2>
+                <span className="rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                  LV.{Math.floor(persona.futureValue / 10)}
+                </span>
+                <span className={`rounded-lg border px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${urgencyCls}`}>
+                  {urgencyTone}
+                </span>
+              </div>
+              <p className="mt-1 text-[13px] font-bold text-muted-foreground">
+                {persona.age}세 · {persona.gender} · {persona.occupation}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {persona.segments.map((seg) => (
+                  <span
+                    key={seg}
+                    className="rounded-full border px-2 py-0.5 text-[10px] font-black uppercase"
+                    style={{
+                      backgroundColor: SEGMENT_COLORS[seg].bg,
+                      color: SEGMENT_COLORS[seg].text,
+                      borderColor: SEGMENT_COLORS[seg].border,
+                    }}
+                  >
+                    {seg}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
-          <button onClick={onClose} className="w-12 h-12 rounded-xl bg-white border border-slate-200 hover:bg-slate-50 flex items-center justify-center transition-all shadow-sm"><X size={20} className="text-slate-400" /></button>
+          <button
+            onClick={onClose}
+            className="flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm transition-all hover:bg-[var(--surface-hover)] active:scale-95"
+          >
+            <X size={24} />
+          </button>
         </div>
-        <div className="overflow-y-auto p-10 bg-white grid grid-cols-12 gap-8 hide-scrollbar">
-          <div className="col-span-4 space-y-8">
-            <section className="bg-slate-50 border border-slate-100 rounded-2xl p-7 shadow-inner">
-              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2.5"><UserCircle2 size={14} /> Profile Basics</h3>
-              <div className="space-y-4">{[{l:"연령 / 성별", v:`${persona.age}세 / ${persona.gender}`}, {l:"직업", v:persona.occupation}, {l:"IT 숙련도", v:persona.techLevel}, {l:"기술 지출", v:persona.monthlyTechSpend}].map(i=>(<div key={i.l} className="flex justify-between border-b border-white pb-3"><span className="text-[12px] text-slate-500 font-bold">{i.l}</span><span className="text-[13px] text-slate-900 font-black">{i.v}</span></div>))}</div>
+
+        {/* Modal Body */}
+        <div className="app-modal-body !p-0 grid grid-cols-12 overflow-hidden">
+
+          {/* Left */}
+          <div className="hide-scrollbar col-span-4 space-y-6 overflow-y-auto border-r border-border bg-[var(--panel-soft)] p-6">
+            <section className="app-card p-4">
+              <h3 className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+                <UserCircle2 size={14} className="text-primary" /> Persona Snapshot
+              </h3>
+              <p className="mb-3 text-[13px] font-bold leading-relaxed text-foreground">"{persona.description}"</p>
+              <div className="space-y-2.5">
+                {[
+                  { l: "IT 숙련도", v: persona.techLevel, i: Cpu },
+                  { l: "기술 지출", v: persona.monthlyTechSpend, i: CreditCard },
+                  { l: "주요 기기", v: persona.device, i: Smartphone },
+                  { l: "가격 민감도", v: priceSensitivity, i: AlertCircle },
+                  { l: "수용 단계", v: adoptionStage, i: Activity },
+                ].map((item) => (
+                  <div key={item.l} className="flex items-center justify-between rounded-xl border border-border bg-card px-3.5 py-2.5 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <item.i size={13} className="text-[var(--subtle-foreground)]" />
+                      <span className="text-[12px] text-muted-foreground font-bold">{item.l}</span>
+                    </div>
+                    <span className="text-[12px] text-foreground font-black">{item.v}</span>
+                  </div>
+                ))}
+              </div>
             </section>
-            <section className="bg-[#2454C8] rounded-2xl p-7 text-white shadow-xl shadow-blue-900/20">
-              <h3 className="text-[11px] font-black text-blue-200 uppercase tracking-widest mb-5 flex items-center gap-2.5"><Target size={14} /> Brand Attitude</h3>
-              <div className="flex items-end gap-2 mb-5"><span className="text-[40px] font-black leading-none">{persona.brandAttitude}</span><span className="text-[12px] font-bold opacity-60">pts / 100</span></div>
-              <div className="h-1.5 bg-white/20 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-white shadow-[0_0_10px_white]" style={{ width: `${persona.brandAttitude}%` }} /></div>
+
+            <section className="rounded-2xl border-none p-5 text-white shadow-xl shadow-blue-200" style={{ background: "var(--brand-strong)" }}>
+              <h3 className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+                <Target size={14} /> 핵심 점수
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { label: "브랜드 선호", value: persona.brandAttitude },
+                  { label: "참여도", value: engagementScore },
+                  { label: "데이터 신뢰", value: dataConfidence },
+                ].map((row) => (
+                  <div key={row.label}>
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-white/70">{row.label}</span>
+                      <span className="text-[12px] font-black">{row.value}</span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white/20">
+                      <div className="h-full rounded-full bg-white" style={{ width: `${row.value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="app-card p-4">
+              <h3 className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-muted-foreground">관심사/키워드</h3>
+              <div className="flex flex-wrap gap-2">
+                {[...persona.interests, ...persona.keywords].map((interest) => (
+                  <span key={interest} className="rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2.5 py-1 text-[10px] font-black text-primary">
+                    {interest}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] font-bold text-muted-foreground">
+                권장 채널: <span className="text-primary">{preferredChannel}</span>
+              </p>
             </section>
           </div>
-          <div className="col-span-8 space-y-8">
-            <div className="grid grid-cols-2 gap-6">
-              {[{l:"미래가치 지수", v:persona.futureValue+"%", c:"bg-blue-500", i:TrendingUp}, {l:"마케팅 수용도", v:persona.marketingAcceptance+"%", c:"bg-green-500", i:Zap}].map(m=>(<section key={m.l} className="bg-white border border-slate-100 rounded-2xl p-7 shadow-sm hover:shadow-md transition-all"><h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2.5"><m.i size={14} /> {m.l}</h3><div className="flex items-center gap-5"><span className="text-[28px] font-black text-slate-900">{m.v}</span><div className="flex-1 h-1.5 bg-slate-50 rounded-full overflow-hidden shadow-inner"><div className={`h-full ${m.c}`} style={{width:m.v}} /></div></div></section>))}
+
+          {/* Right */}
+          <div className="hide-scrollbar col-span-8 space-y-5 overflow-y-auto bg-card p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 rounded-xl border border-border bg-[var(--panel-soft)] p-1.5">
+                {[
+                  { id: "summary", label: "요약 인사이트", icon: Brain },
+                  { id: "activity", label: "행동 로그", icon: History },
+                  { id: "campaign", label: "캠페인 실행", icon: BarChart2 },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setDetailTab(tab.id as "summary" | "activity" | "campaign")}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[12px] font-black transition-all ${
+                      detailTab === tab.id
+                        ? "border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary"
+                        : "text-muted-foreground hover:bg-card hover:text-foreground"
+                    }`}
+                  >
+                    <tab.icon size={14} />
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <span className="rounded-md border border-border bg-[var(--panel-soft)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                AI Synthesized
+              </span>
             </div>
-            <section className="bg-[#F8FAFC] border border-slate-100 rounded-2xl p-8 shadow-inner"><h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2.5"><MessageSquare size={14} /> Competitor Perception</h3><p className="text-[15px] text-slate-700 font-bold leading-relaxed italic">"{persona.competitorPerception}"</p></section>
-            <div className="grid grid-cols-2 gap-8">
-              <section className="space-y-4">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2.5">
-                  <CreditCard size={14} /> Purchase History
-                </h3>
-                <div className="space-y-2">
-                  {persona.purchaseHistory.map((h, i) => (
-                    <div key={i} className="flex items-center gap-3 bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <span className="text-[12px] text-slate-700 font-bold">{h}</span>
+
+            {detailTab === "summary" && (
+              <>
+                <section className="grid grid-cols-2 gap-4">
+                  {[
+                    { label: "미래 가치", value: `${persona.futureValue}%`, icon: TrendingUp, tone: "primary" },
+                    { label: "마케팅 수용도", value: `${persona.marketingAcceptance}%`, icon: Zap, tone: "success" },
+                    { label: "구매 의향", value: `${persona.purchaseIntent}%`, icon: Heart, tone: "primary" },
+                    { label: "이탈 위험", value: `${churnRisk}%`, icon: AlertCircle, tone: "danger" },
+                  ].map((kpi) => (
+                    <div key={kpi.label} className="app-soft border-border p-4">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <kpi.icon
+                            size={14}
+                            className={
+                              kpi.tone === "success"
+                                ? "text-[var(--success)]"
+                                : kpi.tone === "danger"
+                                  ? "text-red-500"
+                                  : "text-primary"
+                            }
+                          />
+                          <span className="text-[12px] font-black text-foreground">{kpi.label}</span>
+                        </div>
+                        <span className="text-[18px] font-black text-foreground">{kpi.value}</span>
+                      </div>
+                      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={
+                            kpi.tone === "success"
+                              ? "h-full rounded-full bg-[var(--success)]"
+                              : kpi.tone === "danger"
+                                ? "h-full rounded-full bg-red-500"
+                                : "h-full rounded-full bg-primary"
+                          }
+                          style={{ width: kpi.value }}
+                        />
+                      </div>
                     </div>
                   ))}
-                </div>
-              </section>
-              <section className="space-y-4">
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2.5">
-                  <MousePointer2 size={14} /> User Activity Logs
-                </h3>
-                <div className="space-y-2">
-                  {persona.userLogs.map((l, i) => (
-                    <div key={i} className="app-soft flex items-center gap-3 p-4 italic">
-                      <History size={12} className="text-slate-300" />
-                      <span className="text-[11px] text-slate-500 font-bold leading-tight">{l}</span>
+                </section>
+
+                <section className="app-card p-5">
+                  <h3 className="mb-4 flex items-center gap-2 text-[13px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    <MessageSquare size={15} className="text-primary" /> 전략 인사이트
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="app-soft p-4">
+                      <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">경쟁사 인식</p>
+                      <p className="text-[13px] font-bold leading-relaxed text-foreground">"{persona.competitorPerception}"</p>
                     </div>
-                  ))}
+                    <div className="app-soft p-4">
+                      <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-muted-foreground">종합 해석</p>
+                      <p className="text-[13px] font-bold leading-relaxed text-foreground">{insightText}</p>
+                    </div>
+                  </div>
+                </section>
+              </>
+            )}
+
+            {detailTab === "activity" && (
+              <section className="grid grid-cols-2 gap-4">
+                <div className="app-card p-5">
+                  <h3 className="mb-4 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    <Package size={14} /> 최근 구매 이력
+                  </h3>
+                  <div className="space-y-3">
+                    {persona.purchaseHistory.map((h, i) => (
+                      <div key={h + i} className="flex items-start gap-3">
+                        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-[var(--panel-soft)] text-muted-foreground">
+                          <Package size={14} />
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-black text-foreground">{h}</p>
+                          <p className="text-[11px] font-bold text-muted-foreground">구매 이벤트</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="app-card p-5">
+                  <h3 className="mb-4 flex items-center gap-2 text-[12px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    <MousePointer2 size={14} /> 실시간 활동 로그
+                  </h3>
+                  <div className="space-y-3">
+                    {persona.userLogs.map((l, i) => (
+                      <div key={l + i} className="app-soft flex gap-3 border-border p-3.5">
+                        <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                        <div>
+                          <p className="text-[12px] font-black text-foreground">{l}</p>
+                          <p className="text-[11px] font-bold text-muted-foreground">행동 패턴 수집</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
-            </div>
+            )}
+
+            {detailTab === "campaign" && (
+              <>
+                <section className="app-card p-5">
+                  <h3 className="mb-4 flex items-center gap-2 text-[13px] font-black uppercase tracking-[0.15em] text-muted-foreground">
+                    <Star size={15} className="text-primary" /> Next Best Actions
+                  </h3>
+                  <div className="space-y-3">
+                    {actionPlan.map((act, idx) => (
+                      <div key={act.title} className="app-soft border-border p-4">
+                        <div className="mb-1 flex items-center justify-between">
+                          <p className="text-[13px] font-black text-foreground">
+                            {idx + 1}. {act.title}
+                          </p>
+                          <span className="text-[11px] font-black text-primary">{act.impact}</span>
+                        </div>
+                        <p className="text-[12px] font-bold text-muted-foreground">{act.detail}</p>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                <section className="grid grid-cols-3 gap-4">
+                  <div className="app-soft border-border p-3.5">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground">추천 채널</p>
+                    <p className="mt-1 text-[13px] font-black text-foreground">{preferredChannel}</p>
+                  </div>
+                  <div className="app-soft border-border p-3.5">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground">추천 CTA</p>
+                    <p className="mt-1 text-[13px] font-black text-foreground">"{persona.keywords[0]} 경험해보기"</p>
+                  </div>
+                  <div className="app-soft border-border p-3.5">
+                    <p className="text-[11px] font-black uppercase text-muted-foreground">주의 포인트</p>
+                    <p className="mt-1 text-[13px] font-black text-foreground">
+                      {priceSensitivity === "높음" ? "가격/혜택 문구 우선" : "경험 가치 중심 메시지"}
+                    </p>
+                  </div>
+                </section>
+              </>
+            )}
           </div>
         </div>
-        <div className="px-10 py-8 border-t border-slate-50 bg-[#F7FAFF] flex justify-end"><button onClick={onClose} className="px-10 py-3.5 bg-[#2454C8] text-white rounded-2xl font-black shadow-xl shadow-blue-100 active:scale-95 transition-all text-[14px]">분석 결과 확인 완료</button></div>
+
+        {/* Modal Footer */}
+        <div className="app-modal-footer">
+          <p className="flex items-center gap-2 text-[12px] font-bold text-muted-foreground">
+            <ShieldCheck size={14} className="text-[var(--success)]" /> AI 시뮬레이션 기반 프로필 업데이트 완료
+          </p>
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-primary px-8 py-3 text-[13px] font-black text-white shadow-xl shadow-blue-100 transition-all hover:bg-primary-hover active:scale-95"
+          >
+            상세 프로필 닫기
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -175,135 +468,205 @@ export const PersonaManagerPage: React.FC = () => {
   const totalPages = Math.ceil(personas.length / PAGE_SIZE);
 
   return (
-    <div className="flex h-full w-full flex-col bg-[#F8FAFC] overflow-hidden">
-      {/* Welcome Header */}
-      <div className="px-10 py-8 shrink-0">
-        <section className="rounded-2xl border border-border/90 bg-card p-8 shadow-elevated relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl group-hover:bg-primary/10 transition-all duration-1000" />
-          <div className="relative z-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Management System</p>
-            <h1 className="mt-2 font-title text-3xl font-bold leading-tight text-slate-900 md:text-4xl tracking-tight">
-              가상 페르소나 <span className="text-primary">자산 관리.</span>
-            </h1>
-            <p className="mt-3 max-w-2xl text-base font-medium text-slate-500">
-              디지털 트윈으로 구현된 타겟 그룹별 페르소나 프로파일을 관리하고 분석에 활용합니다.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-4 items-center">
-              <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-5 py-2.5 shadow-sm focus-within:border-primary transition-all">
-                <Search size={16} className="text-slate-300" />
-                <input className="bg-transparent outline-none text-[13px] font-bold w-48" placeholder="페르소나 검색..." />
-              </div>
-              <button className="flex items-center gap-2.5 bg-[#2454C8] text-white px-6 py-3 rounded-xl font-black shadow-xl shadow-blue-100 hover:bg-[#1E46A8] active:scale-95 transition-all text-[14px]">
-                <Plus size={18} strokeWidth={3} /> 신규 등록
-              </button>
-            </div>
+    <div className="flex h-full w-full flex-col bg-background overflow-hidden">
+
+      {/* ── 페이지 헤더 ── */}
+      <div className="app-page-header shrink-0 flex items-start justify-between gap-8">
+        <div>
+          <p className="app-page-eyebrow">운영 관리 시스템</p>
+          <h1 className="app-page-title mt-1">
+            가상 페르소나 <span className="text-primary">자산 관리.</span>
+          </h1>
+          <p className="app-page-description">
+            디지털 트윈으로 구현된 타겟 그룹별 페르소나 프로파일을 관리하고 분석에 활용합니다.
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 pt-1">
+          <div className="flex items-center gap-2.5 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm focus-within:border-primary transition-all">
+            <Search size={15} className="text-[var(--subtle-foreground)]" />
+            <input className="bg-transparent outline-none text-[13px] font-bold w-44 text-foreground placeholder:text-[var(--subtle-foreground)]" placeholder="페르소나 검색..." />
           </div>
-        </section>
+          <button className="flex items-center gap-2.5 bg-primary text-white px-6 py-2.5 rounded-xl font-black shadow-lg shadow-blue-100 hover:bg-primary-hover active:scale-95 transition-all text-[13px]">
+            <Plus size={16} strokeWidth={3} /> 신규 페르소나 등록
+          </button>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-10 pb-10 hide-scrollbar bg-[#F8FAFC]">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border border-slate-100 shadow-sm">
-              <button onClick={() => setViewMode("card")} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-black transition-all ${viewMode === "card" ? "bg-[#EDF3FF] text-[#2454C8] shadow-sm" : "text-slate-400 hover:bg-slate-50"}`}><LayoutGrid size={14} /> 카드 뷰</button>
-              <button onClick={() => setViewMode("list")} className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[12px] font-black transition-all ${viewMode === "list" ? "bg-[#EDF3FF] text-[#2454C8] shadow-sm" : "text-slate-400 hover:bg-slate-50"}`}><List size={14} /> 리스트 뷰</button>
-            </div>
-            <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Total {personas.length} Personas Registered</div>
+      {/* ── 본문 ── */}
+      <div className="flex-1 overflow-y-auto px-8 py-7 hide-scrollbar">
+
+        {/* 뷰 전환 툴바 */}
+        <div className="flex items-center justify-between mb-7">
+          <div className="flex items-center gap-1.5 bg-card p-1.5 rounded-2xl border border-border shadow-sm">
+            <button
+              onClick={() => setViewMode("card")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-colors ${
+                viewMode === "card"
+                  ? "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)]"
+                  : "text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)]"
+              }`}
+            >
+              <LayoutGrid size={14} /> 카드 뷰
+            </button>
+            <button
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-semibold transition-colors ${
+                viewMode === "list"
+                  ? "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)]"
+                  : "text-[var(--muted-foreground)] hover:bg-[var(--surface-hover)]"
+              }`}
+            >
+              <List size={14} /> 리스트 뷰
+            </button>
           </div>
+          <p className="text-[11px] font-medium text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">
+            총 {personas.length}명의 페르소나 등록
+          </p>
+        </div>
 
-          {viewMode === "card" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 mb-12">
-              {paginated.map(p => (
-                <div key={p.id} className="app-card group relative flex flex-col p-8 transition-all duration-300 hover:shadow-lg hover:border-primary/30">
-                  <div className="flex items-start justify-between mb-6">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 border border-slate-100 shadow-sm transition-transform group-hover:scale-105" style={{ color: p.color }}>
-                        <PersonaIcon iconKey={p.iconKey} size={24} />
-                      </div>
-                      <div>
-                        <h3 className="text-[17px] font-black text-slate-900 tracking-tight mb-0.5">{p.name}</h3>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-tighter">
-                          {p.age}세 · {p.gender} · {p.occupation}
-                        </p>
-                      </div>
+        {/* ── 카드 뷰 ── */}
+        {viewMode === "card" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-10">
+            {paginated.map(p => {
+              const riskFlag = 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3));
+              const engagement = Math.round((p.brandAttitude + p.purchaseIntent + p.marketingAcceptance) / 3);
+              return (
+                <div key={p.id} className="app-card group relative flex flex-col overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--border-hover)] hover:shadow-lg">
+                  <div className="absolute left-0 top-0 h-full w-1.5" style={{ background: `linear-gradient(180deg, ${p.color}, transparent)` }} />
+
+                  <div className="mb-4 flex items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border shadow-sm" style={{ backgroundColor: p.iconBg, borderColor: `${p.color}2e` }}>
+                      <PersonaIcon iconKey={p.iconKey} size={21} />
                     </div>
-                    <button className="p-2 rounded-xl text-slate-300 hover:bg-slate-50 hover:text-slate-600 transition-all">
-                      <MoreHorizontal size={18} />
-                    </button>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[15px] font-bold text-foreground">{p.name}</h3>
+                      <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">{p.age}세 · {p.gender} · {p.occupation}</p>
+                    </div>
                   </div>
 
-                  <div className="app-soft p-5 mb-6 italic">
-                    <p className="text-[13px] text-slate-600 font-bold leading-relaxed line-clamp-2">
-                      "{p.description}"
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-8">
+                  <div className="mb-3 flex flex-wrap gap-1.5">
                     {p.segments.map(seg => (
-                      <span key={seg} className="px-3 py-1.5 bg-white border border-slate-100 rounded-full text-[10px] font-black text-primary shadow-sm uppercase tracking-tight">
+                      <span
+                        key={seg}
+                        className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                        style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}
+                      >
                         {seg}
                       </span>
                     ))}
                   </div>
 
-                  <div className="mt-auto pt-6 border-t border-slate-50 flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-1">Brand Score</span>
-                      <span className="text-[18px] font-black text-primary tracking-tighter">
-                        {p.brandAttitude}<span className="text-[11px] ml-0.5 text-slate-300 font-bold uppercase">pts</span>
-                      </span>
+                  <p className="mb-4 line-clamp-2 text-[12px] font-medium leading-relaxed text-[var(--muted-foreground)]">
+                    "{p.description}"
+                  </p>
+
+                  <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-3">
+                    <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-[var(--subtle-foreground)]">
+                      <span>종합 참여도</span>
+                      <span className="text-foreground">{engagement}%</span>
                     </div>
-                    <button 
-                      onClick={() => setDetailTarget(p)} 
-                      className="flex items-center gap-2 bg-[#F8FAFC] border border-slate-100 text-slate-600 px-5 py-2.5 rounded-xl text-[12px] font-black hover:bg-primary/5 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
-                    >
-                      상세 프로필 <ChevronRight size={14} />
-                    </button>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-white">
+                      <div className="h-full rounded-full bg-primary" style={{ width: `${engagement}%` }} />
+                    </div>
                   </div>
+
+                  <div className="mb-5 grid grid-cols-3 gap-2">
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Brand</p>
+                      <p className="mt-1 text-[14px] font-bold text-primary">{p.brandAttitude}</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Intent</p>
+                      <p className="mt-1 text-[14px] font-bold text-foreground">{p.purchaseIntent}%</p>
+                    </div>
+                    <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] p-2 text-center">
+                      <p className="text-[10px] font-semibold uppercase text-[var(--subtle-foreground)]">Risk</p>
+                      <p className={`mt-1 text-[14px] font-bold ${riskFlag >= 50 ? "text-red-500" : riskFlag >= 35 ? "text-amber-500" : "text-emerald-600"}`}>
+                        {riskFlag}%
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setDetailTarget(p)}
+                    className="mt-auto flex w-full items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2.5 text-[12px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary"
+                  >
+                    상세 프로필 <ChevronRight size={13} />
+                  </button>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="app-card overflow-hidden mb-12">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 border-b border-slate-100">
-                    <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest">Persona Profile</th>
-                    <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Brand Score</th>
-                    <th className="px-8 py-5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Future Val</th>
-                    <th className="px-8 py-5 text-right text-[11px] font-black text-slate-400 uppercase tracking-widest pr-12">Analysis</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {paginated.map(p => (
-                    <tr key={p.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-primary shadow-sm group-hover:bg-white" style={{ color: p.color }}>
-                            <PersonaIcon iconKey={p.iconKey} size={18} />
-                          </div>
-                          <div>
-                            <p className="text-[14px] font-black text-slate-900 mb-0.5">{p.name}</p>
-                            <p className="text-[11px] text-slate-400 font-bold">{p.age}세 · {p.gender} · {p.occupation}</p>
-                          </div>
+              )})}
+          </div>
+        ) : (
+          /* ── 리스트 뷰 ── */
+          <div className="app-card overflow-hidden mb-10">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[var(--panel-soft)] border-b border-border">
+                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">Persona</th>
+                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">핵심지표</th>
+                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">세그먼트</th>
+                  <th className="px-6 py-4 text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] text-center">Risk</th>
+                  <th className="px-6 py-4 text-right text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-[0.14em] pr-8">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map(p => {
+                  const risk = 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3));
+                  return (
+                  <tr key={p.id} className="border-b border-border/30 last:border-0 hover:bg-[var(--surface-hover)] transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm transition-colors group-hover:border-primary/30" style={{ backgroundColor: p.iconBg, borderColor: p.color + "22" }}>
+                          <PersonaIcon iconKey={p.iconKey} size={18} />
                         </div>
-                      </td>
-                      <td className="px-8 py-6 text-center font-black text-primary">{p.brandAttitude}</td>
-                      <td className="px-8 py-6 text-center"><FutureValueBadge value={p.futureValue} /></td>
-                      <td className="px-8 py-6 text-right pr-12">
-                        <button onClick={() => setDetailTarget(p)} className="p-2.5 rounded-xl bg-slate-50 text-slate-400 hover:text-primary hover:bg-blue-50 transition-all">
-                          <Eye size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          <div className="flex justify-center pb-20"><AppPagination current={page} total={totalPages} onChange={setPage} /></div>
+                        <div className="min-w-0">
+                          <p className="text-[14px] font-bold text-foreground mb-0.5">{p.name}</p>
+                          <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">{p.age}세 · {p.gender} · {p.occupation}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <p className="text-[12px] font-semibold text-foreground">Brand {p.brandAttitude}</p>
+                      <p className="text-[11px] font-medium text-[var(--subtle-foreground)]">Intent {p.purchaseIntent}% · MKT {p.marketingAcceptance}%</p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex flex-wrap justify-center gap-1.5">
+                        {p.segments.slice(0, 2).map((seg) => (
+                          <span
+                            key={seg}
+                            className="rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                            style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}
+                          >
+                            {seg}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-semibold ${risk >= 50 ? "border-red-200 bg-red-50 text-red-600" : risk >= 35 ? "border-amber-200 bg-amber-50 text-amber-600" : "border-emerald-200 bg-emerald-50 text-emerald-600"}`}>
+                        {risk}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right pr-8">
+                      <button
+                        onClick={() => setDetailTarget(p)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-1.5 text-[11px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:border-[var(--primary-light-border)] hover:bg-[var(--primary-light-bg)] hover:text-primary"
+                      >
+                        상세 <ChevronRight size={12} />
+                      </button>
+                    </td>
+                  </tr>
+                )})}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="flex justify-center pt-2 pb-6">
+          <AppPagination current={page} total={totalPages} onChange={setPage} />
         </div>
       </div>
+
       {detailTarget && <DetailModal persona={detailTarget} onClose={() => setDetailTarget(undefined)} />}
     </div>
   );
