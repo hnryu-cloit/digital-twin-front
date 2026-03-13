@@ -5,7 +5,7 @@ import {
 } from "recharts";
 import {
   Users, Smartphone, RefreshCw,
-  ChevronDown, ChevronUp, BarChart2,
+  ChevronDown, ChevronUp,
   MapPin, ShoppingBag,
   SlidersHorizontal, Clock, Briefcase, Globe, Tag,
   Search, X, Plus, Cpu, Layers,
@@ -65,12 +65,15 @@ const FILTER_PERSONAS: FilterPersona[] = [
   { id:"p20", name:"구승민", age:41, gender:"남성", occupation:"연구원",         occupationCat:"전문직",   device:"S24 Ultra", segments:["게이밍 성향군","비즈니스 프로"],     techLevel:"전문가", interests:["IT 테크","모바일 게임","SF영화"],     keywords:["고성능","최신기술","디스플레이"],  spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["커뮤니티","뉴스/미디어"],   buyChannel:"자급제" },
 ];
 
+const TOTAL_POPULATION = 18740;
+const scaleToPopulation = (n: number) => Math.round(n / FILTER_PERSONAS.length * TOTAL_POPULATION);
+
 const SEG_STYLE: Record<PersonaSegment, { bg: string; text: string; dot: string }> = {
-  "MZ 얼리어답터":    { bg: "#FDF2F8", text: "#DB2777", dot: "#DB2777" },
-  "프리미엄 구매자":  { bg: "#FFFBEB", text: "#D97706", dot: "#D97706" },
-  "실용 중시 가족형": { bg: "#F0FDF4", text: "#16A34A", dot: "#16A34A" },
-  "게이밍 성향군":    { bg: "#FAF5FF", text: "#9333EA", dot: "#9333EA" },
-  "비즈니스 프로":    { bg: "#F0FDFA", text: "#0D9488", dot: "#0D9488" },
+  "MZ 얼리어답터":    { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
+  "프리미엄 구매자":  { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
+  "실용 중시 가족형": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
+  "게이밍 성향군":    { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
+  "비즈니스 프로":    { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
 };
 
 const SEG_COLORS = ["var(--primary)", "#DB2777", "#16A34A", "#9333EA", "#0D9488"];
@@ -180,8 +183,8 @@ export const DashboardPage: React.FC = () => {
   const [selectedHouseholds, setSelectedHouseholds] = useState<string[]>([]);
 
   /* ── 소비 행동 ── */
-  const [selectedSpending, setSelectedSpending] = useState<string[]>([]);
-  const [selectedPurchaseIntent, setSelectedPurchaseIntent] = useState<string[]>([]);
+  const [selectedSpending, setSelectedSpending] = useState<SpendingLevel[]>([]);
+  const [selectedPurchaseIntent, setSelectedPurchaseIntent] = useState<PurchaseIntent[]>([]);
   const [selectedBuyChannels, setSelectedBuyChannels] = useState<string[]>([]);
   const [products, setProducts] = useState({
     s26ultra: true, s26plus: true, s26: true,
@@ -190,9 +193,9 @@ export const DashboardPage: React.FC = () => {
 
   /* ── 디지털 특성 ── */
   const [selectedTechLevels, setSelectedTechLevels] = useState<string[]>([]);
-  const [selectedSns, setSelectedSns] = useState<string[]>([]);
+  const [selectedSns, setSelectedSns] = useState<SnsActivity[]>([]);
   const [selectedContentChannels, setSelectedContentChannels] = useState<string[]>([]);
-  const [selectedBrandLoyalty, setSelectedBrandLoyalty] = useState<string[]>([]);
+  const [selectedBrandLoyalty, setSelectedBrandLoyalty] = useState<BrandLoyalty[]>([]);
 
   /* ── 핵심 키워드 ── */
   const [keywordInput, setKeywordInput] = useState("");
@@ -659,7 +662,7 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <p className={`text-[10px] font-bold uppercase tracking-[0.1em] ${matchedPersonas.length > 0 ? "text-primary" : "text-red-500"}`}>매칭된 페르소나</p>
                   <p className={`text-[20px] font-bold leading-none mt-0.5 ${matchedPersonas.length > 0 ? "text-foreground" : "text-red-400"}`}>
-                    {matchedPersonas.length}<span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / 20명</span>
+                    {scaleToPopulation(matchedPersonas.length).toLocaleString()}<span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / 18,740명</span>
                   </p>
                 </div>
                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${matchedPersonas.length > 0 ? "bg-primary/10 text-primary" : "bg-red-100 text-red-500"}`}>
@@ -685,7 +688,7 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="app-page-description">
               {hasFilters
-                ? `설정된 필터 조건에 부합하는 페르소나 ${matchedPersonas.length}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
+                ? `설정된 필터 조건에 부합하는 페르소나 ${scaleToPopulation(matchedPersonas.length).toLocaleString()}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
                 : "삼성전자 Galaxy 제품군 구매·사용자 30,000명 중 18,740명을 대상으로 한 분석 데이터입니다."}
             </p>
           </div>
@@ -782,7 +785,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center gap-2 bg-[var(--panel-soft)] px-3 py-1.5 rounded-full border border-[var(--border)]">
                   <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                   <span className="text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-tight">
-                    {hasFilters ? `${matchedPersonas.length}명 매칭` : "전체 20명"}
+                    {hasFilters ? `${scaleToPopulation(matchedPersonas.length).toLocaleString()}명 매칭` : "전체 18,740명"}
                   </span>
                 </div>
               </div>
@@ -796,12 +799,12 @@ export const DashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 p-6">
                   {derivedSegments.map((seg, idx) => {
                     const style = SEG_STYLE[seg.name];
-                    const ratio = Math.round(seg.members.length / (hasFilters ? matchedPersonas.length : 20) * 100);
+                    const ratio = Math.round(seg.members.length / (hasFilters ? matchedPersonas.length : FILTER_PERSONAS.length) * 100);
                     return (
                       <div
                         key={seg.name}
                         className="rounded-2xl border border-[var(--border)] p-6 hover:border-[var(--border-hover)] hover:shadow-md transition-all group"
-                        style={{ background: `linear-gradient(135deg, ${style.bg} 0%, #ffffff 60%)` }}
+                        style={{ background: "linear-gradient(135deg, #eef3ff 0%, #ffffff 70%)" }}
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
@@ -816,19 +819,19 @@ export const DashboardPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[22px] font-black leading-none" style={{ color: style.text }}>{seg.members.length}<span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">명</span></p>
+                            <p className="text-[22px] font-black leading-none" style={{ color: style.text }}>{scaleToPopulation(seg.members.length).toLocaleString()}<span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">명</span></p>
                             <p className="text-[10px] font-bold text-[var(--subtle-foreground)] mt-0.5">{ratio}% 비중</p>
                           </div>
                         </div>
                         <div className="h-1.5 bg-white/60 rounded-full overflow-hidden mb-4 shadow-inner">
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${ratio}%`, backgroundColor: style.text }} />
+                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${ratio}%`, backgroundColor: "var(--primary)" }} />
                         </div>
                         <div className="flex gap-2 mb-4">
                           {seg.techDist.map((t) => t.count > 0 && (
                             <div key={t.label} className="flex items-center gap-1.5 rounded-lg bg-white/70 border border-white px-2.5 py-1.5 shadow-sm">
                               <Cpu size={10} className="text-[var(--subtle-foreground)]" />
                               <span className="text-[10px] font-bold text-[var(--secondary-foreground)]">{t.label}</span>
-                              <span className="text-[10px] font-black" style={{ color: style.text }}>{t.count}</span>
+                              <span className="text-[10px] font-black text-primary">{t.count}</span>
                             </div>
                           ))}
                         </div>
@@ -836,7 +839,7 @@ export const DashboardPage: React.FC = () => {
                           <p className="text-[9px] font-bold text-[var(--subtle-foreground)] uppercase tracking-[0.12em] mb-1.5">주요 관심사</p>
                           <div className="flex flex-wrap gap-1.5">
                             {seg.topInterests.map((i) => (
-                              <span key={i} className="rounded-full px-2.5 py-0.5 text-[10px] font-bold border" style={{ background: style.bg, color: style.text, borderColor: `${style.text}30` }}>{i}</span>
+                              <span key={i} className="rounded-full px-2.5 py-0.5 text-[10px] font-bold border" style={{ background: "#eef3ff", color: "#2f66ff", borderColor: "#c9d8ff" }}>{i}</span>
                             ))}
                           </div>
                         </div>
