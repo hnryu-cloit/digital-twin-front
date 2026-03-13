@@ -215,7 +215,7 @@ export const Layout: React.FC = () => {
         </div>
       </div>
 
-      <FloatingAiChat />
+      {location.pathname !== "/survey" && <FloatingAiChat />}
     </div>
   );
 };

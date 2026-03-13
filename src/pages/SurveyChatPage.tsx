@@ -20,6 +20,7 @@ import { WorkflowStepper } from"@/components/layout/WorkflowStepper";
 import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
+import favicon from"@/assets/favicon.svg";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -98,8 +99,17 @@ interface TooltipMenuProps {
 
 function TooltipMenu({ onClose }: TooltipMenuProps) {
  const ref = useRef<HTMLDivElement>(null);
+ const [position, setPosition] = useState<"top" | "bottom">("top");
 
  useEffect(() => {
+ if (ref.current) {
+ const rect = ref.current.getBoundingClientRect();
+ const spaceBelow = window.innerHeight - rect.top;
+ if (spaceBelow < 250) { // Enough space for menu
+ setPosition("bottom");
+ }
+ }
+
  const handler = (e: MouseEvent) => {
  if (ref.current && !ref.current.contains(e.target as Node)) {
  onClose();
@@ -112,7 +122,10 @@ function TooltipMenu({ onClose }: TooltipMenuProps) {
  return (
  <div
  ref={ref}
- className="absolute right-0 top-8 z-20 bg-card border border-[var(--border)] rounded-xl shadow-[var(--shadow-[var(--shadow-lg)])] py-1.5 w-48 animate-in fade-in slide-in-from-top-2 duration-200"
+ className={cn(
+ "absolute right-0 z-50 bg-card border border-[var(--border)] rounded-xl shadow-[var(--shadow-[var(--shadow-lg)])] py-1.5 w-48 animate-in fade-in duration-200",
+ position === "top" ? "top-8 slide-in-from-top-2" : "bottom-8 slide-in-from-bottom-2"
+ )}
  >
  {[
  { icon: <Settings size={13} />, label:"상세 설정" },
@@ -225,22 +238,6 @@ export const SurveyChatPage: React.FC = () => {
  <div className="flex flex-1 overflow-hidden">
  {/* ── Left: Chat Panel ── */}
  <div className="w-[420px] shrink-0 flex flex-col bg-card border-r border-[var(--border)] overflow-hidden">
- {/* Panel Header */}
- <div className="px-6 py-5 border-b border-[var(--border)] bg-[var(--panel-soft)]">
- <div className="flex items-center gap-3 mb-2">
- <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-[var(--shadow-[var(--shadow-sm)])]">
- <Bot size={18} className="text-white" />
- </div>
- <div>
- <h2 className="text-[14px] font-bold text-foreground leading-tight">설문 에이전트</h2>
- <p className="text-[10px] text-primary font-semibold uppercase tracking-[0.14em] mt-0.5">AI Survey Designer</p>
- </div>
- </div>
- <p className="text-[12px] text-[var(--muted-foreground)] font-medium leading-relaxed">
- 자연어로 대화하며 리서치 목적에 맞는 최적의 문항을 설계하세요.
- </p>
- </div>
-
  {/* Messages */}
  <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4 hide-scrollbar">
  {messages.map((msg) => (
@@ -249,8 +246,8 @@ export const SurveyChatPage: React.FC = () => {
  className={`flex ${msg.role ==="user" ?"justify-end" :"justify-start"} gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300`}
  >
  {msg.role ==="bot" && (
- <div className="w-7 h-7 rounded-full bg-[var(--primary-light-bg)] flex items-center justify-center shrink-0 mt-0.5 border border-[var(--primary-light-border)]">
- <Bot size={13} className="text-primary" />
+ <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center shrink-0 mt-0.5 border border-[#DCE4F3] p-1 shadow-sm">
+ <img src={favicon} alt="AI" className="w-full h-full object-contain" />
  </div>
  )}
  <div
@@ -267,32 +264,12 @@ export const SurveyChatPage: React.FC = () => {
  <div ref={chatEndRef} />
  </div>
 
- {/* AI Features Box */}
- <div className="mx-6 mb-5 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] p-4">
- <div className="flex items-center gap-2 mb-3">
- <Sparkles size={13} className="text-primary" />
- <span className="text-[10px] font-semibold text-primary uppercase tracking-[0.14em]">Powered by AI Engine</span>
- </div>
- <ul className="flex flex-col gap-2">
- {[
-"Interactive Editing (대화형 문항 수정)",
-"AI Quality Check (중복/편향 질문 검사)",
-"Natural Language Refinement (톤앤매너 조정)",
- ].map((feature) => (
- <li key={feature} className="flex items-start gap-2">
- <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
- <span className="text-[11px] text-[var(--primary-active-text)] font-medium leading-snug">{feature}</span>
- </li>
- ))}
- </ul>
- </div>
-
  {/* Input */}
  <div className="px-6 pb-6 pt-1">
  <div className="flex items-center gap-2.5 bg-[var(--panel-soft)] rounded-2xl border border-[var(--border)] px-4 py-3 focus-within:border-primary focus-within:bg-card transition-colors">
  <input
  className="flex-1 bg-transparent outline-none text-foreground placeholder:text-[var(--subtle-foreground)] text-[13px] font-medium"
- placeholder="에이전트에게 요청할 메시지를 입력하세요..."
+ placeholder="Digital Twin AI 에게 요청할 메시지를 입력하세요..."
  value={input}
  onChange={(e) => setInput(e.target.value)}
  onKeyDown={(e) => e.key ==="Enter" && sendMessage()}
@@ -313,9 +290,9 @@ export const SurveyChatPage: React.FC = () => {
  </div>
 
  {/* ── Right: Generated Questions ── */}
- <div className="flex-1 flex flex-col bg-background overflow-hidden">
+ <div className="flex-1 flex flex-col bg-background">
  {/* Panel Header */}
- <div className="h-16 shrink-0 flex items-center justify-between px-8 bg-card border-b border-[var(--border)]">
+ <div className="h-16 shrink-0 flex items-center justify-between px-8 bg-card border-b border-[var(--border)] z-10">
  <div className="flex items-center gap-3">
  <div className="p-2 rounded-xl bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)]">
  <AlignLeft size={16} />
@@ -343,7 +320,10 @@ export const SurveyChatPage: React.FC = () => {
  return (
  <div
  key={q.id}
- className="app-card p-5 group relative transition-colors duration-200 hover:border-[var(--border-hover)]"
+ className={cn(
+ "app-card p-5 group relative transition-colors duration-200 hover:border-[var(--border-hover)]",
+ openMenu === q.id ? "z-40 overflow-visible" : "z-0"
+ )}
  style={{ boxShadow:"var(--shadow-[var(--shadow-md)])" }}
  >
  <div className="flex items-start gap-4">
