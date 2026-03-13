@@ -210,7 +210,7 @@ export const Layout: React.FC = () => {
 
       {/* ── Main Content Area ── */}
       <div className={`pt-14 transition-[padding-left] duration-200 ${collapsed ? CONTENT_MINI : CONTENT_FULL}`}>
-        <div className="app-content-density hide-scrollbar flex h-[calc(100vh-56px)] overflow-hidden">
+        <div className="app-content-density hide-scrollbar flex h-[calc((100vh-56px)/0.9)] overflow-hidden">
           <Outlet />
         </div>
       </div>

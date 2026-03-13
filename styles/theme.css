@@ -336,7 +336,7 @@
     @apply w-full px-4 py-3 outline-none transition-all;
     border-radius: 14px;
     border: 1px solid var(--border);
-    background: var(--input-background);
+    background: var(--card);
     font-size: 14px;
     font-weight: 500;
     color: var(--foreground);
@@ -357,7 +357,7 @@
     @apply w-full px-4 py-3 outline-none transition-all resize-none leading-relaxed;
     border-radius: 14px;
     border: 1px solid var(--border);
-    background: var(--input-background);
+    background: var(--card);
     font-size: 14px;
     font-weight: 500;
     color: var(--foreground);
