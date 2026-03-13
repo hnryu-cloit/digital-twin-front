@@ -3,7 +3,7 @@ import { useState } from"react";
 import {
  Shield, Database, FileText, LayoutGrid, Users,
  Sparkles, Save, RotateCcw, Terminal, Target, Globe, BarChart2,
- Star, Eye, Package
+ Star, Eye, Package, TrendingUp, MapPin
 } from"lucide-react";
 import { Button } from"@/components/ui/button";
 
@@ -35,6 +35,13 @@ const NAV: NavSection[] = [
  { key:"menu", label:"화면 위젯 구성", icon: LayoutGrid },
  ],
  },
+ {
+ label:"검색 및 지역화",
+ items: [
+ { key:"seo", label:"SEO 최적화 설정", icon: TrendingUp },
+ { key:"geo", label:"GEO 지역 타겟팅", icon: MapPin },
+ ],
+ },
 ];
 
 /* ─── 공통 컴포넌트 ─── */
@@ -63,7 +70,7 @@ Your goal is to analyze raw persona response data and generate strategic insight
 Focus on:
 1. Identifying statistically significant patterns.
 2. Highlighting risk factors based on p-value < 0.05.
-3. Suggesting actionable marketing strategies for Samsung Galaxy S25.`);
+3. Suggesting actionable marketing strategies for Samsung Galaxy S26.`);
 
  return (
  <div className="space-y-4">
@@ -280,6 +287,119 @@ const CONTENT: Record<string, React.ReactNode> = {
  </div>
  <div className="flex justify-end">
  <Button size="sm">배포 정책 저장</Button>
+ </div>
+ </SettingGroup>
+ </>
+ ),
+ seo: (
+ <>
+ <SectionTitle title="SEO 최적화 설정" desc="리서치 리포트 및 인사이트 콘텐츠의 검색 노출 전략을 설정합니다." />
+ <SettingGroup title="검색 인덱싱 정책">
+ <div className="grid grid-cols-1 gap-3">
+ <label className="app-soft flex items-center justify-between p-4">
+ <div>
+ <span className="text-[13px] font-bold text-foreground">리포트 검색 엔진 인덱싱 허용</span>
+ <p className="text-[11px] font-medium text-muted-foreground mt-0.5">외부 검색 엔진에 리포트 콘텐츠 노출 여부</p>
+ </div>
+ <input type="checkbox" />
+ </label>
+ <label className="app-soft flex items-center justify-between p-4">
+ <div>
+ <span className="text-[13px] font-bold text-foreground">내부 검색 인덱싱 활성화</span>
+ <p className="text-[11px] font-medium text-muted-foreground mt-0.5">시스템 내 전체 검색에 리포트/프로젝트 포함</p>
+ </div>
+ <input type="checkbox" defaultChecked />
+ </label>
+ </div>
+ </SettingGroup>
+ <SettingGroup title="키워드 및 메타데이터">
+ <div className="grid grid-cols-2 gap-4">
+ <label className="app-label">기본 브랜드 키워드</label>
+ <input className="app-input" defaultValue="Samsung, Galaxy, 삼성전자" />
+ <label className="app-label">리포트 제목 포맷</label>
+ <select className="app-input">
+ <option>프로젝트명 + 날짜</option>
+ <option>브랜드 + 리서치 유형</option>
+ <option>커스텀 포맷</option>
+ </select>
+ <label className="app-label">메타 설명 자동 생성</label>
+ <select className="app-input">
+ <option>AI 자동 생성</option>
+ <option>수동 입력</option>
+ <option>비활성화</option>
+ </select>
+ </div>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" size="sm">초기화</Button>
+ <Button size="sm"><Save size={14} className="mr-1.5" />SEO 설정 저장</Button>
+ </div>
+ </SettingGroup>
+ <SettingGroup title="콘텐츠 노출 범위">
+ <div className="grid grid-cols-1 gap-3">
+ {["요약 인사이트 노출 허용","차트 이미지 노출 허용","원본 데이터 노출 차단"].map((item, i) => (
+ <label key={item} className="app-soft flex items-center justify-between p-4">
+ <span className="text-[13px] font-bold text-foreground">{item}</span>
+ <input type="checkbox" defaultChecked={i < 2} />
+ </label>
+ ))}
+ </div>
+ </SettingGroup>
+ </>
+ ),
+ geo: (
+ <>
+ <SectionTitle title="GEO 지역 타겟팅" desc="리서치 대상 지역 범위 및 지역별 페르소나 가중치를 설정합니다." />
+ <SettingGroup title="기본 조사 지역">
+ <div className="grid grid-cols-2 gap-4">
+ <label className="app-label">기본 국가/시장</label>
+ <select className="app-input">
+ <option>대한민국</option>
+ <option>글로벌 (전체)</option>
+ <option>아시아 태평양</option>
+ <option>북미</option>
+ <option>유럽</option>
+ </select>
+ <label className="app-label">국내 기본 지역 단위</label>
+ <select className="app-input">
+ <option>시/도 단위</option>
+ <option>수도권/비수도권</option>
+ <option>전국 통합</option>
+ </select>
+ <label className="app-label">다국어 리포트 생성</label>
+ <select className="app-input">
+ <option>한국어만</option>
+ <option>한국어 + 영어</option>
+ <option>현지 언어 자동 선택</option>
+ </select>
+ </div>
+ </SettingGroup>
+ <SettingGroup title="지역별 페르소나 가중치">
+ <div className="grid grid-cols-1 gap-3">
+ {[
+ { label:"수도권 (서울·경기·인천)", value:"40%" },
+ { label:"영남권 (부산·대구·경상)", value:"25%" },
+ { label:"호남권 (광주·전라)", value:"15%" },
+ { label:"충청·강원·제주", value:"20%" },
+ ].map(r => (
+ <div key={r.label} className="app-soft flex items-center justify-between p-4">
+ <span className="text-[13px] font-bold text-foreground">{r.label}</span>
+ <input className="app-input w-20 text-center text-[13px]" defaultValue={r.value} />
+ </div>
+ ))}
+ </div>
+ <div className="flex justify-end gap-2">
+ <Button variant="outline" size="sm">기본값 초기화</Button>
+ <Button size="sm"><Save size={14} className="mr-1.5" />지역 설정 저장</Button>
+ </div>
+ </SettingGroup>
+ <SettingGroup title="글로벌 시장 우선순위">
+ <div className="grid grid-cols-1 gap-3">
+ {["한국 (KR)","미국 (US)","인도 (IN)","유럽 연합 (EU)"].map((market, i) => (
+ <label key={market} className="app-soft flex items-center justify-between p-4">
+ <span className="text-[13px] font-bold text-foreground">{market}</span>
+ <input type="checkbox" defaultChecked={i < 2} />
+ </label>
+ ))}
  </div>
  </SettingGroup>
  </>
