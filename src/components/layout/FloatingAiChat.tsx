@@ -215,11 +215,6 @@ export const FloatingAiChat: React.FC = () => {
  <img src={favicon} alt="AI" className="h-full w-full object-contain" />
  </div>
  )}
- {!isOpen && (
- <span className="absolute -right-1 -top-1 flex h-5 w-5 animate-bounce items-center justify-center rounded-full bg-red-50/500 text-[10px] font-bold text-white shadow-[var(--shadow-md)]">
- 1
- </span>
- )}
  </button>
  </div>
  );
