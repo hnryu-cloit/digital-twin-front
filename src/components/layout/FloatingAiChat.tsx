@@ -99,7 +99,7 @@ export const FloatingAiChat: React.FC = () => {
  <img src={favicon} alt="Icon" className="h-full w-full object-contain" />
  </div>
  <div>
- <p className="text-[15px] font-black tracking-tight">AI 분석 어시스턴트</p>
+ <p className="text-[15px] font-black tracking-tight">Digital Twin AI 어시스턴트</p>
  <div className="flex items-center gap-1.5 mt-0.5">
  <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
  <p className="text-[11px] opacity-80 font-bold uppercase tracking-widest">Real-time Analysis</p>
