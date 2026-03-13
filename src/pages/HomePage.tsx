@@ -556,7 +556,7 @@ export function HomePage() {
  {/* Recent Projects */}
  <section>
  <div className="mb-6 flex items-center justify-between px-2">
- <h2 className="text-base font-semibold text-foreground tracking-tight">최근 활동 내역</h2>
+ <h2 className="text-base font-semibold text-foreground tracking-tight">최근 프로젝트</h2>
  <button className="flex items-center gap-1.5 bg-card border border-[var(--border)] px-4 py-2 rounded-xl text-[12px] font-black text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary hover:border-primary/30 transition-all shadow-[var(--shadow-sm)] group/btn active:scale-95">더보기<span className="text-[11px] text-[var(--subtle-foreground)] group-hover/btn:translate-x-0.5 transition-transform">&gt;</span></button>
  </div>
  <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">

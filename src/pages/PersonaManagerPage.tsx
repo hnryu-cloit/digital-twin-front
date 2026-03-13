@@ -486,7 +486,7 @@ export const PersonaManagerPage: React.FC = () => {
  </button>
  </div>
  <p className="text-[11px] font-bold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">
- 총 <span className="text-primary">{personas.length}</span>명의 자산 등록됨
+ 총 <span className="text-primary">30,000</span>명의 자산 등록됨
  </p>
  </div>
 
