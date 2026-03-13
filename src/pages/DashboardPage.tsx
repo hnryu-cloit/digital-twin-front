@@ -24,9 +24,9 @@ const donutData = [
 const DONUT_COLORS = ["var(--primary)", "var(--primary-active-border)", "var(--primary-light-border)", "var(--primary-light-bg)", "var(--panel-soft)"];
 
 const productData = [
-  { name: "S25 Ultra", value: 26 },
-  { name: "S25+", value: 18 },
-  { name: "S25", value: 22 },
+  { name: "S26 Ultra", value: 26 },
+  { name: "S26+", value: 18 },
+  { name: "S26", value: 22 },
   { name: "Z Fold6", value: 11 },
   { name: "Z Flip6", value: 13 },
   { name: "A55", value: 6 },
@@ -211,9 +211,9 @@ export const DashboardPage: React.FC = () => {
                 {openSections.product && (
                   <div className="px-5 pb-4 flex flex-col gap-3">
                     {[
-                      { id: "s25ultra", label: "Galaxy S25 Ultra", pct: 26 },
-                      { id: "s25plus", label: "Galaxy S25+", pct: 18 },
-                      { id: "s25", label: "Galaxy S25", pct: 22 },
+                      { id: "s25ultra", label: "Galaxy S26 Ultra", pct: 26 },
+                      { id: "s25plus", label: "Galaxy S26+", pct: 18 },
+                      { id: "s25", label: "Galaxy S26", pct: 22 },
                       { id: "zflip6", label: "Galaxy Z Flip6", pct: 13 },
                     ].map((d) => (
                       <label key={d.id} className="flex items-center gap-3 cursor-pointer group">
@@ -243,7 +243,7 @@ export const DashboardPage: React.FC = () => {
             <p className="app-page-description">삼성전자 Galaxy 제품군 구매·사용자 30,000명 대상의 실시간 분석 데이터입니다.</p>
           </div>
 
-          <main className="flex-1 overflow-y-auto px-10 py-8 hide-scrollbar space-y-8">
+          <main className="flex-1 overflow-y-auto px-10 pt-8 pb-4 hide-scrollbar space-y-8">
             <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.6fr] gap-8">
               <div className="app-card p-8 flex flex-col md:flex-row md:items-center gap-10 relative overflow-hidden transition-colors hover:border-[var(--border-hover)]" style={{ boxShadow: "var(--shadow-md)" }}>
                 <div className="flex-1 relative z-10">

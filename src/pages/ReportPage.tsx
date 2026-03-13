@@ -340,7 +340,7 @@ export const ReportPage: React.FC = () => {
      <div className="relative">
        <div className="absolute -left-6 top-0 bottom-0 w-1 bg-primary/20 rounded-full" />
        <p className="text-[20px] font-medium leading-[1.8] text-foreground tracking-tight text-justify">
-         "Galaxy S25의 초기 시장 진입은 30대 헤비 유저 그룹의 압도적인 호응을 바탕으로 매우 긍정적일 것으로 예측됩니다. 
+         "Galaxy S26의 초기 시장 진입은 30대 헤비 유저 그룹의 압도적인 호응을 바탕으로 매우 긍정적일 것으로 예측됩니다. 
          특히 <span className="text-primary font-bold">AI 화질 보정 알고리즘</span>에 대한 높은 신뢰도는 경쟁사 대비 강력한 차별화 요소로 작동하고 있습니다. 
          하반기에는 가격 탄력성이 높은 보급형 시장을 위한 전략적 금융 프로모션이 선행되어야 하며, 이를 통해 초기 프리미엄 이미지를 볼륨 세그먼트로 전이시키는 과정이 필요합니다."
        </p>

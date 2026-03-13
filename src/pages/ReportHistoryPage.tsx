@@ -18,7 +18,7 @@ interface ReportItem {
 }
 
 const REPORT_ITEMS: ReportItem[] = [
-  { id: "r1", title: "Galaxy S25 컨셉 테스트 분석 리포트", project: "Galaxy S25 컨셉 테스트", createdAt: "2026-03-08", type: "컨셉 테스트", typeColor: "var(--tag-blue)", typeBg: "var(--tag-blue-bg)", format: "PDF" },
+  { id: "r1", title: "Galaxy S26 컨셉 테스트 분석 리포트", project: "Galaxy S26 컨셉 테스트", createdAt: "2026-03-08", type: "컨셉 테스트", typeColor: "var(--tag-blue)", typeBg: "var(--tag-blue-bg)", format: "PDF" },
   { id: "r2", title: "MZ세대 스마트폰 Usage 종합 리포트", project: "MZ세대 스마트폰 Usage 조사", createdAt: "2026-03-05", type: "Usage 조사", typeColor: "var(--tag-indigo)", typeBg: "var(--tag-indigo-bg)", format: "DOCX" },
   { id: "r3", title: "브랜드 인지도 Q1 2026 최종 리포트", project: "브랜드 인지도 조사 Q1 2026", createdAt: "2026-03-01", type: "브랜드 인식", typeColor: "var(--tag-purple)", typeBg: "var(--tag-purple-bg)", format: "PPTX" },
   { id: "r4", title: "온라인 쇼핑 만족도 분석 리포트", project: "온라인 쇼핑 경험 만족도", createdAt: "2026-02-20", type: "Usage 조사", typeColor: "var(--tag-indigo)", typeBg: "var(--tag-indigo-bg)", format: "PDF" },
@@ -69,7 +69,7 @@ export const ReportHistoryPage: React.FC = () => {
  </div>
 
  {/* Report List Section */}
- <div className="flex-1 overflow-y-auto px-10 py-8 hide-scrollbar">
+ <div className="flex-1 overflow-y-auto px-10 pt-8 pb-4 hide-scrollbar">
  <div className="max-w-6xl mx-auto space-y-5 pb-20">
  {REPORT_ITEMS.map((item) => (
  <div 

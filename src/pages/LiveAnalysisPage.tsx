@@ -47,7 +47,7 @@ interface ChatResponse {
 }
 
 const INITIAL_QUESTION_RESULTS = [
-  { id: "Q1", text: "Galaxy S25 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", insightTitle: "인지 신호", insightSummary: "인지도가 충분히 형성되어 기능 설명 중심에서 사용 장면 중심의 커뮤니케이션으로 전환할 수 있습니다.", insightAction: "기능명 중심의 메시지보다 결과 체감을 보여주는 자산으로 캠페인을 전환하세요.", data: [{ label: "매우 잘 안다", value: 41 }, { label: "어느 정도 안다", value: 32 }, { label: "들어봤다", value: 18 }, { label: "잘 모른다", value: 9 }] },
+  { id: "Q1", text: "Galaxy S26 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", insightTitle: "인지 신호", insightSummary: "인지도가 충분히 형성되어 기능 설명 중심에서 사용 장면 중심의 커뮤니케이션으로 전환할 수 있습니다.", insightAction: "기능명 중심의 메시지보다 결과 체감을 보여주는 자산으로 캠페인을 전환하세요.", data: [{ label: "매우 잘 안다", value: 41 }, { label: "어느 정도 안다", value: 32 }, { label: "들어봤다", value: 18 }, { label: "잘 모른다", value: 9 }] },
   { id: "Q2", text: "현재 사용 중인 스마트폰 카메라 경험에 얼마나 만족하십니까?", insightTitle: "満足 신호", insightSummary: "현재 만족도가 매우 낮지는 않아 단순한 문제 제기보다 명확한 업그레이드 이유를 만들어야 합니다.", insightAction: "비교 전후 구도를 활용해 개선 포인트를 직관적으로 보여주세요.", data: [{ label: "매우 만족", value: 28 }, { label: "만족", value: 35 }, { label: "보통", value: 22 }, { label: "불만족", value: 9 }, { label: "매우 불만족", value: 6 }] },
   { id: "Q3", text: "AI 카메라 컨셉이 구매 의향을 얼마나 높여준다고 느끼십니까?", insightTitle: "전환 신호", insightSummary: "해당 컨셉은 단순 제품 상세 기능이 아니라 실제 구매 전환을 이끄는 요소로 작동하고 있습니다.", insightAction: "출시 메시지에는 전환 효과를 증명하는 자산을 전면에 배치하세요.", data: [{ label: "매우 크다", value: 45 }, { label: "크다", value: 30 }, { label: "보통", value: 15 }, { label: "낮다", value: 7 }, { label: "매우 낮다", value: 3 }] },
 ];
@@ -71,7 +71,7 @@ const MOCK_FEED: ChatResponse[] = [
     personaName: "이서윤", 
     segment: "실용 중시 가족형", 
     questionId: "Q1", 
-    questionText: "Galaxy S25 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", 
+    questionText: "Galaxy S26 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", 
     selectedOption: "어느 정도 안다", 
     rationale: "아이들 사진 찍어줄 때 AI가 자동으로 보정해준다는 기능을 광고에서 봤습니다.", 
     integrityScore: 94.5, 
@@ -110,7 +110,7 @@ const MOCK_FEED: ChatResponse[] = [
     personaName: "강현우", 
     segment: "비즈니스 프로", 
     questionId: "Q1", 
-    questionText: "Galaxy S25 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", 
+    questionText: "Galaxy S26 AI 카메라 컨셉에 대한 인지도는 어느 정도입니까?", 
     selectedOption: "매우 잘 안다", 
     rationale: "업무상 문서 스캔과 실시간 번역 기능이 포함된 AI 카메라 기능을 유심히 살펴봤습니다.", 
     integrityScore: 99.1, 

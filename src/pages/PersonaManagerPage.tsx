@@ -459,7 +459,7 @@ export const PersonaManagerPage: React.FC = () => {
  </div>
 
  {/* ── 본문 ── */}
- <div className="flex-1 overflow-y-auto px-10 py-8 hide-scrollbar">
+ <div className="flex-1 overflow-y-auto px-10 pt-8 pb-4 hide-scrollbar">
 
  {/* 뷰 전환 툴바 */}
  <div className="flex items-center justify-between mb-8">
