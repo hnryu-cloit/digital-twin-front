@@ -34,6 +34,22 @@
 
 ---
 
+## 코드 컨벤션
+
+### ESLint
+- `eslint/config`의 `defineConfig` + `globalIgnores` 방식 (flat config)
+- `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh` 모두 flat config `extends` 방식으로 적용
+
+### TypeScript (`tsconfig.app.json`)
+- `strict: true`
+- `noUnusedLocals: true` — 미사용 변수 에러 처리
+- `noUnusedParameters: true` — 미사용 파라미터 에러 처리
+- `erasableSyntaxOnly: true`
+- `noFallthroughCasesInSwitch: true`
+- `noUncheckedSideEffectImports: true`
+
+---
+
 ## 시작하기
 
 ### 사전 요구사항

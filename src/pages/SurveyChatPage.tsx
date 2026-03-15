@@ -2,7 +2,6 @@ import type React from"react";
 import { useState, useRef, useEffect } from"react";
 import {
  Send,
- Bot,
  Sparkles,
  Pencil,
  Trash2,

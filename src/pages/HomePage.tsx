@@ -2,10 +2,10 @@ import type React from"react";
 import { useState } from"react";
 import { useNavigate } from"react-router";
 import {
- Plus, Search, Clock, BarChart2, Users, Zap, ChevronRight,
- FileText, Target, TrendingUp, Lightbulb, ShoppingCart, Star, Award,
- Layers, ArrowRight, Play, X, ChevronLeft, MessageSquare,
- Database, Upload, Link2, ListChecks, SlidersHorizontal,
+ Plus, Search, Clock, BarChart2, Users, ChevronRight,
+ FileText, Target, ShoppingCart, Star,
+ Layers, X, ChevronLeft, MessageSquare,
+ Database, Upload, ListChecks,
  Globe, Package, Eye,
  Check, Loader
 } from"lucide-react";

@@ -4,14 +4,10 @@ import {
   BarChart3,
   Pause,
   Play,
-  Target,
-  ChevronLeft,
-  ChevronRight,
   ShieldCheck,
   MessageCircle,
   X,
   UserCircle2,
-  Scale,
   RefreshCw,
   Hash,
   Lightbulb,
@@ -191,7 +187,7 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
 /* ─── Main Page ─── */
 export const LiveAnalysisPage: React.FC = () => {
   const [activeQuestion, setActiveQuestion] = useState("Q1");
-  const [chatFeed, setChatFeed] = useState<ChatResponse[]>(MOCK_FEED);
+  const [chatFeed] = useState<ChatResponse[]>(MOCK_FEED);
   const [selectedChat, setSelectedChat] = useState<ChatResponse | null>(null);
   const [isLive, setIsLive] = useState(true);
   const [completionRate, setCompletionRate] = useState(64);
