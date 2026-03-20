@@ -1,6 +1,6 @@
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import favicon from "@/assets/favicon.svg";
 import { FloatingAiChat } from "@/components/layout/FloatingAiChat";
 import {

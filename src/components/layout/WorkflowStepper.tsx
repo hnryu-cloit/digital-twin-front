@@ -1,6 +1,6 @@
 import type React from"react";
 import { Fragment } from"react";
-import { useNavigate } from"react-router";
+import { useNavigate } from "react-router-dom";
 import { ChevronRight, Check } from"lucide-react";
 
 type WorkflowPath ="/analytics" |"/survey" |"/live" |"/report";

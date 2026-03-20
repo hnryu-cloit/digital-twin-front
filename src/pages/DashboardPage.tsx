@@ -1,5 +1,6 @@
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { fetchIndividualPersonas } from "@/lib/api";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -42,31 +43,7 @@ interface FilterPersona {
   buyChannel: string;
 }
 
-const FILTER_PERSONAS: FilterPersona[] = [
-  { id:"p1",  name:"이준혁", age:28, gender:"남성", occupation:"게임 개발자",    occupationCat:"프리랜서", device:"S24 Ultra", segments:["MZ 얼리어답터","게이밍 성향군"],     techLevel:"전문가", interests:["고성능 게임","AI 자동화","영상 편집"],    keywords:["고성능","AI카메라","멀티태스킹"], spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"보통",  contentChannels:["YouTube","커뮤니티"],       buyChannel:"공식몰" },
-  { id:"p2",  name:"김지연", age:34, gender:"여성", occupation:"디지털 마케터",  occupationCat:"직장인",   device:"Z Flip6",   segments:["MZ 얼리어답터","프리미엄 구매자"],   techLevel:"중급",   interests:["패션/뷰티","사진 촬영","자기계발"],  keywords:["디자인","트렌드","SNS"],          spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"중간", snsActivity:"활발",  contentChannels:["Instagram","YouTube"],      buyChannel:"공식몰" },
-  { id:"p3",  name:"박민수", age:45, gender:"남성", occupation:"금융 컨설턴트",  occupationCat:"전문직",   device:"S24+",      segments:["비즈니스 프로","실용 중시 가족형"], techLevel:"중급",   interests:["재테크","뉴스 구독","골프"],          keywords:["업무효율","보안","배터리"],        spendingLevel:"실용형",    purchaseIntent:"보통", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["뉴스/미디어"],              buyChannel:"통신사 대리점" },
-  { id:"p4",  name:"최수아", age:23, gender:"여성", occupation:"대학생",         occupationCat:"학생",     device:"A55",       segments:["MZ 얼리어답터"],                    techLevel:"초보",   interests:["유튜브 시청","여행","사진 어플"],     keywords:["가성비","카메라","디자인"],        spendingLevel:"가성비형",  purchaseIntent:"높음", brandLoyalty:"낮음", snsActivity:"활발",  contentChannels:["Instagram","YouTube"],      buyChannel:"자급제" },
-  { id:"p5",  name:"정태영", age:39, gender:"남성", occupation:"건축가",         occupationCat:"전문직",   device:"Z Fold6",   segments:["프리미엄 구매자","비즈니스 프로"],   techLevel:"전문가", interests:["건축 디자인","스마트홈","자동차"],    keywords:["대화면","멀티태스킹","S펜"],       spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["커뮤니티"],                 buyChannel:"공식몰" },
-  { id:"p6",  name:"한소희", age:42, gender:"여성", occupation:"학원 강사",      occupationCat:"직장인",   device:"S23",       segments:["실용 중시 가족형"],                  techLevel:"초보",   interests:["육아","교육","쇼핑"],                keywords:["배터리","안정성","카메라"],        spendingLevel:"실용형",    purchaseIntent:"보통", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["YouTube"],                  buyChannel:"통신사 대리점" },
-  { id:"p7",  name:"강현우", age:19, gender:"남성", occupation:"고등학생",       occupationCat:"학생",     device:"S23 FE",    segments:["게이밍 성향군"],                    techLevel:"중급",   interests:["모바일 e스포츠","웹툰","PC 하드웨어"],keywords:["게임","디스플레이","가성비"],      spendingLevel:"가성비형",  purchaseIntent:"높음", brandLoyalty:"중간", snsActivity:"활발",  contentChannels:["YouTube","커뮤니티"],       buyChannel:"자급제" },
-  { id:"p8",  name:"유진아", age:31, gender:"여성", occupation:"UX 디자이너",    occupationCat:"프리랜서", device:"Z Flip5",   segments:["MZ 얼리어답터","프리미엄 구매자"],   techLevel:"중급",   interests:["인테리어","전시회","디자인 툴"],      keywords:["커스터마이징","감성","카메라"],    spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"중간", snsActivity:"활발",  contentChannels:["Instagram"],                buyChannel:"공식몰" },
-  { id:"p9",  name:"조상민", age:55, gender:"남성", occupation:"개인사업자",     occupationCat:"자영업자", device:"Z Fold5",   segments:["비즈니스 프로"],                    techLevel:"초보",   interests:["주식","부동산","뉴스"],              keywords:["큰화면","신뢰감","주식"],          spendingLevel:"실용형",    purchaseIntent:"보통", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["뉴스/미디어"],              buyChannel:"통신사 대리점" },
-  { id:"p10", name:"임도윤", age:26, gender:"남성", occupation:"유튜버",         occupationCat:"자영업자", device:"S24 Ultra", segments:["MZ 얼리어답터","프리미엄 구매자"],   techLevel:"전문가", interests:["영상 편집","카메라 장비","여행"],     keywords:["동영상","마이크","저장용량"],      spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"활발",  contentChannels:["YouTube","Instagram"],      buyChannel:"공식몰" },
-  { id:"p11", name:"박은지", age:29, gender:"여성", occupation:"회사원",         occupationCat:"직장인",   device:"S24",       segments:["MZ 얼리어답터"],                    techLevel:"중급",   interests:["해외 여행","외국어","카페 투어"],     keywords:["휴대성","디자인","AI통번역"],      spendingLevel:"실용형",    purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"보통",  contentChannels:["Instagram","YouTube"],      buyChannel:"자급제" },
-  { id:"p12", name:"송지훈", age:35, gender:"남성", occupation:"프리랜서",       occupationCat:"프리랜서", device:"S23+",      segments:["실용 중시 가족형"],                  techLevel:"중급",   interests:["자동차","캠핑","OTT"],               keywords:["배터리타임","화면크기","내구성"],  spendingLevel:"가성비형",  purchaseIntent:"보통", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["YouTube"],                  buyChannel:"통신사 대리점" },
-  { id:"p13", name:"이채원", age:22, gender:"여성", occupation:"대학생",         occupationCat:"학생",     device:"Z Flip6",   segments:["MZ 얼리어답터"],                    techLevel:"중급",   interests:["패션","뷰티","핫플 탐방"],           keywords:["인스타","셀피","콤팩트"],          spendingLevel:"가성비형",  purchaseIntent:"높음", brandLoyalty:"낮음", snsActivity:"활발",  contentChannels:["Instagram","YouTube"],      buyChannel:"자급제" },
-  { id:"p14", name:"김동현", age:48, gender:"남성", occupation:"영업팀장",       occupationCat:"직장인",   device:"Z Fold6",   segments:["비즈니스 프로","프리미엄 구매자"],   techLevel:"중급",   interests:["골프","경제","자기계발"],             keywords:["화면분할","문서작업","배터리"],    spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["뉴스/미디어"],              buyChannel:"통신사 대리점" },
-  { id:"p15", name:"서유리", age:27, gender:"여성", occupation:"일러스트레이터", occupationCat:"프리랜서", device:"S24 Ultra", segments:["게이밍 성향군"],                    techLevel:"전문가", interests:["웹툰","전시","일러스트"],             keywords:["S펜","드로잉","고해상도"],         spendingLevel:"실용형",    purchaseIntent:"보통", brandLoyalty:"중간", snsActivity:"보통",  contentChannels:["Instagram","커뮤니티"],     buyChannel:"공식몰" },
-  { id:"p16", name:"황인호", age:33, gender:"남성", occupation:"백엔드 개발자",  occupationCat:"직장인",   device:"S23",       segments:["실용 중시 가족형"],                  techLevel:"전문가", interests:["코딩","스팀 게임","테크 리뷰"],       keywords:["작은크기","가벼움","가성비"],      spendingLevel:"가성비형",  purchaseIntent:"낮음", brandLoyalty:"중간", snsActivity:"낮음",  contentChannels:["커뮤니티"],                 buyChannel:"자급제" },
-  { id:"p17", name:"박지민", age:25, gender:"여성", occupation:"취업준비생",     occupationCat:"학생",     device:"A34",       segments:["실용 중시 가족형"],                  techLevel:"초보",   interests:["취업","토익","유튜브"],              keywords:["가성비","인강","배터리"],          spendingLevel:"가성비형",  purchaseIntent:"보통", brandLoyalty:"낮음", snsActivity:"보통",  contentChannels:["YouTube"],                  buyChannel:"자급제" },
-  { id:"p18", name:"최건우", age:30, gender:"남성", occupation:"마케팅 AE",      occupationCat:"직장인",   device:"S24+",      segments:["MZ 얼리어답터","프리미엄 구매자"],   techLevel:"중급",   interests:["트렌드 리서치","운동","맛집 탐방"],   keywords:["디자인","성능균형","AI요약"],      spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"활발",  contentChannels:["Instagram","YouTube"],      buyChannel:"공식몰" },
-  { id:"p19", name:"윤보라", age:37, gender:"여성", occupation:"요가 강사",      occupationCat:"자영업자", device:"Z Flip5",   segments:["실용 중시 가족형"],                  techLevel:"초보",   interests:["요가","다이어트식단","명상"],         keywords:["휴대성","거치촬영","건강관리"],    spendingLevel:"실용형",    purchaseIntent:"보통", brandLoyalty:"높음", snsActivity:"보통",  contentChannels:["Instagram"],                buyChannel:"공식몰" },
-  { id:"p20", name:"구승민", age:41, gender:"남성", occupation:"연구원",         occupationCat:"전문직",   device:"S24 Ultra", segments:["게이밍 성향군","비즈니스 프로"],     techLevel:"전문가", interests:["IT 테크","모바일 게임","SF영화"],     keywords:["고성능","최신기술","디스플레이"],  spendingLevel:"프리미엄형", purchaseIntent:"높음", brandLoyalty:"높음", snsActivity:"낮음",  contentChannels:["커뮤니티","뉴스/미디어"],   buyChannel:"자급제" },
-];
-
 const TOTAL_POPULATION = 18740;
-const scaleToPopulation = (n: number) => Math.round(n / FILTER_PERSONAS.length * TOTAL_POPULATION);
 
 const SEG_STYLE: Record<PersonaSegment, { bg: string; text: string; dot: string }> = {
   "MZ 얼리어답터":    { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
@@ -175,8 +152,61 @@ const CUSTOM_LABEL = ({ cx, cy }: { cx: number; cy: number }) => (
 
 /* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
-  /* ── 인구통계 ── */
+  const [allPersonas, setAllPersonas] = useState<FilterPersona[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchIndividualPersonas(1, 1000);
+        const mapped: FilterPersona[] = data.items.map((item: any) => {
+          const all = item.all_data;
+          const lifestyle = (all["[option]lifestyle_type"] || "Practical") as string;
+          let segment: PersonaSegment = "실용 중시 가족형";
+          if (lifestyle === "Tech Savvy") segment = "MZ 얼리어답터";
+          else if (lifestyle === "Design Focused") segment = "프리미엄 구매자";
+          else if (lifestyle === "Smart Home Enthusiast") segment = "비즈니스 프로";
+          else if (lifestyle === "Minimalist") segment = "게이밍 성향군";
+
+          return {
+            id: `p${item.index}`,
+            name: item.name || "이름 없음",
+            age: item.age,
+            gender: item.gender === "M" ? "남성" : "여성",
+            occupation: item.job || "직업 미상",
+            occupationCat: "직장인",
+            device: all["[option]own_tv"] ? "Smart TV" : "Galaxy S24",
+            segments: [segment],
+            techLevel: lifestyle === "Tech Savvy" ? "전문가" : "중급",
+            interests: ["가전", "스마트홈"],
+            keywords: [all["[option]purchase_decision_factor"] || "성능"],
+            spendingLevel: "실용형",
+            purchaseIntent: "보통",
+            brandLoyalty: "높음",
+            snsActivity: "보통",
+            contentChannels: ["YouTube"],
+            buyChannel: "공식몰"
+          };
+        });
+        setAllPersonas(mapped);
+      } catch (error) {
+        console.error("Dashboard data load failed:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const scaleToPopulation = (n: number) => {
+    if (allPersonas.length === 0) return 0;
+    return Math.round(n / allPersonas.length * TOTAL_POPULATION);
+  };
+
+  /* ── State ── */
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
+
   const [gender, setGender] = useState({ male: true, female: true });
   const [selectedOccupations, setSelectedOccupations] = useState<string[]>([]);
   const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
@@ -263,7 +293,7 @@ export const DashboardPage: React.FC = () => {
 
   /* ── matching ── */
   const matchedPersonas = useMemo(() => {
-    return FILTER_PERSONAS.filter((p) => {
+    return allPersonas.filter((p) => {
       if (selectedAgeGroups.length > 0) {
         if (!AGE_GROUPS.filter((g) => selectedAgeGroups.includes(g.label)).some((g) => p.age >= g.min && p.age <= g.max)) return false;
       }
@@ -290,15 +320,26 @@ export const DashboardPage: React.FC = () => {
       }
       return true;
     });
-  }, [selectedAgeGroups, gender, selectedOccupations, selectedSpending, selectedPurchaseIntent,
+  }, [allPersonas, selectedAgeGroups, gender, selectedOccupations, selectedSpending, selectedPurchaseIntent,
       selectedBuyChannels, selectedTechLevels, selectedSns, selectedContentChannels,
       selectedBrandLoyalty, allKeywords]);
 
   /* ── derive segments from matched personas ── */
   const derivedSegments = useMemo(
-    () => deriveSegments(hasFilters ? matchedPersonas : FILTER_PERSONAS),
-    [matchedPersonas, hasFilters],
+    () => deriveSegments(hasFilters ? matchedPersonas : allPersonas),
+    [matchedPersonas, allPersonas, hasFilters]
   );
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">실시간 디지털 트윈 데이터를 분석 중...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background">
@@ -799,7 +840,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 p-6">
                   {derivedSegments.map((seg, idx) => {
                     const style = SEG_STYLE[seg.name];
-                    const ratio = Math.round(seg.members.length / (hasFilters ? matchedPersonas.length : FILTER_PERSONAS.length) * 100);
+                    const ratio = Math.round(seg.members.length / (hasFilters ? matchedPersonas.length : allPersonas.length || 1) * 100);
                     return (
                       <div
                         key={seg.name}

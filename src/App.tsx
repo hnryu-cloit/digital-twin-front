@@ -1,5 +1,5 @@
 import type React from "react";
-import { Route, Routes } from "react-router";
+import { Route, Routes } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { HomePage } from "@/pages/HomePage";
 import { DashboardPage } from "@/pages/DashboardPage";

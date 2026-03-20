@@ -1,5 +1,6 @@
 import type React from"react";
-import { useState } from"react";
+import { useState, useEffect } from"react";
+import { fetchIndividualPersonas } from "@/lib/api";
 import { AppPagination } from"@/components/ui/AppPagination";
 import {
  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
@@ -424,13 +425,70 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
 }
 
 export const PersonaManagerPage: React.FC = () => {
- const [personas] = useState<Persona[]>(PERSONA_LIST);
+ const [personas, setPersonas] = useState<Persona[]>([]);
+ const [loading, setLoading] = useState(true);
  const [viewMode, setViewMode] = useState<"card" |"list">("card");
  const [page, setPage] = useState(1);
  const [detailTarget, setDetailTarget] = useState<Persona | undefined>();
 
+ useEffect(() => {
+   const loadData = async () => {
+     try {
+       setLoading(true);
+       const data = await fetchIndividualPersonas(1, 1000);
+       
+       const mappedPersonas: Persona[] = data.items.map((item: any) => {
+         const all = item.all_data;
+         return {
+           id: `p${item.index}`,
+           name: item.name || "이름 없음",
+           age: item.age,
+           gender: item.gender === "M" ? "남성" : "여성",
+           occupation: item.job || "직업 미상",
+           device: all["[option]own_tv"] ? "Smart TV" : (all["[option]own_refrigerator"] ? "Bespoke Refrigerator" : "Galaxy S24"),
+           segments: [all["[option]lifestyle_type"] || "MZ 얼리어답터"],
+           keywords: [all["[option]purchase_decision_factor"] || "성능", all["[option]preferred_promotion"] || "할인"],
+           purchaseIntent: all["[option]satisfaction_sentiment"] || 70,
+           color: "var(--primary)",
+           iconBg: "#eef3ff",
+           iconKey: item.index % 5,
+           description: item.personality || "가상 페르소나 설명입니다.",
+           techLevel: all["[option]lifestyle_type"] === "Tech Savvy" ? "전문가" : "중급",
+           monthlyTechSpend: "20-30만원",
+           interests: ["가전 인테리어", "스마트싱스"],
+           competitorPerception: item.samsung_experience || "브랜드 경험 정보가 없습니다.",
+           marketingAcceptance: 80,
+           futureValue: 85,
+           purchaseHistory: ["S24 (2024)"],
+           userLogs: ["SmartThings 접속 (방금 전)"],
+           brandAttitude: all["[option]satisfaction_sentiment"] || 80
+         };
+       });
+       
+       setPersonas(mappedPersonas);
+     } catch (error) {
+       console.error("Failed to fetch personas:", error);
+     } finally {
+       setLoading(false);
+     }
+   };
+
+   loadData();
+ }, []);
+
  const paginated = personas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
  const totalPages = Math.ceil(personas.length / PAGE_SIZE);
+
+ if (loading) {
+   return (
+     <div className="flex h-screen items-center justify-center bg-[var(--background)]">
+       <div className="flex flex-col items-center gap-4">
+         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+         <p className="text-sm font-medium text-[var(--muted-foreground)]">1,000명의 디지털 트윈 데이터를 불러오는 중...</p>
+       </div>
+     </div>
+   );
+ }
 
  return (
  <div className="flex h-full w-full flex-col bg-background overflow-hidden">
