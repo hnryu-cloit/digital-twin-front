@@ -24,14 +24,13 @@ const NAV: NavSection[] = [
       { key: "projects", label: "리서치 프로젝트 마스터 뷰", icon: Briefcase },
       { key: "datasrc", label: "데이터 소스 및 스키마", icon: Database },
       { key: "users", label: "사용자 및 권한 제어", icon: Users },
-      { key: "security", label: "보안 및 규정 준수", icon: Shield },
     ],
   },
   {
     label: "AI 엔진 및 감사 로그",
     items: [
-      { key: "prompt", label: "프롬프트 파인튜닝", icon: Terminal },
-      { key: "logs", label: "AI 프롬프트 히스토리", icon: MessageSquare },
+      { key: "prompt", label: "시스템 프롬프트 설정", icon: Terminal },
+      { key: "logs", label: "AI 대화 감사 로그", icon: MessageSquare },
       { key: "validation", label: "페르소나 검증 (CoT) 아카이브", icon: History },
     ],
   },
@@ -270,9 +269,10 @@ const CONTENT: Record<string, React.ReactNode> = {
               </thead>
               <tbody className="divide-y divide-[var(--border)] bg-card">
                 {[
-                  { name: "한나 (Hanna)", email: "hanna@antigravity.kr", role: "운영자", dept: "CX 전략팀", lastAccess: "방금 전", mfa: true },
-                  { name: "김민준", email: "analyst_kim@samsung.com", role: "분석가", dept: "삼성 리서치", lastAccess: "1시간 전", mfa: true },
-                  { name: "이서연", email: "marketing_lee@samsung.com", role: "분석가", dept: "MX 마케팅실", lastAccess: "3시간 전", mfa: false },
+
+                  { name: "이동훈", email: "dh.lee@samsung.com", role: "운영자", dept: "CX 전략팀", lastAccess: "방금 전", mfa: true },
+                  { name: "김민준", email: "mj.kim@samsung.com", role: "분석가", dept: "삼성 리서치", lastAccess: "1시간 전", mfa: true },
+                  { name: "이서연", email: "sy.lee@samsung.com", role: "분석가", dept: "MX 마케팅실", lastAccess: "3시간 전", mfa: false },
                   { name: "박지호", email: "jh.park@samsung.com", role: "뷰어", dept: "글로벌 전략팀", lastAccess: "어제", mfa: false },
                   { name: "최예은", email: "ye.choi@samsung.com", role: "뷰어", dept: "영남 지역 본부", lastAccess: "2일 전", mfa: true },
                   { name: "정태양", email: "ty.jung@samsung.com", role: "분석가", dept: "삼성 리서치", lastAccess: "5일 전", mfa: false },
@@ -344,34 +344,112 @@ const CONTENT: Record<string, React.ReactNode> = {
   ),
   logs: (
     <>
-      <SectionTitle title="AI 프롬프트 및 대화 히스토리" desc="사용자들이 AI 어시스턴트 및 설문 챗봇과 나눈 질의응답 및 프롬프트 로깅(감사 로그)을 조회합니다." />
-      <SettingGroup title="실시간 프롬프트 감사 로그">
-        <div className="flex items-center gap-2 mb-5 bg-[var(--panel-soft)] px-4 py-3 rounded-xl border border-[var(--border)] shadow-inner focus-within:border-primary focus-within:bg-card transition-all">
-          <Search size={15} className="text-[var(--subtle-foreground)]" />
-          <input className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium" placeholder="사용자 이메일, 질문 키워드 검색..." />
+      <SectionTitle title="AI 대화 감사 로그" desc="사용자들이 AI 어시스턴트 및 설문 챗봇과 나눈 질의응답 이력을 조회하고 감사합니다." />
+
+      <SettingGroup title="대화 로그">
+        {/* 필터 바 */}
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 flex items-center gap-2 bg-[var(--panel-soft)] px-4 py-2.5 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all">
+            <Search size={14} className="text-[var(--subtle-foreground)] shrink-0" />
+            <input className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium" placeholder="사용자, 리서치명, 프롬프트 키워드 검색..." />
+          </div>
+          <select className="bg-card border border-[var(--border)] rounded-xl px-3 h-[42px] text-[12px] font-bold text-foreground outline-none focus:border-primary shadow-sm shrink-0">
+            <option>전체 사용자</option>
+            <option>dh.lee@samsung.com</option>
+            <option>mj.kim@samsung.com</option>
+            <option>sy.lee@samsung.com</option>
+          </select>
+          <select className="bg-card border border-[var(--border)] rounded-xl px-3 h-[42px] text-[12px] font-bold text-foreground outline-none focus:border-primary shadow-sm shrink-0">
+            <option>전체 기간</option>
+            <option>오늘</option>
+            <option>최근 7일</option>
+            <option>최근 30일</option>
+          </select>
         </div>
-        <div className="space-y-3">
-          {[
-            { user: "hanna@antigravity.kr", page: "/survey", prompt: "기존 3번 문항을 MZ 세대 톤앤매너로 수정해줘.", time: "10분 전", tokens: 142 },
-            { user: "analyst_kim@samsung.com", page: "/analytics", prompt: "현재 필터링된 그룹에서 20대 여성의 가장 큰 불만 요인은 뭐야?", time: "45분 전", tokens: 890 },
-            { user: "marketing_lee@samsung.com", page: "/report", prompt: "이 리포트의 결론을 3줄로 요약해서 임원 보고용으로 만들어줘.", time: "2시간 전", tokens: 1250 },
-          ].map((log, i) => (
-            <div key={i} className="rounded-xl bg-card border border-[var(--border)] p-5 hover:border-[var(--border-hover)] hover:shadow-md transition-all">
-              <div className="flex justify-between items-center mb-3 text-[11px]">
-                <span className="font-black text-primary flex items-center gap-1.5"><Users size={12} className="opacity-70" /> {log.user}</span>
-                <span className="font-semibold text-[var(--muted-foreground)] flex items-center gap-1.5"><Clock size={12} /> {log.time}</span>
-              </div>
-              <div className="bg-[var(--panel-soft)] p-4 rounded-lg border border-[var(--border)] shadow-inner mb-3">
-                <p className="text-[13px] font-semibold text-[var(--secondary-foreground)] leading-relaxed italic">
-                  "{log.prompt}"
-                </p>
-              </div>
-              <div className="flex justify-between items-center text-[10px]">
-                <span className="font-mono font-bold bg-[var(--primary-light-bg)] text-primary border border-primary/20 px-2 py-1 rounded-md shadow-sm">Path: {log.page}</span>
-                <span className="font-bold text-[var(--subtle-foreground)]">Tokens: <span className="text-[var(--secondary-foreground)]">{log.tokens}</span></span>
-              </div>
-            </div>
-          ))}
+
+        {/* 테이블 */}
+        <div className="overflow-hidden rounded-xl border border-[var(--border)] shadow-sm overflow-x-auto">
+          <table className="w-full text-left text-[12px] min-w-[900px]">
+            <thead className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
+              <tr>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">사용자</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">리서치명</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">프롬프트</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">AI 답변 요약</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">토큰</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">생성일시</th>
+                <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">상세</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)] bg-card">
+              {[
+                {
+                  user: "이동훈", email: "dh.lee@samsung.com",
+                  research: "Galaxy S26 컨셉 테스트",
+                  prompt: "기존 3번 문항을 MZ 세대 톤앤매너로 수정해줘.",
+                  answer: "\"S26, 너의 다음 레벨\" 형태로 감성 중심 문항 3개 제안. 구어체 + 이모지 옵션 포함.",
+                  tokens: 142, date: "2026-03-15 09:12", page: "/survey",
+                },
+                {
+                  user: "김민준", email: "mj.kim@samsung.com",
+                  research: "MZ세대 스마트폰 Usage 조사",
+                  prompt: "현재 필터링된 그룹에서 20대 여성의 가장 큰 불만 요인은 뭐야?",
+                  answer: "배터리 수명(38%), 카메라 야간 성능(27%), 무게(18%) 순으로 불만 집중. 세부 코멘트 첨부.",
+                  tokens: 890, date: "2026-03-15 08:31", page: "/analytics",
+                },
+                {
+                  user: "이서연", email: "sy.lee@samsung.com",
+                  research: "글로벌 브랜드 인지도 Q1",
+                  prompt: "이 리포트의 결론을 3줄로 요약해서 임원 보고용으로 만들어줘.",
+                  answer: "① 국내 MZ 브랜드 선호도 +4.2%p ② 북미 시장 갤럭시 인지도 72% ③ 카메라·AI 기능이 핵심 구매 트리거.",
+                  tokens: 1250, date: "2026-03-14 17:45", page: "/report",
+                },
+                {
+                  user: "박지호", email: "jh.park@samsung.com",
+                  research: "Galaxy S26 컨셉 테스트",
+                  prompt: "프리미엄 구매자 세그먼트의 가격 저항선은 얼마야?",
+                  answer: "150만원 이하 응답 61%, 180만원 이하 84%. 고사양 카메라 번들 시 10~15만원 추가 지불 의향 확인.",
+                  tokens: 540, date: "2026-03-14 14:20", page: "/analytics",
+                },
+                {
+                  user: "정태양", email: "ty.jung@samsung.com",
+                  research: "MZ세대 스마트폰 Usage 조사",
+                  prompt: "게이밍 성향군 응답자들이 가장 많이 언급한 기능 키워드 뽑아줘.",
+                  answer: "게임 성능(52%), 발열 관리(44%), 화면 주사율(39%), 배터리(35%), 냉각 시스템(28%) 순으로 추출.",
+                  tokens: 317, date: "2026-03-13 11:05", page: "/analytics",
+                },
+              ].map((log, i) => (
+                <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
+                  <td className="px-4 py-4">
+                    <p className="font-black text-foreground text-[13px]">{log.user}</p>
+                    <p className="font-medium text-[var(--muted-foreground)] text-[10px]">{log.email}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="font-bold text-[var(--secondary-foreground)] text-[12px] leading-snug">{log.research}</span>
+                  </td>
+                  <td className="px-4 py-4 max-w-[200px]">
+                    <p className="font-medium text-[var(--secondary-foreground)] text-[12px] leading-snug line-clamp-2 italic">"{log.prompt}"</p>
+                  </td>
+                  <td className="px-4 py-4 max-w-[220px]">
+                    <p className="font-medium text-[var(--muted-foreground)] text-[12px] leading-snug line-clamp-2">{log.answer}</p>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="font-mono font-black text-[12px] text-primary">{log.tokens.toLocaleString()}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="font-bold text-[var(--muted-foreground)] text-[12px] whitespace-nowrap">{log.date}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px] gap-1"><Eye size={12} /> 보기</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex justify-between items-center pt-3">
+          <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 5건 표시 중 (전체 1,284건)</span>
+          <Button variant="outline" size="sm" className="gap-2"><FileText size={13} /> CSV 내보내기</Button>
         </div>
       </SettingGroup>
     </>
@@ -487,7 +565,7 @@ const CONTENT: Record<string, React.ReactNode> = {
   ),
   prompt: (
     <>
-      <SectionTitle title="AI 엔진 및 프롬프트 최적화" desc="리서치 유형별 AI 분석 에이전트의 페르소나와 지시문을 정밀 튜닝하여 분석 품질을 향상시킵니다." />
+      <SectionTitle title="시스템 프롬프트 설정 및 버전 관리" desc="리서치 템플릿별 AI 시스템 프롬프트를 설정하고, 배포된 버전 이력을 관리합니다." />
 
       <div className="grid grid-cols-1 gap-6">
         <SettingGroup title="엔진 성능 대시보드">
@@ -501,26 +579,6 @@ const CONTENT: Record<string, React.ReactNode> = {
               <div key={s.label} className={cn("p-5 rounded-xl border border-[var(--border)] text-center shadow-sm", s.bg)}>
                 <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">{s.label}</p>
                 <p className={cn("text-2xl font-black tracking-tight", s.color)}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="리서치 분석 모델 선택">
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { id: "gpt-4o", name: "GPT-4o Professional", desc: "복합 리서치 및 전략 수립 최적화", active: true },
-              { id: "claude-3-5", name: "Claude 3.5 Sonnet", desc: "창의적 인사이트 및 톤앤매너 강화", active: false },
-            ].map(m => (
-              <div key={m.id} className={cn(
-                "p-5 rounded-xl cursor-pointer border-2 transition-all shadow-sm",
-                m.active ? "border-primary bg-[var(--primary-light-bg)]" : "border-transparent bg-[var(--panel-soft)] opacity-60 hover:opacity-100 hover:border-[var(--border)]"
-              )}>
-                <div className="flex justify-between items-start mb-2">
-                  <p className={cn("font-black text-[15px]", m.active ? "text-primary" : "text-foreground")}>{m.name}</p>
-                  {m.active && <div className="bg-primary text-white text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider shadow-sm">Active</div>}
-                </div>
-                <p className="text-[12px] font-medium text-[var(--muted-foreground)] leading-relaxed">{m.desc}</p>
               </div>
             ))}
           </div>
@@ -545,6 +603,46 @@ const CONTENT: Record<string, React.ReactNode> = {
             ))}
           </div>
           <PromptEditor template="Concept Test" />
+        </SettingGroup>
+
+        <SettingGroup title="프롬프트 버전 히스토리">
+          <div className="space-y-3">
+            {[
+              { version: "v2.4.1", label: "Stable", date: "2026-03-12 10:00", author: "dh.lee@samsung.com", changes: "Galaxy S26 컨셉 테스트 특화 지시문 추가 및 리스크 감지 임계값 조정", active: true },
+              { version: "v2.4.0", label: "Deprecated", date: "2026-02-28 14:30", author: "mj.kim@samsung.com", changes: "CoT 추론 강도 상향 (p-value 기준 0.05 → 0.03), 응답 포맷 표준화", active: false },
+              { version: "v2.3.2", label: "Archived", date: "2026-01-15 09:15", author: "dh.lee@samsung.com", changes: "다국어 응답 지원 추가 (EN/JP), 글로벌 리서치 프로젝트 대응", active: false },
+              { version: "v2.3.0", label: "Archived", date: "2025-12-01 11:00", author: "ty.jung@samsung.com", changes: "초기 프로덕션 배포 버전. 기본 페르소나 분석 지시문 세팅", active: false },
+            ].map(v => (
+              <div key={v.version} className={cn(
+                "p-5 rounded-xl border transition-all",
+                v.active ? "bg-[#eef3ff] border-primary/30" : "bg-card border-[var(--border)] hover:border-[var(--border-hover)]"
+              )}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono text-[13px] font-black text-foreground">{v.version}</span>
+                    <Badge variant="outline" className={cn(
+                      "text-[9px] font-black uppercase tracking-wider",
+                      v.active ? "text-primary border-primary/40 bg-white" : "text-[var(--muted-foreground)]"
+                    )}>{v.label}</Badge>
+                    {v.active && <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> 현재 적용 중</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="text-[11px] h-7 px-3 gap-1"><Eye size={12} /> 내용 보기</Button>
+                    {!v.active && <Button variant="outline" size="sm" className="text-[11px] h-7 px-3 gap-1"><RotateCcw size={12} /> 롤백</Button>}
+                  </div>
+                </div>
+                <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-relaxed mb-3">{v.changes}</p>
+                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--muted-foreground)]">
+                  <span className="flex items-center gap-1"><Clock size={10} /> {v.date}</span>
+                  <span className="flex items-center gap-1"><Users size={10} /> {v.author}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 4개 버전 (현재: v2.4.1)</span>
+            <Button size="sm" className="gap-2"><Sparkles size={14} /> 새 버전 배포</Button>
+          </div>
         </SettingGroup>
       </div>
     </>

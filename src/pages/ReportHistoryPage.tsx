@@ -99,7 +99,10 @@ export const ReportHistoryPage: React.FC = () => {
           {REPORT_ITEMS.map((item) => (
             <div
               key={item.id}
-              className="app-card p-5 flex items-center gap-7 relative group transition-all duration-300 hover:border-primary/30 hover:shadow-[var(--shadow-md)] bg-card/50 hover:bg-card"
+              className={cn(
+                "app-card p-5 flex items-center gap-7 relative group transition-all duration-300 hover:border-primary/30 hover:shadow-[var(--shadow-md)] bg-card/50 hover:bg-card",
+                downloadOpenId === item.id ? "z-40 overflow-visible" : "z-0"
+              )}
             >
               {/* Format Icon */}
               <div className={cn(
