@@ -6,8 +6,53 @@ export const apiClient = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  timeout: 3000,
+  timeout: 5000,
 });
+
+// 토큰 캐시
+let _cachedToken: string | null = localStorage.getItem("dt_access_token");
+
+async function ensureToken(): Promise<string | null> {
+  if (_cachedToken) return _cachedToken;
+  try {
+    const res = await axios.post("http://localhost:8000/api/auth/login", {
+      email: "admin@digital-twin.ai",
+      password: "Admin1234!",
+    });
+    _cachedToken = res.data.access_token as string;
+    localStorage.setItem("dt_access_token", _cachedToken);
+    return _cachedToken;
+  } catch {
+    return null;
+  }
+}
+
+// 요청 인터셉터 — 모든 요청에 Bearer 토큰 자동 첨부
+apiClient.interceptors.request.use(async (config) => {
+  const token = await ensureToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers["Authorization"] = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// 응답 인터셉터 — 401 시 토큰 재발급 후 재시도
+apiClient.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    if (error.response?.status === 401) {
+      _cachedToken = null;
+      localStorage.removeItem("dt_access_token");
+      const token = await ensureToken();
+      if (token && error.config) {
+        error.config.headers["Authorization"] = `Bearer ${token}`;
+        return axios(error.config);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 /* ─── Interfaces ─── */
 export interface Project {
@@ -55,9 +100,9 @@ export interface PersonaListResponse {
  * 기존 DashboardPage와 PersonaManagerPage에서 사용하던 함수
  * 안정성을 위해 목업 데이터를 반환하거나 백엔드 연동을 시도함
  */
-export const fetchIndividualPersonas = async (): Promise<Persona[]> => {
+export const fetchIndividualPersonas = async (projectId = "prj-001"): Promise<Persona[]> => {
   try {
-    const { data } = await apiClient.get("/v1/personas?page=1&size=100");
+    const { data } = await apiClient.get(`/v1/personas?project_id=${projectId}&page=1&size=100`);
     return data.items || [];
   } catch (error) {
     console.warn("fetchIndividualPersonas failed, returning empty.", error);
@@ -65,11 +110,51 @@ export const fetchIndividualPersonas = async (): Promise<Persona[]> => {
   }
 };
 
+// 백엔드 status → 프론트엔드 한국어 status 매핑
+const STATUS_MAP: Record<string, Project["status"]> = {
+  "진행중": "진행중",
+  "완료": "완료",
+  "초안": "초안",
+  "분석중": "분석중",
+  in_progress: "진행중",
+  completed: "완료",
+  draft: "초안",
+  analyzing: "분석중",
+};
+
+// 상대 시간 포맷 (ISO datetime → "N시간 전")
+function formatRelativeTime(isoString: string): string {
+  const diff = Date.now() - new Date(isoString).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
+}
+
+// 백엔드 응답 → 프론트엔드 Project 매핑
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapProject(raw: any): Project {
+  return {
+    id: raw.id,
+    title: raw.name ?? raw.title ?? "",
+    type: raw.type ?? "",
+    status: STATUS_MAP[raw.status] ?? "초안",
+    progress: raw.progress ?? 0,
+    responses: raw.response_count ?? raw.responses ?? 0,
+    target: raw.target_responses ?? raw.target ?? 0,
+    updatedAt: raw.updated_at ? formatRelativeTime(raw.updated_at) : (raw.updatedAt ?? ""),
+    tags: raw.tags ?? [],
+  };
+}
+
 export const projectApi = {
   getProjects: async (page = 1, size = 10): Promise<ProjectListResponse> => {
     try {
       const { data } = await apiClient.get(`/v1/projects?page=${page}&size=${size}`);
-      return data;
+      const items: Project[] = (data.items ?? []).map(mapProject);
+      return { items, page: data.page ?? page, size: data.size ?? size, total: data.total ?? items.length };
     } catch (error) {
       console.warn("projectApi.getProjects failed.", error);
       return { items: [], page, size, total: 0 };
