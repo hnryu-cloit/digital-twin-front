@@ -5,21 +5,22 @@
 > 자세한 사항은 루트 디렉토리의 [`docs/conventions.md`](../docs/conventions.md)를 반드시 확인하세요.
 > 주요 프론트엔드 제약: **Feature-Sliced Design, React Query 필수 사용, Strict TypeScript**
 
-디지털 트윈 기반 가상 페르소나 리서치용 프론트엔드입니다.  
-현재 버전은 React + TypeScript 기반의 **UI/UX MVP 화면**이며, 분석 워크플로우(세그먼트 분석 → 설문 설계 → 실시간 응답 분석 → 리포트)를 목업 데이터로 제공합니다.
+디지털 트윈 기반 가상 페르소나 리서치용 프론트엔드입니다.
+React + TypeScript 기반 SPA로, 분석 워크플로우(세그먼트 분석 → 설문 설계 → 실시간 응답 분석 → 리포트)를 백엔드 SQLite DB와 연동하여 제공합니다.
 
 ---
 
 ## 전체 시스템 구조
 
 ```text
-[Frontend (본 레포)]  ->  [Mock Data / Local State]
-     :5173                   (src/pages 내부 정적 데이터)
+[Frontend (본 레포)]  ──►  [Backend API]  ──►  [SQLite DB]
+     :5173               localhost:8000/api      digital_twin.db
 ```
 
 - **Frontend** (본 레포): React SPA
-- **Data Source**: 페이지 내부 하드코딩 목업 데이터 + 로컬 상태
-- **Backend/API 연동**: 현재 미연동
+- **API 클라이언트**: `src/lib/api.ts` — Axios 기반, JWT 자동 발급·갱신 인터셉터
+- **Backend**: `digital-twin-backend` (FastAPI + SQLite)
+- **인증**: 앱 최초 호출 시 어드민 계정으로 자동 로그인, 401 시 토큰 재발급
 
 ---
 
@@ -81,9 +82,21 @@ npm run preview
 npm run lint
 ```
 
+### 사전 요구사항
+
+백엔드 서버가 `http://localhost:8000`에서 실행 중이어야 합니다.
+
+```bash
+# digital-twin-backend 실행
+cd ../digital-twin-backend
+source .venv/bin/activate
+uvicorn app.main:app --reload
+```
+
 ### 환경변수 (`.env`)
 
 현재 코드에서 `import.meta.env` 사용이 없어 **필수 환경변수가 없습니다**.
+API Base URL 변경이 필요하면 `src/lib/api.ts`의 `baseURL`을 수정하세요.
 
 ---
 
@@ -171,6 +184,13 @@ styles/
 ### 상태 관리
 - 전역 상태 라이브러리 없이 `useState` 기반 로컬 상태 중심
 - 페이지 단위로 모달/드롭다운/필터/채팅 상태 관리
+- 서버 데이터는 `@tanstack/react-query` (`useQuery`) 로 캐싱
+
+### API 연동 (`src/lib/api.ts`)
+- `apiClient`: Axios 인스턴스, `baseURL: http://localhost:8000/api`
+- **자동 인증 인터셉터**: 첫 요청 시 `POST /api/auth/login` 으로 JWT 취득 → `localStorage` 캐싱
+- **401 재발급**: 토큰 만료 시 자동 재로그인 후 원본 요청 재시도
+- **필드 매핑**: 백엔드 응답(`name`, `response_count`, `updated_at`) → 프론트 인터페이스(`title`, `responses`, `updatedAt`) 변환
 
 ### UI 시스템
 - Tailwind CSS + CSS 토큰(`styles/theme.css`) 기반 스타일링
@@ -183,11 +203,15 @@ styles/
 
 | 항목 | 상태 |
 |------|------|
-| 공통 레이아웃/라우팅 구성 | 완료 |
-| 분석 워크플로우 UI(분석/설문/실시간/리포트) | 완료 |
-| 페르소나/리포트 관리 화면 | 완료 |
-| 백엔드 API 연동 | 미구현 |
-| 테스트 코드 | 미구현 |
+| 공통 레이아웃/라우팅 구성 | ✅ 완료 |
+| 분석 워크플로우 UI (분석/설문/실시간/리포트) | ✅ 완료 |
+| 페르소나/리포트 관리 화면 | ✅ 완료 |
+| API 클라이언트 (자동 인증 인터셉터) | ✅ 완료 |
+| 홈 프로젝트 목록 DB 연동 | ✅ 완료 |
+| 세그먼트 분석 페르소나 DB 연동 | ✅ 완료 |
+| 페르소나 관리 DB 연동 | ✅ 완료 |
+| 설문·실시간·리포트 페이지 DB 연동 | 🔲 진행 예정 |
+| 테스트 코드 | 🔲 미구현 |
 
 ---
 
