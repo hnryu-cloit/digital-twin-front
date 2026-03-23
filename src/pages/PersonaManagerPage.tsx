@@ -88,8 +88,6 @@ const RAW_PERSONAS: Omit<Persona,"id">[] = [
  { name:"구승민", age:41, gender:"남성", occupation:"연구원", device:"S24 Ultra", segments:["게이밍 성향군","비즈니스 프로"], keywords:["고성능","최신기술","디스플레이"], purchaseIntent:90, iconKey:4, color:"#2f66ff", iconBg:"#eef3ff", description:"기술 스펙 자체를 파고드는 것을 즐기는 40대 초반 연구원. 벤치마크 점수와 발열 제어에 예민함.", techLevel:"전문가", monthlyTechSpend:"20만원 이상", interests: ["IT 테크","모바일 게임","SF영화"], competitorPerception:"애플의 칩셋 성능은 인정하지만, 안드로이드의 파일 시스템과 자유도 때문에 갤럭시를 떠날 수 없음.", marketingAcceptance: 80, futureValue: 95, purchaseHistory: ["S24 Ultra (2024)","Watch6 (2023)","Tab S9 Ultra (2023)"], userLogs: ["Geekbench 구동 (일주일 전)"], brandAttitude: 94 }
 ];
 
-const PERSONA_LIST: Persona[] = RAW_PERSONAS.map((p, i) => ({ ...p, id: `p${i + 1}` }));
-
 /* ─── Helpers ─── */
 function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number }) {
  const icons = [<Gamepad2 size={size} />, <Coffee size={size} />, <Briefcase size={size} />, <Music size={size} />, <Smartphone size={size} />];
@@ -435,39 +433,48 @@ export const PersonaManagerPage: React.FC = () => {
    const loadData = async () => {
      try {
        setLoading(true);
-       const data = await fetchIndividualPersonas(1, 1000);
-       
-       const mappedPersonas: Persona[] = data.items.map((item: any) => {
-         const all = item.all_data;
-         return {
-           id: `p${item.index}`,
-           name: item.name || "이름 없음",
-           age: item.age,
-           gender: item.gender === "M" ? "남성" : "여성",
-           occupation: item.job || "직업 미상",
-           device: all["[option]own_tv"] ? "Smart TV" : (all["[option]own_refrigerator"] ? "Bespoke Refrigerator" : "Galaxy S24"),
-           segments: [all["[option]lifestyle_type"] || "MZ 얼리어답터"],
-           keywords: [all["[option]purchase_decision_factor"] || "성능", all["[option]preferred_promotion"] || "할인"],
-           purchaseIntent: all["[option]satisfaction_sentiment"] || 70,
-           color: "var(--primary)",
-           iconBg: "#eef3ff",
-           iconKey: item.index % 5,
-           description: item.personality || "가상 페르소나 설명입니다.",
-           techLevel: all["[option]lifestyle_type"] === "Tech Savvy" ? "전문가" : "중급",
-           monthlyTechSpend: "20-30만원",
-           interests: ["가전 인테리어", "스마트싱스"],
-           competitorPerception: item.samsung_experience || "브랜드 경험 정보가 없습니다.",
-           marketingAcceptance: 80,
-           futureValue: 85,
-           purchaseHistory: ["S24 (2024)"],
-           userLogs: ["SmartThings 접속 (방금 전)"],
-           brandAttitude: all["[option]satisfaction_sentiment"] || 80
-         };
-       });
-       
-       setPersonas(mappedPersonas);
+       const items = await fetchIndividualPersonas("prj-001");
+
+       const TECH_LEVEL_MAP: Record<string, TechLevel> = {
+         "MZ 얼리어답터": "전문가", "게이밍 성향군": "전문가",
+         "프리미엄 구매자": "중급", "비즈니스 프로": "중급",
+         "실용 중시 가족형": "초보", "콘텐츠 크리에이터": "중급",
+       };
+       const SPEND_MAP: Record<string, string> = {
+         "MZ 얼리어답터": "20-30만원", "게이밍 성향군": "50만원 이상",
+         "프리미엄 구매자": "30-50만원", "비즈니스 프로": "30-50만원",
+         "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
+       };
+
+       const mappedPersonas: Persona[] = items.map((item: any, idx: number) => ({
+         id: item.id,
+         name: item.name || "이름 없음",
+         age: item.age || 0,
+         gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
+         occupation: item.occupation || "직업 미상",
+         device: (item.purchase_history?.[0]) || "Galaxy S24",
+         segments: [item.segment || "MZ 얼리어답터"] as Segment[],
+         keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
+         purchaseIntent: item.purchase_intent ?? 70,
+         color: "var(--primary)",
+         iconBg: "#eef3ff",
+         iconKey: idx % 5,
+         description: item.profile || "디지털 트윈 페르소나입니다.",
+         techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
+         monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
+         interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
+         competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
+         marketingAcceptance: item.marketing_acceptance ?? 80,
+         futureValue: item.score?.future_value ?? 85,
+         purchaseHistory: item.purchase_history?.length ? item.purchase_history : ["Galaxy S24 (2024)"],
+         userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
+         brandAttitude: item.brand_attitude ?? 80,
+       }));
+
+       setPersonas(mappedPersonas.length > 0 ? mappedPersonas : RAW_PERSONAS.map((p, i) => ({ ...p, id: `p${i + 1}` })));
      } catch (error) {
        console.error("Failed to fetch personas:", error);
+       setPersonas(RAW_PERSONAS.map((p, i) => ({ ...p, id: `p${i + 1}` })));
      } finally {
        setLoading(false);
      }

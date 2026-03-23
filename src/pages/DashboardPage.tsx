@@ -159,36 +159,35 @@ export const DashboardPage: React.FC = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const data = await fetchIndividualPersonas(1, 1000);
-        const mapped: FilterPersona[] = data.items.map((item: any) => {
-          const all = item.all_data;
-          const lifestyle = (all["[option]lifestyle_type"] || "Practical") as string;
-          let segment: PersonaSegment = "실용 중시 가족형";
-          if (lifestyle === "Tech Savvy") segment = "MZ 얼리어답터";
-          else if (lifestyle === "Design Focused") segment = "프리미엄 구매자";
-          else if (lifestyle === "Smart Home Enthusiast") segment = "비즈니스 프로";
-          else if (lifestyle === "Minimalist") segment = "게이밍 성향군";
-
-          return {
-            id: `p${item.index}`,
-            name: item.name || "이름 없음",
-            age: item.age,
-            gender: item.gender === "M" ? "남성" : "여성",
-            occupation: item.job || "직업 미상",
-            occupationCat: "직장인",
-            device: all["[option]own_tv"] ? "Smart TV" : "Galaxy S24",
-            segments: [segment],
-            techLevel: lifestyle === "Tech Savvy" ? "전문가" : "중급",
-            interests: ["가전", "스마트홈"],
-            keywords: [all["[option]purchase_decision_factor"] || "성능"],
-            spendingLevel: "실용형",
-            purchaseIntent: "보통",
-            brandLoyalty: "높음",
-            snsActivity: "보통",
-            contentChannels: ["YouTube"],
-            buyChannel: "공식몰"
-          };
-        });
+        const items = await fetchIndividualPersonas("prj-001");
+        const SEGMENT_SPEND: Record<string, SpendingLevel> = {
+          "MZ 얼리어답터": "프리미엄형", "게이밍 성향군": "프리미엄형",
+          "프리미엄 구매자": "프리미엄형", "비즈니스 프로": "실용형",
+          "실용 중시 가족형": "실용형", "콘텐츠 크리에이터": "실용형",
+        };
+        const CHANNEL_MAP: Record<string, string> = {
+          "YouTube": "YouTube", "Instagram": "Instagram",
+          "TikTok": "유튜브/숏폼", "LinkedIn": "온라인몰",
+        };
+        const mapped: FilterPersona[] = items.map((item: any) => ({
+          id: item.id,
+          name: item.name || "이름 없음",
+          age: item.age || 30,
+          gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as "남성" | "여성",
+          occupation: item.occupation || "직업 미상",
+          occupationCat: "직장인" as OccupationCat,
+          device: item.purchase_history?.[0] || "Galaxy S24",
+          segments: [item.segment || "MZ 얼리어답터"] as PersonaSegment[],
+          techLevel: (item.score?.future_value >= 90 ? "전문가" : item.score?.future_value >= 75 ? "중급" : "초보") as "전문가" | "중급" | "초보",
+          interests: item.interests?.length ? item.interests : ["스마트폰"],
+          keywords: item.keywords?.length ? item.keywords : ["성능"],
+          spendingLevel: (SEGMENT_SPEND[item.segment] ?? "실용형") as SpendingLevel,
+          purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as "높음" | "보통" | "낮음",
+          brandLoyalty: "높음" as BrandLoyalty,
+          snsActivity: "보통" as SnsActivity,
+          contentChannels: item.preferred_channel ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel] : ["YouTube"],
+          buyChannel: "공식몰",
+        }));
         setAllPersonas(mapped);
       } catch (error) {
         console.error("Dashboard data load failed:", error);
