@@ -4,12 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { projectApi, type Project } from "@/lib/api";
 import {
-  Plus, Search, Clock, BarChart2, Users, ChevronRight,
-  FileText, Target, ShoppingCart, Star,
-  Layers, X, ChevronLeft, MessageSquare,
-  Database, Upload, ListChecks,
+  Clock, BarChart2, ChevronRight,
+  Target, Star,
   Globe, Package, Eye,
-  Check, Loader
+  Loader
 } from "lucide-react";
 
 /* ─── Static Mock Data ─── */

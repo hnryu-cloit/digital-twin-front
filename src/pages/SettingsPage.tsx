@@ -3,8 +3,8 @@ import { useState } from "react";
 import {
   Shield, Database, FileText, LayoutGrid, Users,
   Sparkles, Save, RotateCcw, Terminal, Target, Globe, BarChart2,
-  Star, Eye, Package, TrendingUp, MapPin, Clock, FilePieChart, Presentation,
-  ChevronRight, Activity, AlertTriangle, CheckCircle2, Zap, Search,
+  Star, Eye, Package, TrendingUp, MapPin, Clock,
+  Activity, AlertTriangle, CheckCircle2, Zap, Search,
   Briefcase, MessageSquare, History, TableProperties, Network, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
