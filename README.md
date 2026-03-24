@@ -187,10 +187,38 @@ styles/
 - 서버 데이터는 `@tanstack/react-query` (`useQuery`) 로 캐싱
 
 ### API 연동 (`src/lib/api.ts`)
+
+#### 공통 인프라
 - `apiClient`: Axios 인스턴스, `baseURL: http://localhost:8000/api`
 - **자동 인증 인터셉터**: 첫 요청 시 `POST /api/auth/login` 으로 JWT 취득 → `localStorage` 캐싱
 - **401 재발급**: 토큰 만료 시 자동 재로그인 후 원본 요청 재시도
 - **필드 매핑**: 백엔드 응답(`name`, `response_count`, `updated_at`) → 프론트 인터페이스(`title`, `responses`, `updatedAt`) 변환
+- **폴백 전략**: 모든 API 호출은 `try/catch`로 감싸져 있어 실패 시 목업 데이터로 자동 전환
+
+#### API 객체 목록
+
+| 객체 | 엔드포인트 | 사용 페이지 |
+|------|-----------|------------|
+| `projectApi.getProjects()` | `GET /projects` | HomePage |
+| `personaApi.getPersonas()` | `GET /personas` | DashboardPage, PersonaManagerPage |
+| `surveyApi.getQuestions(projectId)` | `GET /surveys/{id}/questions` | SurveyChatPage |
+| `simulationApi.getProgress(projectId)` | `GET /simulations/progress` | LiveAnalysisPage |
+| `simulationApi.getFeed(projectId)` | `GET /simulations/feed` | LiveAnalysisPage |
+| `simulationApi.control(projectId, action)` | `POST /simulations/control` | LiveAnalysisPage |
+| `reportApi.getReport(reportId)` | `GET /reports/{id}` | ReportPage |
+| `reportApi.listReports(projectId)` | `GET /reports` | ReportHistoryPage |
+
+#### 페이지별 연동 방식
+
+| 페이지 | 연동 방식 | 폴백 |
+|--------|----------|------|
+| `HomePage` | `useQuery` (React Query) | 목업 프로젝트 목록 |
+| `DashboardPage` | `useEffect` + `useState` | 빈 배열 |
+| `PersonaManagerPage` | `useEffect` + `useState` | `RAW_PERSONAS` 목업 |
+| `SurveyChatPage` | `useEffect` (마운트 1회) | `INITIAL_QUESTIONS` 목업 |
+| `LiveAnalysisPage` | `useEffect` (마운트 1회) | `MOCK_FEED` / 하드코딩 수치 |
+| `ReportPage` | `useEffect` (마운트 1회) | 하드코딩 KPI 값 |
+| `ReportHistoryPage` | `useEffect` + `useMemo` (검색 필터) | `REPORT_ITEMS` 목업 |
 
 ### UI 시스템
 - Tailwind CSS + CSS 토큰(`styles/theme.css`) 기반 스타일링
