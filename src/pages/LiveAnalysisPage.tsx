@@ -26,6 +26,7 @@ import {
   LabelList,
 } from "recharts";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
+import { simulationApi, type SimulationFeedItem } from "@/lib/api";
 
 /* ─── Types ─── */
 interface ChatResponse {
@@ -184,15 +185,57 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
   );
 }
 
+// SimulationFeedItem(백엔드 snake_case) → ChatResponse(프론트 camelCase) 변환
+function mapFeedItem(item: SimulationFeedItem): ChatResponse {
+  return {
+    id: item.id,
+    personaName: item.persona_name,
+    segment: item.segment,
+    questionId: item.question_id,
+    questionText: item.question_text,
+    selectedOption: item.selected_option,
+    rationale: item.rationale,
+    integrityScore: item.integrity_score,
+    consistencyStatus: item.consistency_status,
+    timestamp: item.timestamp,
+    cot: item.cot,
+  };
+}
+
 /* ─── Main Page ─── */
 export const LiveAnalysisPage: React.FC = () => {
   const [activeQuestion, setActiveQuestion] = useState("Q1");
-  const [chatFeed] = useState<ChatResponse[]>(MOCK_FEED);
+  const [chatFeed, setChatFeed] = useState<ChatResponse[]>(MOCK_FEED);
   const [selectedChat, setSelectedChat] = useState<ChatResponse | null>(null);
   const [isLive, setIsLive] = useState(true);
   const [completionRate, setCompletionRate] = useState(64);
+  const [completedResponses, setCompletedResponses] = useState(1182);
+  const [targetResponses, setTargetResponses] = useState(2000);
 
   const activeResult = INITIAL_QUESTION_RESULTS.find(q => q.id === activeQuestion) || INITIAL_QUESTION_RESULTS[0];
+
+  // 마운트 시 시뮬레이션 진행률 및 응답 피드 로드
+  useEffect(() => {
+    simulationApi.getProgress("prj-001").then((progress) => {
+      if (progress) {
+        setCompletionRate(Math.round(progress.progress));
+        setCompletedResponses(progress.completed_responses);
+        setTargetResponses(progress.target_responses);
+        setIsLive(progress.status === "running");
+      }
+    });
+    simulationApi.getFeed("prj-001", 20).then((items) => {
+      if (items.length > 0) {
+        setChatFeed(items.map(mapFeedItem));
+      }
+    });
+  }, []);
+
+  const handleToggle = async () => {
+    const action = isLive ? "stop" : "start";
+    await simulationApi.control("prj-001", action);
+    setIsLive(!isLive);
+  };
 
   useEffect(() => {
     if (!isLive) return;
@@ -218,7 +261,7 @@ export const LiveAnalysisPage: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={() => setIsLive(!isLive)}
+          onClick={handleToggle}
           className={`flex items-center gap-2.5 px-6 py-3 rounded-xl font-black text-[14px] active:scale-95 transition-all shrink-0 ${
             isLive
               ? "bg-primary-light-bg text-primary border border-primary-light-border shadow-[var(--shadow-sm)]"
@@ -254,9 +297,9 @@ export const LiveAnalysisPage: React.FC = () => {
                   <span className="text-[12px] font-bold text-[var(--subtle-foreground)] uppercase tracking-tighter">진행률</span>
                 </div>
                 <p className="text-[11px] font-bold text-[var(--muted-foreground)]">
-                  <span className="text-foreground">{Math.floor(1847 * (completionRate / 100)).toLocaleString()}</span>
+                  <span className="text-foreground">{completedResponses.toLocaleString()}</span>
                   <span className="mx-1">/</span>
-                  <span>1,847명 타겟팅 <span className="opacity-60 font-medium">(전체 30,000명 중)</span></span>
+                  <span>{targetResponses.toLocaleString()}명 타겟팅 <span className="opacity-60 font-medium">(전체 30,000명 중)</span></span>
                 </p>
               </div>
             </div>

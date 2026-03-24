@@ -173,3 +173,124 @@ export const personaApi = {
     }
   },
 };
+
+/* ─── Survey ─── */
+export interface SurveyQuestion {
+  id: string;
+  text: string;
+  type: string;
+  order: number;
+}
+
+export const surveyApi = {
+  getQuestions: async (projectId: string): Promise<SurveyQuestion[]> => {
+    try {
+      const { data } = await apiClient.get(`/surveys/${projectId}/questions`);
+      return data.questions ?? [];
+    } catch (error) {
+      console.warn("surveyApi.getQuestions failed.", error);
+      return [];
+    }
+  },
+};
+
+/* ─── Simulation ─── */
+export interface SimulationProgress {
+  project_id: string;
+  job_id: string | null;
+  completed_responses: number;
+  target_responses: number;
+  progress: number;
+  status?: string;
+}
+
+export interface SimulationFeedItem {
+  id: string;
+  persona_name: string;
+  segment: string;
+  question_id: string;
+  question_text: string;
+  selected_option: string;
+  rationale: string;
+  integrity_score: number;
+  consistency_status: "Good" | "Warn" | "Error";
+  timestamp: string;
+  cot: string[];
+}
+
+export const simulationApi = {
+  getProgress: async (projectId: string): Promise<SimulationProgress | null> => {
+    try {
+      const { data } = await apiClient.get(`/simulations/progress?project_id=${projectId}`);
+      return data;
+    } catch (error) {
+      console.warn("simulationApi.getProgress failed.", error);
+      return null;
+    }
+  },
+  getFeed: async (projectId: string, limit = 20): Promise<SimulationFeedItem[]> => {
+    try {
+      const { data } = await apiClient.get(`/simulations/feed?project_id=${projectId}&limit=${limit}`);
+      return data;
+    } catch (error) {
+      console.warn("simulationApi.getFeed failed.", error);
+      return [];
+    }
+  },
+  control: async (projectId: string, action: "start" | "stop"): Promise<void> => {
+    try {
+      await apiClient.post("/simulations/control", { project_id: projectId, action });
+    } catch (error) {
+      console.warn("simulationApi.control failed.", error);
+    }
+  },
+};
+
+/* ─── Report ─── */
+export interface ReportSummary {
+  id: string;
+  project_id: string;
+  title: string;
+  type: string;
+  format: string;
+  size: string;
+  created_at: string;
+}
+
+export interface ReportDetail extends ReportSummary {
+  sections: { id: string; title: string; content: string }[];
+  kpis: { label: string; value: string }[];
+  charts: { id: string; type: string; title: string }[];
+}
+
+export const reportApi = {
+  getReport: async (reportId: string): Promise<ReportDetail | null> => {
+    try {
+      const { data } = await apiClient.get(`/reports/${reportId}`);
+      return data;
+    } catch (error) {
+      console.warn("reportApi.getReport failed.", error);
+      return null;
+    }
+  },
+  listReports: async (
+    projectId: string,
+    page = 1,
+    size = 10,
+    search?: string,
+  ): Promise<{ items: ReportSummary[]; total: number }> => {
+    try {
+      const params = new URLSearchParams({
+        project_id: projectId,
+        page: String(page),
+        size: String(size),
+      });
+      if (search) params.set("search", search);
+      const { data } = await apiClient.get(`/reports?${params}`);
+      return { items: data.items ?? [], total: data.total ?? 0 };
+    } catch (error) {
+      console.warn("reportApi.listReports failed.", error);
+      return { items: [], total: 0 };
+    }
+  },
+};

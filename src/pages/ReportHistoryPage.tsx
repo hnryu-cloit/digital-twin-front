@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar, Download, FileText, MoreHorizontal,
   Search, Filter, ChevronRight, Clock,
@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { AppPagination } from "@/components/ui/AppPagination";
 import { cn } from "@/lib/utils";
+import { reportApi, type ReportSummary } from "@/lib/api";
 
 interface ReportItem {
   id: string;
@@ -35,10 +36,43 @@ const FORMAT_ICONS = {
   PPTX: <Presentation size={24} />,
 };
 
+const TYPE_STYLE: Record<string, { color: string; bg: string; label: string }> = {
+  strategy:     { color: "#3B82F6", bg: "#EFF6FF", label: "전략 리포트" },
+  concept_test: { color: "#3B82F6", bg: "#EFF6FF", label: "컨셉 테스트" },
+  usage:        { color: "#6366F1", bg: "#EEF2FF", label: "Usage 조사" },
+  brand:        { color: "#8B5CF6", bg: "#F5F3FF", label: "브랜드 인식" },
+  ux:           { color: "#10B981", bg: "#ECFDF5", label: "UX 테스트" },
+};
+
+function mapReportItem(r: ReportSummary): ReportItem {
+  const style = TYPE_STYLE[r.type] ?? TYPE_STYLE.strategy;
+  const fmt = (["PDF", "DOCX", "PPTX"].includes(r.format) ? r.format : "PDF") as "PDF" | "DOCX" | "PPTX";
+  return {
+    id: r.id,
+    title: r.title,
+    project: r.project_id,
+    createdAt: r.created_at.slice(0, 10),
+    type: style.label,
+    typeColor: style.color,
+    typeBg: style.bg,
+    format: fmt,
+    size: r.size,
+  };
+}
+
 export const ReportHistoryPage: React.FC = () => {
   const [downloadOpenId, setDownloadOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [reportItems, setReportItems] = useState<ReportItem[]>(REPORT_ITEMS);
   const downloadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    reportApi.listReports("prj-001", 1, 50).then(({ items }) => {
+      if (items.length > 0) {
+        setReportItems(items.map(mapReportItem));
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -49,6 +83,14 @@ export const ReportHistoryPage: React.FC = () => {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return reportItems;
+    const q = searchQuery.toLowerCase();
+    return reportItems.filter(
+      (item) => item.title.toLowerCase().includes(q) || item.project.toLowerCase().includes(q)
+    );
+  }, [reportItems, searchQuery]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background">
@@ -87,7 +129,7 @@ export const ReportHistoryPage: React.FC = () => {
         <div className="max-w-6xl mx-auto space-y-4 pb-20">
           <div className="flex items-center justify-between px-2 mb-2">
             <p className="text-[12px] font-black text-[var(--subtle-foreground)] uppercase tracking-widest">
-              총 <span className="text-primary">{REPORT_ITEMS.length}</span>개의 리포트
+              총 <span className="text-primary">{filteredItems.length}</span>개의 리포트
             </p>
             <div className="flex items-center gap-4">
               <span className="text-[11px] font-bold text-[var(--subtle-foreground)] flex items-center gap-1.5">
@@ -96,7 +138,7 @@ export const ReportHistoryPage: React.FC = () => {
             </div>
           </div>
 
-          {REPORT_ITEMS.map((item) => (
+          {filteredItems.map((item) => (
             <div
               key={item.id}
               className={cn(

@@ -20,6 +20,7 @@ import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
+import { surveyApi } from"@/lib/api";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -162,6 +163,21 @@ export const SurveyChatPage: React.FC = () => {
  currentPage * QUESTIONS_PER_PAGE,
  (currentPage + 1) * QUESTIONS_PER_PAGE,
  );
+
+ // 마운트 시 API에서 설문 문항 로드
+ useEffect(() => {
+   surveyApi.getQuestions("prj-001").then((apiQuestions) => {
+     if (apiQuestions.length > 0) {
+       setQuestions(
+         apiQuestions.map((q) => ({
+           id: q.order,
+           text: q.text,
+           type: q.type as QuestionType,
+         }))
+       );
+     }
+   });
+ }, []);
 
  useEffect(() => {
  chatEndRef.current?.scrollIntoView({ behavior:"smooth" });

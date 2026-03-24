@@ -1,5 +1,6 @@
 import type React from"react";
 import { useState, useRef, useEffect } from"react";
+import { reportApi, type ReportDetail } from"@/lib/api";
 import {
  Download,
  RotateCcw,
@@ -165,6 +166,11 @@ export const ReportPage: React.FC = () => {
  const [activeSection, setSection] = useState<SectionId>("summary");
  const [downloadOpen, setDownloadOpen] = useState(false);
  const downloadRef = useRef<HTMLDivElement>(null);
+ const [reportData, setReportData] = useState<ReportDetail | null>(null);
+
+ useEffect(() => {
+   reportApi.getReport("rpt-001").then(setReportData);
+ }, []);
 
  const sectionRefs: Record<SectionId, React.RefObject<HTMLDivElement>> = {
  summary: useRef<HTMLDivElement>(null),
@@ -248,10 +254,10 @@ export const ReportPage: React.FC = () => {
  
  {/* KPI Dashboard Grid */}
  <section className="grid grid-cols-4 gap-6">
- <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value="30,000" sub="성별/연령/지역 비례 할당" delta="+4.2%" reliability="99.2%" />
- <KpiCard icon={<Target size={22} />} label="최종 구매 의향" value="68.7%" sub="목표 수치(60%) 대비 상회" delta="+12.0%" reliability="95.0%" />
- <KpiCard icon={<ShieldCheck size={22} />} label="응답 논리 정합성" value="98.4%" sub="모순 탐지 0.3% 미만" reliability="99.9%" />
- <KpiCard icon={<Zap size={22} />} label="핵심 전략 액션" value="03" sub="실행 우선순위 도출 완료" delta="New" reliability="High" />
+ <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value={reportData?.kpis?.[0]?.value ?? "30,000"} sub="성별/연령/지역 비례 할당" delta="+4.2%" reliability="99.2%" />
+ <KpiCard icon={<Target size={22} />} label="최종 구매 의향" value={reportData?.kpis?.[1]?.value ?? "68.7%"} sub="목표 수치(60%) 대비 상회" delta="+12.0%" reliability="95.0%" />
+ <KpiCard icon={<ShieldCheck size={22} />} label="응답 논리 정합성" value={reportData?.kpis?.[2]?.value ?? "98.4%"} sub="모순 탐지 0.3% 미만" reliability="99.9%" />
+ <KpiCard icon={<Zap size={22} />} label="핵심 전략 액션" value={reportData?.kpis?.[3]?.value ?? "03"} sub="실행 우선순위 도출 완료" delta="New" reliability="High" />
  </section>
 
  <div className="grid grid-cols-[280px_1fr] gap-8 items-start">
