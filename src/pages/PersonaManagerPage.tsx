@@ -1,6 +1,6 @@
 import type React from"react";
 import { useState, useEffect } from"react";
-import { fetchIndividualPersonas } from "@/lib/api";
+import { aiJobApi, fetchIndividualPersonas, personaApi, projectApi, resolveDefaultProjectId, type AIJob, type ProjectDetail } from "@/lib/api";
 import { AppPagination } from"@/components/ui/AppPagination";
 import {
  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
@@ -63,30 +63,6 @@ const ICON_META = [
   { bg: "#eef3ff", color: "#2f66ff" },
 ];
 const PAGE_SIZE = 6;
-
-/* ─── Mock Data (20 Personas for 3+ pages) ─── */
-const RAW_PERSONAS: Omit<Persona,"id">[] = [
- { name:"이준혁", age:28, gender:"남성", occupation:"게임 개발자", device:"Galaxy S24 Ultra", segments:["MZ 얼리어답터","게이밍 성향군"], keywords:["고성능","AI카메라","멀티태스킹"], purchaseIntent:92, iconKey:0, color:"var(--primary)", iconBg:"#eef3ff", description:"최신 모바일 기술에 관심 많은 20대 남성 게이머. 성능과 스펙을 최우선으로 고려함.", techLevel:"전문가", monthlyTechSpend:"50만원 이상", interests: ["고성능 게임","AI 자동화","영상 편집"], competitorPerception:"아이폰 프로 모델 대비 갤럭시의 자유도와 카메라 줌 성능을 높게 평가하나 브랜드 이미지는 약하다고 느낌.", marketingAcceptance: 85, futureValue: 94, purchaseHistory: ["S24 Ultra (2024)","Tab S9 Ultra (2023)"], userLogs: ["갤럭시 스토어 런처 실행 (2시간 전)"], brandAttitude: 88 },
- { name:"김지연", age:34, gender:"여성", occupation:"디지털 마케터", device:"Z Flip6", segments:["MZ 얼리어답터","프리미엄 구매자"], keywords:["디자인","트렌드","SNS"], purchaseIntent:78, iconKey:1, color:"#2f66ff", iconBg:"#eef3ff", description:"트렌드에 민감한 30대 여성 마케터. 디자인과 브랜드 가치를 중시하며 SNS 활동이 활발함.", techLevel:"중급", monthlyTechSpend:"20-30만원", interests: ["패션/뷰티","사진 촬영","자기계발"], competitorPerception:"갤럭시의 폴더블 폼팩터는 혁신적이라고 생각하나, 감성적인 측면에서 보완이 필요하다고 느낌.", marketingAcceptance: 92, futureValue: 81, purchaseHistory: ["Z Flip6 (2024)","Buds3 Pro (2024)"], userLogs: ["인스타그램 업로드용 카메라 앱 사용 (1시간 전)"], brandAttitude: 75 },
- { name:"박민수", age:45, gender:"남성", occupation:"금융 컨설턴트", device:"S24+", segments:["비즈니스 프로","실용 중시 가족형"], keywords:["업무효율","보안","배터리"], purchaseIntent:65, iconKey:2, color:"#2f66ff", iconBg:"#eef3ff", description:"안정성과 업무 연속성을 중시하는 40대 전문직. 신기술보다는 검증된 유용성을 선호함.", techLevel:"중급", monthlyTechSpend:"10-20만원", interests: ["재테크","뉴스 구독","골프"], competitorPerception:"갤럭시의 통화 녹음과 삼성 페이를 핵심 기능으로 인지하며 업무용으로는 대체 불가능하다고 생각함.", marketingAcceptance: 45, futureValue: 72, purchaseHistory: ["S24+ (2024)","Watch6 (2023)"], userLogs: ["Samsung Notes 동기화 (30분 전)"], brandAttitude: 90 },
- { name:"최수아", age:23, gender:"여성", occupation:"대학생", device:"A55", segments:["MZ 얼리어답터"], keywords:["가성비","카메라","디자인"], purchaseIntent:85, iconKey:3, color:"#2f66ff", iconBg:"#eef3ff", description:"가성비를 중시하면서도 최신 트렌드를 쫓는 대학생. 브이로그 촬영을 즐김.", techLevel:"초보", monthlyTechSpend:"5만원 미만", interests: ["유튜브 시청","여행","사진 어플"], competitorPerception:"아이폰을 선호하지만 가격 부담으로 갤럭시 A시리즈를 선택함.", marketingAcceptance: 95, futureValue: 60, purchaseHistory: ["A55 (2024)"], userLogs: ["카메라 필터 앱 연동 (어제)"], brandAttitude: 65 },
- { name:"정태영", age:39, gender:"남성", occupation:"건축가", device:"Z Fold6", segments:["프리미엄 구매자","비즈니스 프로"], keywords:["대화면","멀티태스킹","S펜"], purchaseIntent:98, iconKey:4, color:"#2f66ff", iconBg:"#eef3ff", description:"도면 확인 및 수정 작업이 잦은 30대 후반 건축가. 넓은 화면과 S펜 활용을 필수적으로 여김.", techLevel:"전문가", monthlyTechSpend:"30-50만원", interests: ["건축 디자인","스마트홈","자동차"], competitorPerception:"애플 생태계보다 윈도우/안드로이드 연동성을 높게 평가함.", marketingAcceptance: 60, futureValue: 88, purchaseHistory: ["Z Fold6 (2024)","Tab S9 (2023)"], userLogs: ["Samsung Notes 도면 스케치 (오전)"], brandAttitude: 95 },
- { name:"한소희", age:42, gender:"여성", occupation:"학원 강사", device:"S23", segments:["실용 중시 가족형"], keywords:["배터리","안정성","카메라"], purchaseIntent:50, iconKey:1, color:"#2f66ff", iconBg:"#eef3ff", description:"가족 사진 촬영과 연락 수단으로 스마트폰을 사용하는 40대 워킹맘.", techLevel:"초보", monthlyTechSpend:"5-10만원", interests: ["육아","교육","쇼핑"], competitorPerception:"타 브랜드에 대한 관심이 적고 기존에 쓰던 브랜드를 계속 쓰는 성향.", marketingAcceptance: 40, futureValue: 65, purchaseHistory: ["S23 (2023)"], userLogs: ["카카오톡 장시간 사용 (상시)"], brandAttitude: 80 },
- { name:"강현우", age:19, gender:"남성", occupation:"고등학생", device:"S23 FE", segments:["게이밍 성향군"], keywords:["게임","디스플레이","가성비"], purchaseIntent:80, iconKey:0, color:"var(--primary)", iconBg:"#eef3ff", description:"모바일 게임을 즐겨하는 10대. 고주사율 디스플레이와 쿨링 성능에 민감함.", techLevel:"중급", monthlyTechSpend:"5만원 미만", interests: ["모바일 e스포츠","웹툰","PC 하드웨어"], competitorPerception:"아이폰의 게이밍 성능을 부러워하나 안드로이드의 앱 생태계를 선호함.", marketingAcceptance: 90, futureValue: 75, purchaseHistory: ["S23 FE (2023)"], userLogs: ["게임 런처 통해 원신 2시간 플레이 (어젯밤)"], brandAttitude: 70 },
- { name:"유진아", age:31, gender:"여성", occupation:"UX 디자이너", device:"Z Flip5", segments:["MZ 얼리어답터","프리미엄 구매자"], keywords:["커스터마이징","감성","카메라"], purchaseIntent:75, iconKey:3, color:"#2f66ff", iconBg:"#eef3ff", description:"자신만의 스타일로 기기를 꾸미는 것을 좋아하는 30대 초반 디자이너.", techLevel:"중급", monthlyTechSpend:"10-20만원", interests: ["인테리어","전시회","디자인 툴"], competitorPerception:"아이폰의 감성을 좋아하지만 플립의 폼팩터 매력 때문에 넘어옴.", marketingAcceptance: 85, futureValue: 80, purchaseHistory: ["Z Flip5 (2023)"], userLogs: ["커버 화면 GIF 교체 (오늘 아침)"], brandAttitude: 82 },
- { name:"조상민", age:55, gender:"남성", occupation:"개인사업자", device:"Z Fold5", segments:["비즈니스 프로"], keywords:["큰화면","신뢰감","주식"], purchaseIntent:60, iconKey:2, color:"#2f66ff", iconBg:"#eef3ff", description:"주식 차트와 이메일 확인을 위해 큰 화면을 선호하는 50대 사업가.", techLevel:"초보", monthlyTechSpend:"10만원 미만", interests: ["주식","부동산","뉴스"], competitorPerception:"폴더블 기술력에 대한 높은 신뢰, 타사는 고려하지 않음.", marketingAcceptance: 30, futureValue: 70, purchaseHistory: ["Z Fold5 (2023)"], userLogs: ["증권사 앱 다중 분할 화면 사용 (오전 9시)"], brandAttitude: 98 },
- { name:"임도윤", age:26, gender:"남성", occupation:"유튜버", device:"S24 Ultra", segments:["MZ 얼리어답터","프리미엄 구매자"], keywords:["동영상","마이크","저장용량"], purchaseIntent:95, iconKey:4, color:"#2f66ff", iconBg:"#eef3ff", description:"야외 브이로그 촬영을 주로 하는 20대 후반 크리에이터. 카메라 렌즈 성능과 손떨림 방지를 가장 중요하게 생각함.", techLevel:"전문가", monthlyTechSpend:"30만원 이상", interests: ["영상 편집","카메라 장비","여행"], competitorPerception:"비디오 촬영 시 아이폰의 색감을 선호하기도 하지만, 오디오 녹음 및 줌 성능에서 울트라를 선택.", marketingAcceptance: 88, futureValue: 96, purchaseHistory: ["S24 Ultra (2024)","Buds2 Pro (2022)"], userLogs: ["Pro Video 모드 4K 촬영 (어제 낮)"], brandAttitude: 85 },
- { name:"박은지", age:29, gender:"여성", occupation:"회사원", device:"S24", segments:["MZ 얼리어답터"], keywords:["휴대성","디자인","AI통번역"], purchaseIntent:82, iconKey:1, color:"#2f66ff", iconBg:"#eef3ff", description:"해외 출장과 여행이 잦은 20대 후반 직장인. 가벼운 기기와 실시간 번역 기능에 만족함.", techLevel:"중급", monthlyTechSpend:"10만원 대", interests: ["해외 여행","외국어","카페 투어"], competitorPerception:"애플은 불편하고 갤럭시는 무겁다는 편견이 있었으나 일반 모델의 그립감에 만족함.", marketingAcceptance: 75, futureValue: 84, purchaseHistory: ["S24 (2024)","Watch5 (2022)"], userLogs: ["통화 중 실시간 통번역 사용 (3일 전)"], brandAttitude: 89 },
- { name:"송지훈", age:35, gender:"남성", occupation:"프리랜서", device:"S23+", segments:["실용 중시 가족형"], keywords:["배터리타임","화면크기","내구성"], purchaseIntent:55, iconKey:2, color:"#2f66ff", iconBg:"#eef3ff", description:"차량 이동이 많고 내비게이션을 자주 쓰는 프리랜서. 배터리 소모가 적고 화면이 적당히 큰 플러스 모델을 선호.", techLevel:"중급", monthlyTechSpend:"5만원 미만", interests: ["자동차","캠핑","OTT"], competitorPerception:"기능적 차이에 크게 민감하지 않으며, AS 편의성 때문에 삼성을 유지함.", marketingAcceptance: 50, futureValue: 68, purchaseHistory: ["S23+ (2023)"], userLogs: ["Android Auto 무선 연결 3시간 (어제)"], brandAttitude: 80 },
- { name:"이채원", age:22, gender:"여성", occupation:"대학생", device:"Z Flip6", segments:["MZ 얼리어답터"], keywords:["인스타","셀피","콤팩트"], purchaseIntent:90, iconKey:3, color:"#2f66ff", iconBg:"#eef3ff", description:"친구들과 사진 찍기를 좋아하며 인스타그램을 활발히 하는 대학생. 플립의 플렉스 모드 촬영을 애용함.", techLevel:"중급", monthlyTechSpend:"5-10만원", interests: ["패션","뷰티","핫플 탐방"], competitorPerception:"아이폰 사용자 친구들이 많아 소외감을 느끼기도 하지만, 플립의 디자인으로 차별화를 둠.", marketingAcceptance: 95, futureValue: 78, purchaseHistory: ["Z Flip6 (2024)"], userLogs: ["플렉스 모드로 릴스 촬영 (오늘 오후)"], brandAttitude: 76 },
- { name:"김동현", age:48, gender:"남성", occupation:"영업팀장", device:"Z Fold6", segments:["비즈니스 프로","프리미엄 구매자"], keywords:["화면분할","문서작업","배터리"], purchaseIntent:85, iconKey:4, color:"#2f66ff", iconBg:"#eef3ff", description:"외근이 잦고 고객에게 자료를 보여줄 일이 많은 40대 후반 영업팀장.", techLevel:"중급", monthlyTechSpend:"20만원 대", interests: ["골프","경제","자기계발"], competitorPerception:"업무용으로는 갤럭시가 유일한 선택지라고 굳게 믿음.", marketingAcceptance: 65, futureValue: 89, purchaseHistory: ["Z Fold6 (2024)","Watch6 Classic (2023)"], userLogs: ["PDF 뷰어와 카카오톡 동시 띄우기 (1시간 전)"], brandAttitude: 96 },
- { name:"서유리", age:27, gender:"여성", occupation:"일러스트레이터", device:"S24 Ultra", segments:["게이밍 성향군"], keywords:["S펜","드로잉","고해상도"], purchaseIntent:70, iconKey:0, color:"var(--primary)", iconBg:"#eef3ff", description:"이동 중에도 아이디어를 스케치하는 20대 후반 프리랜서 작가.", techLevel:"전문가", monthlyTechSpend:"15만원 대", interests: ["웹툰","전시","일러스트"], competitorPerception:"아이패드를 메인으로 쓰지만, 스마트폰은 펜이 내장된 울트라가 편해서 씀.", marketingAcceptance: 80, futureValue: 82, purchaseHistory: ["S24 Ultra (2024)"], userLogs: ["Penup 앱으로 30분간 스케치 (오늘 오전)"], brandAttitude: 84 },
- { name:"황인호", age:33, gender:"남성", occupation:"백엔드 개발자", device:"S23", segments:["실용 중시 가족형"], keywords:["작은크기","가벼움","가성비"], purchaseIntent:40, iconKey:2, color:"#2f66ff", iconBg:"#eef3ff", description:"IT 기기에 관심은 많지만 스마트폰은 전화와 메시지 용도로만 쓰는 실용주의자.", techLevel:"전문가", monthlyTechSpend:"5만원 미만", interests: ["코딩","스팀 게임","테크 리뷰"], competitorPerception:"모든 스마트폰이 상향 평준화되었다고 생각하여 비싼 기기 구매를 꺼림.", marketingAcceptance: 20, futureValue: 60, purchaseHistory: ["S23 (2023)"], userLogs: ["삼성 페이 간편 결제 (방금 전)"], brandAttitude: 70 },
- { name:"박지민", age:25, gender:"여성", occupation:"취업준비생", device:"A34", segments:["실용 중시 가족형"], keywords:["가성비","인강","배터리"], purchaseIntent:60, iconKey:1, color:"#2f66ff", iconBg:"#eef3ff", description:"주로 도서관에서 인강을 듣는 취준생. 통신비와 기기값이 저렴한 모델을 선호함.", techLevel:"초보", monthlyTechSpend:"5만원 미만", interests: ["취업","토익","유튜브"], competitorPerception:"취업 후에는 플래그십 모델(아이폰 또는 S시리즈)로 넘어가고 싶어 함.", marketingAcceptance: 80, futureValue: 65, purchaseHistory: ["A34 (2023)"], userLogs: ["유튜브 인강 재생 4시간 (어제)"], brandAttitude: 68 },
- { name:"최건우", age:30, gender:"남성", occupation:"마케팅 대행사 AE", device:"S24+", segments:["MZ 얼리어답터","프리미엄 구매자"], keywords:["디자인","성능균형","AI요약"], purchaseIntent:88, iconKey:0, color:"var(--primary)", iconBg:"#eef3ff", description:"트렌드에 민감하고 미팅이 많은 30대 초반 직장인. AI 회의록 요약 기능을 가장 유용하게 씀.", techLevel:"중급", monthlyTechSpend:"10-15만원", interests: ["트렌드 리서치","운동","맛집 탐방"], competitorPerception:"업무 효율성 측면에서 갤럭시의 AI 기능이 경쟁사를 압도한다고 평가함.", marketingAcceptance: 85, futureValue: 90, purchaseHistory: ["S24+ (2024)","Buds2 (2022)"], userLogs: ["음성 녹음 후 AI 요약 텍스트 변환 (어제 오후)"], brandAttitude: 92 },
- { name:"윤보라", age:37, gender:"여성", occupation:"요가 강사", device:"Z Flip5", segments:["실용 중시 가족형"], keywords:["휴대성","거치촬영","건강관리"], purchaseIntent:75, iconKey:3, color:"#2f66ff", iconBg:"#eef3ff", description:"수업 동작을 촬영하고 SNS에 올리는 요가 강사. 삼각대 없이 바닥에 두고 찍기 편한 점을 최고로 꼽음.", techLevel:"초보", monthlyTechSpend:"5만원 대", interests: ["요가","다이어트식단","명상"], competitorPerception:"Z Flip의 폼팩터 자체가 타사 대비 압도적인 장점이라 생각함.", marketingAcceptance: 70, futureValue: 76, purchaseHistory: ["Z Flip5 (2023)","Watch5 (2022)"], userLogs: ["삼성 헬스 수면 측정 (오늘 아침)"], brandAttitude: 88 },
- { name:"구승민", age:41, gender:"남성", occupation:"연구원", device:"S24 Ultra", segments:["게이밍 성향군","비즈니스 프로"], keywords:["고성능","최신기술","디스플레이"], purchaseIntent:90, iconKey:4, color:"#2f66ff", iconBg:"#eef3ff", description:"기술 스펙 자체를 파고드는 것을 즐기는 40대 초반 연구원. 벤치마크 점수와 발열 제어에 예민함.", techLevel:"전문가", monthlyTechSpend:"20만원 이상", interests: ["IT 테크","모바일 게임","SF영화"], competitorPerception:"애플의 칩셋 성능은 인정하지만, 안드로이드의 파일 시스템과 자유도 때문에 갤럭시를 떠날 수 없음.", marketingAcceptance: 80, futureValue: 95, purchaseHistory: ["S24 Ultra (2024)","Watch6 (2023)","Tab S9 Ultra (2023)"], userLogs: ["Geekbench 구동 (일주일 전)"], brandAttitude: 94 }
-];
 
 /* ─── Helpers ─── */
 function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number }) {
@@ -424,74 +400,159 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
 
 export const PersonaManagerPage: React.FC = () => {
  const [personas, setPersonas] = useState<Persona[]>([]);
+ const [project, setProject] = useState<ProjectDetail | null>(null);
+ const [projectId, setProjectId] = useState<string | null>(null);
  const [loading, setLoading] = useState(true);
  const [viewMode, setViewMode] = useState<"card" |"list">("card");
  const [page, setPage] = useState(1);
+ const [searchQuery, setSearchQuery] = useState("");
+ const [activeJob, setActiveJob] = useState<AIJob | null>(null);
  const [detailTarget, setDetailTarget] = useState<Persona | undefined>();
 
+ const loadData = async (requestedProjectId?: string | null, nextLoading = true) => {
+   try {
+     if (nextLoading) setLoading(true);
+     const resolvedProjectId = requestedProjectId ?? await resolveDefaultProjectId();
+     setProjectId(resolvedProjectId);
+     if (!resolvedProjectId) {
+       setProject(null);
+       setPersonas([]);
+       return;
+     }
+
+     const [items, projectDetail] = await Promise.all([
+       fetchIndividualPersonas(resolvedProjectId),
+       projectApi.getProject(resolvedProjectId),
+     ]);
+
+     const TECH_LEVEL_MAP: Record<string, TechLevel> = {
+       "MZ 얼리어답터": "전문가", "게이밍 성향군": "전문가",
+       "프리미엄 구매자": "중급", "비즈니스 프로": "중급",
+       "실용 중시 가족형": "초보", "콘텐츠 크리에이터": "중급",
+     };
+     const SPEND_MAP: Record<string, string> = {
+       "MZ 얼리어답터": "20-30만원", "게이밍 성향군": "50만원 이상",
+       "프리미엄 구매자": "30-50만원", "비즈니스 프로": "30-50만원",
+       "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
+     };
+
+     const mappedPersonas: Persona[] = items.map((item: any, idx: number) => ({
+       id: item.id,
+       name: item.name || "이름 없음",
+       age: item.age || 0,
+       gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
+       occupation: item.occupation || "직업 미상",
+       device: (item.purchase_history?.[0]) || item.product_group || "Galaxy S24",
+       segments: [item.segment || "MZ 얼리어답터"] as Segment[],
+       keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
+       purchaseIntent: item.purchase_intent ?? 70,
+       color: "var(--primary)",
+       iconBg: "#eef3ff",
+       iconKey: idx % 5,
+       description: item.profile || "디지털 트윈 페르소나입니다.",
+       techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
+       monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
+       interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
+       competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
+       marketingAcceptance: item.marketing_acceptance ?? 80,
+       futureValue: item.score?.future_value ?? 85,
+       purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
+       userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
+       brandAttitude: item.brand_attitude ?? 80,
+     }));
+
+     setProject(projectDetail);
+     setPersonas(mappedPersonas);
+   } catch (error) {
+     console.error("Failed to fetch personas:", error);
+     setPersonas([]);
+   } finally {
+     if (nextLoading) setLoading(false);
+   }
+ };
+
  useEffect(() => {
-   const loadData = async () => {
-     try {
-       setLoading(true);
-       const items = await fetchIndividualPersonas("prj-001");
+   void loadData();
+ }, []);
 
-       const TECH_LEVEL_MAP: Record<string, TechLevel> = {
-         "MZ 얼리어답터": "전문가", "게이밍 성향군": "전문가",
-         "프리미엄 구매자": "중급", "비즈니스 프로": "중급",
-         "실용 중시 가족형": "초보", "콘텐츠 크리에이터": "중급",
-       };
-       const SPEND_MAP: Record<string, string> = {
-         "MZ 얼리어답터": "20-30만원", "게이밍 성향군": "50만원 이상",
-         "프리미엄 구매자": "30-50만원", "비즈니스 프로": "30-50만원",
-         "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
-       };
+ useEffect(() => {
+   setPage(1);
+ }, [searchQuery]);
 
-       const mappedPersonas: Persona[] = items.map((item: any, idx: number) => ({
-         id: item.id,
-         name: item.name || "이름 없음",
-         age: item.age || 0,
-         gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
-         occupation: item.occupation || "직업 미상",
-         device: (item.purchase_history?.[0]) || "Galaxy S24",
-         segments: [item.segment || "MZ 얼리어답터"] as Segment[],
-         keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
-         purchaseIntent: item.purchase_intent ?? 70,
-         color: "var(--primary)",
-         iconBg: "#eef3ff",
-         iconKey: idx % 5,
-         description: item.profile || "디지털 트윈 페르소나입니다.",
-         techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
-         monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
-         interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
-         competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
-         marketingAcceptance: item.marketing_acceptance ?? 80,
-         futureValue: item.score?.future_value ?? 85,
-         purchaseHistory: item.purchase_history?.length ? item.purchase_history : ["Galaxy S24 (2024)"],
-         userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
-         brandAttitude: item.brand_attitude ?? 80,
-       }));
+ useEffect(() => {
+   if (!activeJob || !projectId) return;
+   if (activeJob.status !== "queued" && activeJob.status !== "running") return;
 
-       setPersonas(mappedPersonas.length > 0 ? mappedPersonas : RAW_PERSONAS.map((p, i) => ({ ...p, id: `p${i + 1}` })));
-     } catch (error) {
-       console.error("Failed to fetch personas:", error);
-       setPersonas(RAW_PERSONAS.map((p, i) => ({ ...p, id: `p${i + 1}` })));
-     } finally {
-       setLoading(false);
+   let cancelled = false;
+   const pollJob = async () => {
+     const latestJob = await aiJobApi.getJob(activeJob.id);
+     if (!latestJob || cancelled) return;
+     setActiveJob(latestJob);
+     if (latestJob.status === "completed") {
+       await loadData(projectId, false);
      }
    };
 
-   loadData();
- }, []);
+   void pollJob();
+   const timer = window.setInterval(() => {
+     void pollJob();
+   }, 1500);
 
- const paginated = personas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
- const totalPages = Math.ceil(personas.length / PAGE_SIZE);
+   return () => {
+     cancelled = true;
+     window.clearInterval(timer);
+   };
+ }, [activeJob, projectId]);
+
+ const handleGeneratePersonas = async () => {
+   if (!projectId) return;
+   const job = await personaApi.generateJob({
+     project_id: projectId,
+     n_synthetic_customers: Math.max(project?.target_responses ?? 1000, 1000),
+     n_personas: 7,
+     overwrite_existing: true,
+   });
+   if (job) {
+     setActiveJob(job);
+   }
+ };
+
+ const filteredPersonas = personas.filter((persona) => {
+   if (!searchQuery.trim()) return true;
+   const keyword = searchQuery.trim().toLowerCase();
+   return [
+     persona.name,
+     persona.occupation,
+     persona.device,
+     persona.description,
+     ...persona.segments,
+     ...persona.keywords,
+   ].some((value) => value.toLowerCase().includes(keyword));
+ });
+
+ const paginated = filteredPersonas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+ const totalPages = Math.max(1, Math.ceil(filteredPersonas.length / PAGE_SIZE));
+ const generationStatusLabel =
+   activeJob?.status === "running" ? "생성 중" :
+   activeJob?.status === "queued" ? "대기 중" :
+   activeJob?.status === "failed" ? "실패" :
+   activeJob?.status === "completed" ? "완료" :
+   "준비";
+ const generationStatusClass =
+   activeJob?.status === "running" || activeJob?.status === "queued"
+     ? "border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary"
+     : activeJob?.status === "failed"
+     ? "border-red-200 bg-red-50/50 text-[var(--destructive)]"
+     : activeJob?.status === "completed"
+     ? "border-emerald-200 bg-emerald-50/50 text-emerald-700"
+     : "border-[var(--border)] bg-card text-[var(--muted-foreground)]";
 
  if (loading) {
    return (
      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
        <div className="flex flex-col items-center gap-4">
          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-         <p className="text-sm font-medium text-[var(--muted-foreground)]">1,000명의 디지털 트윈 데이터를 불러오는 중...</p>
+         <p className="text-sm font-medium text-[var(--muted-foreground)]">디지털 트윈 데이터를 불러오는 중...</p>
        </div>
      </div>
    );
@@ -514,10 +575,21 @@ export const PersonaManagerPage: React.FC = () => {
  <div className="flex items-center gap-3 shrink-0 pt-1">
  <div className="flex items-center gap-2.5 bg-card border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-[var(--shadow-[var(--shadow-sm)])] focus-within:border-primary transition-colors">
  <Search size={15} className="text-[var(--subtle-foreground)]" />
- <input className="bg-transparent outline-none text-[13px] font-medium w-48 text-foreground placeholder:text-[var(--subtle-foreground)]" placeholder="페르소나 검색..." />
+ <input
+ className="bg-transparent outline-none text-[13px] font-medium w-48 text-foreground placeholder:text-[var(--subtle-foreground)]"
+ placeholder="페르소나 검색..."
+ value={searchQuery}
+ onChange={(event) => setSearchQuery(event.target.value)}
+ />
  </div>
- <Button size="sm" className="gap-2 text-[13px] font-bold px-5 active:scale-95">
- <Plus size={15} strokeWidth={2.5} /> 신규 등록
+ <Button
+ size="sm"
+ className="gap-2 text-[13px] font-bold px-5 active:scale-95"
+ onClick={() => void handleGeneratePersonas()}
+ disabled={!projectId || activeJob?.status === "queued" || activeJob?.status === "running"}
+ >
+ <Plus size={15} strokeWidth={2.5} />
+ {activeJob?.status === "queued" || activeJob?.status === "running" ? "AI 생성 중" : "AI 페르소나 생성"}
  </Button>
  </div>
  </div>
@@ -549,10 +621,22 @@ export const PersonaManagerPage: React.FC = () => {
  <List size={14} /> 리스트 뷰
  </button>
  </div>
+ <div className="flex items-center gap-3">
  <p className="text-[11px] font-bold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">
- 총 <span className="text-primary">30,000</span>명의 자산 등록됨
+ 총 <span className="text-primary">{(project?.persona_count ?? personas.length).toLocaleString()}</span>명의 자산 등록됨
  </p>
+ <Badge variant="outline" className={generationStatusClass}>
+ 생성 상태: {generationStatusLabel}
+ </Badge>
  </div>
+ </div>
+
+ {activeJob?.status === "failed" && activeJob.error_message && (
+ <div className="mb-6 flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50/60 px-4 py-3 text-[13px] font-medium text-[var(--destructive)]">
+ <AlertCircle size={15} />
+ <span>{activeJob.error_message}</span>
+ </div>
+ )}
 
  {/* ── 카드 뷰 ── */}
  {viewMode ==="card" ? (

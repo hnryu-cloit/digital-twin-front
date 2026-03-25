@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo, useState, useEffect } from "react";
-import { fetchIndividualPersonas } from "@/lib/api";
+import { fetchIndividualPersonas, projectApi, resolveDefaultProjectId, segmentApi, type ProjectDetail, type SegmentFilterOptions } from "@/lib/api";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -30,6 +30,8 @@ interface FilterPersona {
   gender: "남성" | "여성";
   occupation: string;
   occupationCat: OccupationCat;
+  region: string;
+  householdType: string;
   device: string;
   segments: PersonaSegment[];
   techLevel: "초보" | "중급" | "전문가";
@@ -42,8 +44,6 @@ interface FilterPersona {
   contentChannels: string[];
   buyChannel: string;
 }
-
-const TOTAL_POPULATION = 18740;
 
 const SEG_STYLE: Record<PersonaSegment, { bg: string; text: string; dot: string }> = {
   "MZ 얼리어답터":    { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
@@ -85,24 +85,8 @@ function deriveSegments(personas: FilterPersona[]) {
     });
 }
 
-/* ─── Static Chart Data ─── */
-const donutData = [
-  { name: "타겟 그룹 A", value: 31 },
-  { name: "타겟 그룹 B", value: 28 },
-  { name: "타겟 그룹 C", value: 19 },
-  { name: "타겟 그룹 D", value: 14 },
-  { name: "기타 그룹 E", value: 8 },
-];
 const DONUT_COLORS = ["var(--primary)", "var(--primary-active-border)", "var(--primary-light-border)", "var(--primary-light-bg)", "var(--panel-soft)"];
 
-const CHANNEL_DATA = [
-  { label: "통신사 대리점",    value: 44, color: "var(--primary)" },
-  { label: "삼성 공식몰",      value: 27, color: "var(--primary-active-border)" },
-  { label: "자급제 (온라인)",  value: 18, color: "var(--primary-light-border)" },
-  { label: "오프라인 유통",    value: 11, color: "var(--primary-light-bg)" },
-];
-
-const PRESET_COUNTRIES = ["대한민국", "미국", "일본", "중국", "독일", "영국", "프랑스", "인도"];
 const AGE_GROUPS = [
   { label: "10대", min: 10, max: 19 },
   { label: "20대", min: 20, max: 29 },
@@ -142,10 +126,10 @@ function SectionHeader({ icon, title, open, onToggle, count }: { icon: React.Rea
   );
 }
 
-const CUSTOM_LABEL = ({ cx, cy }: { cx: number; cy: number }) => (
+const CUSTOM_LABEL = ({ cx, cy, total }: { cx: number; cy: number; total: number }) => (
   <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
     <tspan x={cx} dy="-0.6em" className="text-[10px] fill-[var(--subtle-foreground)] font-semibold uppercase tracking-[0.1em]">전체 표본</tspan>
-    <tspan x={cx} dy="1.4em" className="text-[22px] fill-foreground font-bold tracking-tight">18,740</tspan>
+    <tspan x={cx} dy="1.4em" className="text-[22px] fill-foreground font-bold tracking-tight">{total.toLocaleString()}</tspan>
   </text>
 );
 
@@ -153,13 +137,20 @@ const CUSTOM_LABEL = ({ cx, cy }: { cx: number; cy: number }) => (
 /* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
   const [allPersonas, setAllPersonas] = useState<FilterPersona[]>([]);
+  const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [filterOptions, setFilterOptions] = useState<SegmentFilterOptions | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const items = await fetchIndividualPersonas("prj-001");
+        const projectId = await resolveDefaultProjectId();
+        const [items, projectDetail, options] = await Promise.all([
+          fetchIndividualPersonas(projectId ?? undefined),
+          projectId ? projectApi.getProject(projectId) : Promise.resolve(null),
+          segmentApi.getFilterOptions(),
+        ]);
         const SEGMENT_SPEND: Record<string, SpendingLevel> = {
           "MZ 얼리어답터": "프리미엄형", "게이밍 성향군": "프리미엄형",
           "프리미엄 구매자": "프리미엄형", "비즈니스 프로": "실용형",
@@ -167,7 +158,13 @@ export const DashboardPage: React.FC = () => {
         };
         const CHANNEL_MAP: Record<string, string> = {
           "YouTube": "YouTube", "Instagram": "Instagram",
-          "TikTok": "유튜브/숏폼", "LinkedIn": "온라인몰",
+          "TikTok": "TikTok", "LinkedIn": "뉴스/미디어",
+        };
+        const BUY_CHANNEL_MAP: Record<string, string> = {
+          "YouTube": "자급제",
+          "Instagram": "공식몰",
+          "TikTok": "통신사 대리점",
+          "LinkedIn": "오프라인 유통",
         };
         const mapped: FilterPersona[] = items.map((item: any) => ({
           id: item.id,
@@ -175,20 +172,24 @@ export const DashboardPage: React.FC = () => {
           age: item.age || 30,
           gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as "남성" | "여성",
           occupation: item.occupation || "직업 미상",
-          occupationCat: "직장인" as OccupationCat,
-          device: item.purchase_history?.[0] || "Galaxy S24",
+          occupationCat: (item.occupation_category || "직장인") as OccupationCat,
+          region: item.region || "대한민국",
+          householdType: item.household_type || "1인 가구",
+          device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
           segments: [item.segment || "MZ 얼리어답터"] as PersonaSegment[],
           techLevel: (item.score?.future_value >= 90 ? "전문가" : item.score?.future_value >= 75 ? "중급" : "초보") as "전문가" | "중급" | "초보",
           interests: item.interests?.length ? item.interests : ["스마트폰"],
           keywords: item.keywords?.length ? item.keywords : ["성능"],
           spendingLevel: (SEGMENT_SPEND[item.segment] ?? "실용형") as SpendingLevel,
           purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as "높음" | "보통" | "낮음",
-          brandLoyalty: "높음" as BrandLoyalty,
-          snsActivity: "보통" as SnsActivity,
+          brandLoyalty: (item.score?.engagement_score >= 80 ? "높음" : item.score?.engagement_score >= 65 ? "중간" : "낮음") as BrandLoyalty,
+          snsActivity: (item.preferred_channel === "Instagram" || item.preferred_channel === "TikTok" ? "활발" : item.preferred_channel === "YouTube" ? "보통" : "낮음") as SnsActivity,
           contentChannels: item.preferred_channel ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel] : ["YouTube"],
-          buyChannel: "공식몰",
+          buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",
         }));
         setAllPersonas(mapped);
+        setProject(projectDetail);
+        setFilterOptions(options ?? null);
       } catch (error) {
         console.error("Dashboard data load failed:", error);
       } finally {
@@ -197,11 +198,6 @@ export const DashboardPage: React.FC = () => {
     };
     loadData();
   }, []);
-
-  const scaleToPopulation = (n: number) => {
-    if (allPersonas.length === 0) return 0;
-    return Math.round(n / allPersonas.length * TOTAL_POPULATION);
-  };
 
   /* ── State ── */
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
@@ -215,10 +211,7 @@ export const DashboardPage: React.FC = () => {
   const [selectedSpending, setSelectedSpending] = useState<SpendingLevel[]>([]);
   const [selectedPurchaseIntent, setSelectedPurchaseIntent] = useState<PurchaseIntent[]>([]);
   const [selectedBuyChannels, setSelectedBuyChannels] = useState<string[]>([]);
-  const [products, setProducts] = useState({
-    s26ultra: true, s26plus: true, s26: true,
-    zfold6: false, zflip6: true, a55: false,
-  });
+  const [products, setProducts] = useState<Record<string, boolean>>({});
 
   /* ── 디지털 특성 ── */
   const [selectedTechLevels, setSelectedTechLevels] = useState<string[]>([]);
@@ -268,7 +261,7 @@ export const DashboardPage: React.FC = () => {
     setSelectedAgeGroups([]); setGender({ male: true, female: true });
     setSelectedOccupations([]); setCustomOccupations([]); setSelectedRegions([]); setCustomCountries([]); setSelectedHouseholds([]); setCustomHouseholds([]);
     setSelectedSpending([]); setSelectedPurchaseIntent([]); setSelectedBuyChannels([]);
-    setProducts({ s26ultra: true, s26plus: true, s26: true, zfold6: false, zflip6: true, a55: false });
+    setProducts({});
     setSelectedTechLevels([]); setSelectedSns([]); setSelectedContentChannels([]); setCustomContentChannels([]); setSelectedBrandLoyalty([]);
     setCustomKeywords([]); setKeywordInput("");
     setCountryInput(""); setOccupationAddInput(""); setHouseholdAddInput(""); setContentChannelAddInput("");
@@ -299,9 +292,15 @@ export const DashboardPage: React.FC = () => {
       if (p.gender === "남성" && !gender.male) return false;
       if (p.gender === "여성" && !gender.female) return false;
       if (selectedOccupations.length > 0 && !selectedOccupations.includes(p.occupationCat)) return false;
+      if (selectedRegions.length > 0 && !selectedRegions.includes(p.region)) return false;
+      if (selectedHouseholds.length > 0 && !selectedHouseholds.includes(p.householdType)) return false;
       if (selectedSpending.length > 0 && !selectedSpending.includes(p.spendingLevel)) return false;
       if (selectedPurchaseIntent.length > 0 && !selectedPurchaseIntent.includes(p.purchaseIntent)) return false;
       if (selectedBuyChannels.length > 0 && !selectedBuyChannels.includes(p.buyChannel)) return false;
+      const selectedProducts = Object.entries(products)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+      if (selectedProducts.length > 0 && !selectedProducts.includes(p.device)) return false;
       if (selectedTechLevels.length > 0 && !selectedTechLevels.includes(p.techLevel)) return false;
       if (selectedSns.length > 0 && !selectedSns.includes(p.snsActivity)) return false;
       if (selectedContentChannels.length > 0 && !selectedContentChannels.some((ch) => p.contentChannels.includes(ch))) return false;
@@ -319,15 +318,58 @@ export const DashboardPage: React.FC = () => {
       }
       return true;
     });
-  }, [allPersonas, selectedAgeGroups, gender, selectedOccupations, selectedSpending, selectedPurchaseIntent,
-      selectedBuyChannels, selectedTechLevels, selectedSns, selectedContentChannels,
-      selectedBrandLoyalty, allKeywords]);
+  }, [allPersonas, selectedAgeGroups, gender, selectedOccupations, selectedRegions, selectedHouseholds,
+      selectedSpending, selectedPurchaseIntent, selectedBuyChannels, selectedTechLevels, selectedSns,
+      selectedContentChannels, selectedBrandLoyalty, allKeywords, products]);
 
   /* ── derive segments from matched personas ── */
   const derivedSegments = useMemo(
     () => deriveSegments(hasFilters ? matchedPersonas : allPersonas),
     [matchedPersonas, allPersonas, hasFilters]
   );
+
+  const displayedPersonas = hasFilters ? matchedPersonas : allPersonas;
+  const totalPopulation = project?.target_responses ?? allPersonas.length;
+  const analyzedPopulation = displayedPersonas.length;
+  const averageAge = analyzedPopulation > 0
+    ? (displayedPersonas.reduce((sum, persona) => sum + persona.age, 0) / analyzedPopulation).toFixed(1)
+    : "0.0";
+  const maleRatio = analyzedPopulation > 0
+    ? Math.round(displayedPersonas.filter((persona) => persona.gender === "남성").length / analyzedPopulation * 100)
+    : 0;
+  const averagePurchaseIntent = analyzedPopulation > 0
+    ? Math.round(displayedPersonas.filter((persona) => persona.purchaseIntent === "높음").length / analyzedPopulation * 100)
+    : 0;
+
+  const donutData = useMemo(() => {
+    const base = derivedSegments.slice(0, 5);
+    return base.map((segment) => ({
+      name: segment.name,
+      value: analyzedPopulation > 0 ? Math.round((segment.members.length / analyzedPopulation) * 100) : 0,
+    }));
+  }, [derivedSegments, analyzedPopulation]);
+
+  const channelData = useMemo(() => {
+    const counts = displayedPersonas.reduce<Record<string, number>>((acc, persona) => {
+      acc[persona.buyChannel] = (acc[persona.buyChannel] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(counts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 4)
+      .map(([label, count], index) => ({
+        label,
+        value: analyzedPopulation > 0 ? Math.round((count / analyzedPopulation) * 100) : 0,
+        color: DONUT_COLORS[index % DONUT_COLORS.length],
+      }));
+  }, [displayedPersonas, analyzedPopulation]);
+
+  const regionOptions = filterOptions?.regions.map((item) => item.label) ?? [];
+  const householdOptions = filterOptions?.households.map((item) => item.label) ?? [];
+  const occupationOptions = filterOptions?.occupations.map((item) => item.label) ?? [];
+  const buyChannelOptions = filterOptions?.buy_channels.map((item) => item.label) ?? [];
+  const contentChannelOptions = filterOptions?.content_channels.map((item) => item.label) ?? [];
+  const productOptions = filterOptions?.product_groups ?? [];
 
   if (loading) {
     return (
@@ -406,7 +448,7 @@ export const DashboardPage: React.FC = () => {
                 {openSections.occupation && (
                   <div className="px-4 pb-4 space-y-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {([...["학생", "직장인", "전문직", "자영업자", "프리랜서"], ...customOccupations]).map((o) => {
+                      {[...occupationOptions, ...customOccupations].map((o) => {
                         const active = selectedOccupations.includes(o);
                         const isCustom = customOccupations.includes(o);
                         return (
@@ -436,7 +478,7 @@ export const DashboardPage: React.FC = () => {
                 {openSections.region && (
                   <div className="px-4 pb-4 space-y-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {([...PRESET_COUNTRIES, ...customCountries]).map((c) => {
+                      {[...regionOptions, ...customCountries].map((c) => {
                         const active = selectedRegions.includes(c);
                         const isCustom = customCountries.includes(c);
                         return (
@@ -452,9 +494,9 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1.5 focus-within:border-primary transition-all">
                       <input value={countryInput} onChange={(e) => setCountryInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = countryInput.trim(); if (v && !customCountries.includes(v) && !PRESET_COUNTRIES.includes(v)) { setCustomCountries((p) => [...p, v]); setSelectedRegions((p) => [...p, v]); } setCountryInput(""); } }}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = countryInput.trim(); if (v && !customCountries.includes(v) && !regionOptions.includes(v)) { setCustomCountries((p) => [...p, v]); setSelectedRegions((p) => [...p, v]); } setCountryInput(""); } }}
                         placeholder="국가 추가..." className="flex-1 bg-transparent text-[11px] font-semibold outline-none text-[var(--secondary-foreground)] placeholder:text-[var(--subtle-foreground)] placeholder:font-normal" />
-                      <button onClick={() => { const v = countryInput.trim(); if (v && !customCountries.includes(v) && !PRESET_COUNTRIES.includes(v)) { setCustomCountries((p) => [...p, v]); setSelectedRegions((p) => [...p, v]); } setCountryInput(""); }}
+                      <button onClick={() => { const v = countryInput.trim(); if (v && !customCountries.includes(v) && !regionOptions.includes(v)) { setCustomCountries((p) => [...p, v]); setSelectedRegions((p) => [...p, v]); } setCountryInput(""); }}
                         className="flex h-4 w-4 items-center justify-center rounded bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors"><Plus size={9} /></button>
                     </div>
                   </div>
@@ -466,7 +508,7 @@ export const DashboardPage: React.FC = () => {
                 {openSections.household && (
                   <div className="px-4 pb-4 space-y-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {([...["1인 가구", "2인 가구", "3인 이상", "딩크족", "대가족"], ...customHouseholds]).map((h) => {
+                      {[...householdOptions, ...customHouseholds].map((h) => {
                         const active = selectedHouseholds.includes(h);
                         const isCustom = customHouseholds.includes(h);
                         return (
@@ -535,7 +577,7 @@ export const DashboardPage: React.FC = () => {
                 <SectionHeader icon={<Store size={14} />} title="선호 구매 채널" open={openSections.buyChannel} onToggle={() => toggle("buyChannel")} count={selectedBuyChannels.length} />
                 {openSections.buyChannel && (
                   <div className="px-4 pb-4 flex flex-col gap-2">
-                    {["통신사 대리점", "공식몰", "자급제", "오프라인 유통"].map((ch) => {
+                    {buyChannelOptions.map((ch) => {
                       const active = selectedBuyChannels.includes(ch);
                       return (
                         <label key={ch} className={`flex items-center gap-3 rounded-xl border px-4 py-2.5 cursor-pointer transition-all ${active ? "border-primary bg-[var(--primary-light-bg)]" : "border-[var(--border)] bg-card hover:border-[var(--border-hover)]"}`}>
@@ -552,16 +594,11 @@ export const DashboardPage: React.FC = () => {
                 <SectionHeader icon={<Smartphone size={14} />} title="Galaxy 제품군" open={openSections.product} onToggle={() => toggle("product")} count={productCount} />
                 {openSections.product && (
                   <div className="px-4 pb-4 flex flex-col gap-3">
-                    {[
-                      { id: "s26ultra", label: "Galaxy S26 Ultra", pct: 26 },
-                      { id: "s26plus",  label: "Galaxy S26+",      pct: 18 },
-                      { id: "s26",      label: "Galaxy S26",       pct: 22 },
-                      { id: "zflip6",   label: "Galaxy Z Flip6",   pct: 13 },
-                    ].map((d) => (
-                      <label key={d.id} className="flex items-center gap-3 cursor-pointer group">
-                        <Checkbox checked={(products as any)[d.id]} onChange={() => setProducts((p) => ({ ...p, [d.id]: !(p as any)[d.id] }))} />
-                        <span className={`text-[12px] font-semibold flex-1 ${(products as any)[d.id] ? "text-foreground" : "text-[var(--subtle-foreground)] group-hover:text-[var(--secondary-foreground)]"}`}>{d.label}</span>
-                        <span className="text-[10px] text-[var(--muted-foreground)] font-bold">{d.pct}%</span>
+                    {productOptions.map((d) => (
+                      <label key={d.label} className="flex items-center gap-3 cursor-pointer group">
+                        <Checkbox checked={!!products[d.label]} onChange={() => setProducts((p) => ({ ...p, [d.label]: !p[d.label] }))} />
+                        <span className={`text-[12px] font-semibold flex-1 ${products[d.label] ? "text-foreground" : "text-[var(--subtle-foreground)] group-hover:text-[var(--secondary-foreground)]"}`}>{d.label}</span>
+                        <span className="text-[10px] text-[var(--muted-foreground)] font-bold">{Math.round(d.ratio)}%</span>
                       </label>
                     ))}
                   </div>
@@ -612,7 +649,7 @@ export const DashboardPage: React.FC = () => {
                 {openSections.content && (
                   <div className="px-4 pb-4 space-y-2">
                     <div className="flex flex-wrap gap-1.5">
-                      {([...["YouTube", "Instagram", "뉴스/미디어", "커뮤니티", "TikTok", "블로그"], ...customContentChannels]).map((ch) => {
+                      {[...contentChannelOptions, ...customContentChannels].map((ch) => {
                         const active = selectedContentChannels.includes(ch);
                         const isCustom = customContentChannels.includes(ch);
                         return (
@@ -702,7 +739,7 @@ export const DashboardPage: React.FC = () => {
                 <div>
                   <p className={`text-[10px] font-bold uppercase tracking-[0.1em] ${matchedPersonas.length > 0 ? "text-primary" : "text-red-500"}`}>매칭된 페르소나</p>
                   <p className={`text-[20px] font-bold leading-none mt-0.5 ${matchedPersonas.length > 0 ? "text-foreground" : "text-red-400"}`}>
-                    {scaleToPopulation(matchedPersonas.length).toLocaleString()}<span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / 18,740명</span>
+                    {matchedPersonas.length.toLocaleString()}<span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / {allPersonas.length.toLocaleString()}명</span>
                   </p>
                 </div>
                 <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${matchedPersonas.length > 0 ? "bg-primary/10 text-primary" : "bg-red-100 text-red-500"}`}>
@@ -728,8 +765,8 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="app-page-description">
               {hasFilters
-                ? `설정된 필터 조건에 부합하는 페르소나 ${scaleToPopulation(matchedPersonas.length).toLocaleString()}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
-                : "삼성전자 Galaxy 제품군 구매·사용자 30,000명 중 18,740명을 대상으로 한 분석 데이터입니다."}
+                ? `설정된 필터 조건에 부합하는 페르소나 ${matchedPersonas.length.toLocaleString()}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
+                : `${project?.name ?? "현재 프로젝트"}의 실제 API 응답 기준 분석 데이터입니다. 전체 모집단 ${totalPopulation.toLocaleString()}명 중 현재 분석 대상은 ${analyzedPopulation.toLocaleString()}명입니다.`}
             </p>
           </div>
 
@@ -741,9 +778,9 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex-1 relative z-10">
                   <p className="text-[12px] text-[var(--subtle-foreground)] font-bold uppercase tracking-[0.14em] mb-2">전체 분석 대상</p>
                   <div className="flex items-end gap-2 mb-6">
-                    <span className="text-[48px] font-bold text-foreground tracking-tighter leading-none">18,740</span>
+                    <span className="text-[48px] font-bold text-foreground tracking-tighter leading-none">{analyzedPopulation.toLocaleString()}</span>
                     <span className="text-[18px] text-[var(--subtle-foreground)] font-bold pb-1 uppercase">명</span>
-                    <span className="text-[13px] text-[var(--muted-foreground)] font-semibold pb-2">/ 30,000</span>
+                    <span className="text-[13px] text-[var(--muted-foreground)] font-semibold pb-2">/ {totalPopulation.toLocaleString()}</span>
                   </div>
                   <div className="inline-flex items-center gap-2 bg-[var(--panel-soft)] text-[var(--primary-active-text)] px-3 py-1.5 rounded-lg border border-[var(--primary-light-border)]">
                     <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
@@ -751,9 +788,9 @@ export const DashboardPage: React.FC = () => {
                   </div>
                   <div className="mt-8 grid grid-cols-3 gap-4">
                     {[
-                      { label: "평균 연령", value: "33.4세", icon: <Clock size={12} /> },
-                      { label: "남성 비율", value: "58%",    icon: <Users size={12} /> },
-                      { label: "수도권 비중", value: "48%",  icon: <MapPin size={12} /> },
+                      { label: "평균 연령", value: `${averageAge}세`, icon: <Clock size={12} /> },
+                      { label: "남성 비율", value: `${maleRatio}%`, icon: <Users size={12} /> },
+                      { label: "구매 의향", value: `${averagePurchaseIntent}%`, icon: <MapPin size={12} /> },
                     ].map((s) => (
                       <div key={s.label} className="bg-[var(--panel-soft)] rounded-xl p-3.5 border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-all group/stat min-w-0">
                         <p className="text-[10px] text-[var(--subtle-foreground)] font-bold uppercase flex items-center gap-1 whitespace-nowrap overflow-hidden">{s.icon}{s.label}</p>
@@ -766,7 +803,7 @@ export const DashboardPage: React.FC = () => {
                   <div style={{ width: 180, height: 180 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={donutData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} startAngle={90} endAngle={-270} dataKey="value" labelLine={false} label={CUSTOM_LABEL} strokeWidth={0}>
+                        <Pie data={donutData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} startAngle={90} endAngle={-270} dataKey="value" labelLine={false} label={(props) => <CUSTOM_LABEL {...props} total={analyzedPopulation} />} strokeWidth={0}>
                           {donutData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i]} />)}
                         </Pie>
                         <Tooltip formatter={(v: number) => [`${v}%`, ""]} contentStyle={{ borderRadius: 12, border: "none", fontSize: 12, fontWeight: 600, boxShadow: "var(--shadow-lg)" }} />
@@ -793,7 +830,7 @@ export const DashboardPage: React.FC = () => {
                   <h3 className="text-[14px] font-bold text-foreground uppercase tracking-tight">주요 채널 분포</h3>
                 </div>
                 <div className="flex flex-col gap-6">
-                  {CHANNEL_DATA.map((c) => (
+                  {channelData.map((c) => (
                     <div key={c.label} className="group">
                       <div className="flex justify-between mb-2 text-[12px] font-semibold">
                         <span className="text-[var(--secondary-foreground)] group-hover:text-primary transition-colors truncate pr-2">{c.label}</span>
@@ -825,7 +862,7 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center gap-2 bg-[var(--panel-soft)] px-3 py-1.5 rounded-full border border-[var(--border)]">
                   <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                   <span className="text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-tight">
-                    {hasFilters ? `${scaleToPopulation(matchedPersonas.length).toLocaleString()}명 매칭` : "전체 18,740명"}
+                    {hasFilters ? `${matchedPersonas.length.toLocaleString()}명 매칭` : `전체 ${allPersonas.length.toLocaleString()}명`}
                   </span>
                 </div>
               </div>
@@ -859,7 +896,7 @@ export const DashboardPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[22px] font-black leading-none" style={{ color: style.text }}>{scaleToPopulation(seg.members.length).toLocaleString()}<span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">명</span></p>
+                            <p className="text-[22px] font-black leading-none" style={{ color: style.text }}>{seg.members.length.toLocaleString()}<span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">명</span></p>
                             <p className="text-[10px] font-bold text-[var(--subtle-foreground)] mt-0.5">{ratio}% 비중</p>
                           </div>
                         </div>

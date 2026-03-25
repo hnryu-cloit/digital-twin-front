@@ -11,6 +11,7 @@ export const apiClient = axios.create({
 
 // 토큰 캐시
 let _cachedToken: string | null = localStorage.getItem("dt_access_token");
+let _defaultProjectIdPromise: Promise<string | null> | null = null;
 
 async function ensureToken(): Promise<string | null> {
   if (_cachedToken) return _cachedToken;
@@ -76,6 +77,27 @@ export interface ProjectListResponse {
   total: number;
 }
 
+export interface ProjectDetail {
+  id: string;
+  name: string;
+  type: string;
+  purpose: string;
+  description?: string | null;
+  data_sources: string[];
+  tags: string[];
+  status: string;
+  progress: number;
+  response_count: number;
+  target_responses: number;
+  surveys_count: number;
+  reports_count: number;
+  persona_count: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string | null;
+}
+
 export interface Persona {
   id: string;
   name: string;
@@ -83,6 +105,13 @@ export interface Persona {
   keywords: string[];
   age: number;
   gender: string;
+  occupation: string;
+  occupation_category: string;
+  region: string;
+  household_type: string;
+  preferred_channel: string;
+  buy_channel: string;
+  product_group: string;
   churn_risk?: string;
 }
 
@@ -94,15 +123,47 @@ export interface PersonaListResponse {
   view_mode: string;
 }
 
+export interface FilterOptionItem {
+  label: string;
+  count: number;
+  ratio: number;
+}
+
+export interface SegmentFilterOptions {
+  occupations: FilterOptionItem[];
+  regions: FilterOptionItem[];
+  households: FilterOptionItem[];
+  buy_channels: FilterOptionItem[];
+  content_channels: FilterOptionItem[];
+  product_groups: FilterOptionItem[];
+}
+
+export async function resolveDefaultProjectId(): Promise<string | null> {
+  if (!_defaultProjectIdPromise) {
+    _defaultProjectIdPromise = (async () => {
+      try {
+        const { data } = await apiClient.get("/v1/projects?page=1&size=1");
+        return data.items?.[0]?.id ?? null;
+      } catch (error) {
+        console.warn("resolveDefaultProjectId failed.", error);
+        return null;
+      }
+    })();
+  }
+  return _defaultProjectIdPromise;
+}
+
 /* ─── Legacy Compatibility & New Endpoints ─── */
 
 /**
  * 기존 DashboardPage와 PersonaManagerPage에서 사용하던 함수
  * 안정성을 위해 목업 데이터를 반환하거나 백엔드 연동을 시도함
  */
-export const fetchIndividualPersonas = async (projectId = "prj-001"): Promise<Persona[]> => {
+export const fetchIndividualPersonas = async (projectId?: string): Promise<Persona[]> => {
   try {
-    const { data } = await apiClient.get(`/v1/personas?project_id=${projectId}&page=1&size=100`);
+    const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+    if (!resolvedProjectId) return [];
+    const { data } = await apiClient.get(`/v1/personas?project_id=${resolvedProjectId}&page=1&size=100`);
     return data.items || [];
   } catch (error) {
     console.warn("fetchIndividualPersonas failed, returning empty.", error);
@@ -160,6 +221,15 @@ export const projectApi = {
       return { items: [], page, size, total: 0 };
     }
   },
+  getProject: async (projectId: string): Promise<ProjectDetail | null> => {
+    try {
+      const { data } = await apiClient.get(`/v1/projects/${projectId}`);
+      return data;
+    } catch (error) {
+      console.warn("projectApi.getProject failed.", error);
+      return null;
+    }
+  },
 };
 
 export const personaApi = {
@@ -172,6 +242,37 @@ export const personaApi = {
       return { items: [], page, size, total: 0, view_mode: "card" };
     }
   },
+  generateJob: async (payload: {
+    project_id: string;
+    random_state?: number;
+    n_synthetic_customers?: number;
+    n_personas?: number;
+    excel_path?: string;
+    output_dir?: string;
+    overwrite_existing?: boolean;
+  }): Promise<AIJob | null> => {
+    try {
+      const { data } = await apiClient.post("/v1/personas/generate-job", payload);
+      return data;
+    } catch (error) {
+      console.warn("personaApi.generateJob failed.", error);
+      return null;
+    }
+  },
+};
+
+export const segmentApi = {
+  getFilterOptions: async (projectId?: string): Promise<SegmentFilterOptions | null> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const query = resolvedProjectId ? `?project_id=${resolvedProjectId}` : "";
+      const { data } = await apiClient.get(`/segments/filter-options${query}`);
+      return data;
+    } catch (error) {
+      console.warn("segmentApi.getFilterOptions failed.", error);
+      return null;
+    }
+  },
 };
 
 /* ─── Survey ─── */
@@ -182,14 +283,60 @@ export interface SurveyQuestion {
   order: number;
 }
 
+export interface AIJob {
+  id: string;
+  project_id: string;
+  job_type: string;
+  status: "queued" | "running" | "completed" | "failed" | "cancelled";
+  progress: number;
+  payload: Record<string, unknown>;
+  result_ref?: Record<string, unknown> | null;
+  error_code?: string | null;
+  error_message?: string | null;
+  created_by: string;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+}
+
 export const surveyApi = {
-  getQuestions: async (projectId: string): Promise<SurveyQuestion[]> => {
+  getQuestions: async (projectId?: string): Promise<SurveyQuestion[]> => {
     try {
-      const { data } = await apiClient.get(`/surveys/${projectId}/questions`);
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return [];
+      const { data } = await apiClient.get(`/surveys/${resolvedProjectId}/questions`);
       return data.questions ?? [];
     } catch (error) {
       console.warn("surveyApi.getQuestions failed.", error);
       return [];
+    }
+  },
+  generateJob: async (payload: {
+    project_id: string;
+    user_prompt: string;
+    survey_type: string;
+    question_count: number;
+    template?: Record<string, unknown>;
+    segment_context?: Record<string, unknown>;
+  }): Promise<AIJob | null> => {
+    try {
+      const { data } = await apiClient.post("/surveys/generate-job", payload);
+      return data;
+    } catch (error) {
+      console.warn("surveyApi.generateJob failed.", error);
+      return null;
+    }
+  },
+};
+
+export const aiJobApi = {
+  getJob: async (jobId: string): Promise<AIJob | null> => {
+    try {
+      const { data } = await apiClient.get(`/ai/jobs/${jobId}`);
+      return data;
+    } catch (error) {
+      console.warn("aiJobApi.getJob failed.", error);
+      return null;
     }
   },
 };
@@ -218,28 +365,84 @@ export interface SimulationFeedItem {
   cot: string[];
 }
 
+export interface ResponseDistributionItem {
+  label: string;
+  value: number;
+}
+
+export interface InsightResponse {
+  summary: string;
+  strategies: string[];
+  cached_until: string;
+}
+
+export interface KeywordTrendItem {
+  keyword: string;
+  frequency: number;
+  trend: "up" | "down" | "flat";
+}
+
 export const simulationApi = {
-  getProgress: async (projectId: string): Promise<SimulationProgress | null> => {
+  getProgress: async (projectId?: string): Promise<SimulationProgress | null> => {
     try {
-      const { data } = await apiClient.get(`/simulations/progress?project_id=${projectId}`);
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return null;
+      const { data } = await apiClient.get(`/simulations/progress?project_id=${resolvedProjectId}`);
       return data;
     } catch (error) {
       console.warn("simulationApi.getProgress failed.", error);
       return null;
     }
   },
-  getFeed: async (projectId: string, limit = 20): Promise<SimulationFeedItem[]> => {
+  getFeed: async (projectId?: string, limit = 20): Promise<SimulationFeedItem[]> => {
     try {
-      const { data } = await apiClient.get(`/simulations/feed?project_id=${projectId}&limit=${limit}`);
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return [];
+      const { data } = await apiClient.get(`/simulations/feed?project_id=${resolvedProjectId}&limit=${limit}`);
       return data;
     } catch (error) {
       console.warn("simulationApi.getFeed failed.", error);
       return [];
     }
   },
-  control: async (projectId: string, action: "start" | "stop"): Promise<void> => {
+  getDistribution: async (projectId: string | undefined, questionId: string): Promise<ResponseDistributionItem[]> => {
     try {
-      await apiClient.post("/simulations/control", { project_id: projectId, action });
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return [];
+      const { data } = await apiClient.get(`/simulations/distribution?project_id=${resolvedProjectId}&question_id=${questionId}`);
+      return data ?? [];
+    } catch (error) {
+      console.warn("simulationApi.getDistribution failed.", error);
+      return [];
+    }
+  },
+  getInsight: async (projectId: string | undefined, questionId: string): Promise<InsightResponse | null> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return null;
+      const { data } = await apiClient.get(`/simulations/insight?project_id=${resolvedProjectId}&question_id=${questionId}`);
+      return data;
+    } catch (error) {
+      console.warn("simulationApi.getInsight failed.", error);
+      return null;
+    }
+  },
+  getKeywords: async (projectId?: string): Promise<KeywordTrendItem[]> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return [];
+      const { data } = await apiClient.get(`/simulations/keywords?project_id=${resolvedProjectId}`);
+      return data ?? [];
+    } catch (error) {
+      console.warn("simulationApi.getKeywords failed.", error);
+      return [];
+    }
+  },
+  control: async (projectId: string | undefined, action: "start" | "stop"): Promise<void> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return;
+      await apiClient.post("/simulations/control", { project_id: resolvedProjectId, action });
     } catch (error) {
       console.warn("simulationApi.control failed.", error);
     }
@@ -274,14 +477,16 @@ export const reportApi = {
     }
   },
   listReports: async (
-    projectId: string,
+    projectId?: string,
     page = 1,
     size = 10,
     search?: string,
   ): Promise<{ items: ReportSummary[]; total: number }> => {
     try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return { items: [], total: 0 };
       const params = new URLSearchParams({
-        project_id: projectId,
+        project_id: resolvedProjectId,
         page: String(page),
         size: String(size),
       });

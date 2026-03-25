@@ -20,12 +20,12 @@ import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
-import { surveyApi } from"@/lib/api";
+import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob } from"@/lib/api";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
 interface Question {
- id: number;
+ id: number | string;
  text: string;
  type: QuestionType;
 }
@@ -152,8 +152,10 @@ export const SurveyChatPage: React.FC = () => {
  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
  const [input, setInput] = useState("");
- const [openMenu, setOpenMenu] = useState<number | null>(null);
- const [editingId, setEditingId] = useState<number | null>(null);
+ const [projectId, setProjectId] = useState<string | null>(null);
+ const [activeJob, setActiveJob] = useState<AIJob | null>(null);
+ const [openMenu, setOpenMenu] = useState<number | string | null>(null);
+ const [editingId, setEditingId] = useState<number | string | null>(null);
  const [editText, setEditText] = useState("");
  const [currentPage, setCurrentPage] = useState(0);
  const chatEndRef = useRef<HTMLDivElement>(null);
@@ -163,43 +165,115 @@ export const SurveyChatPage: React.FC = () => {
  currentPage * QUESTIONS_PER_PAGE,
  (currentPage + 1) * QUESTIONS_PER_PAGE,
  );
+ const generationStatus = activeJob?.status ==="running" || activeJob?.status ==="queued"
+ ? "Generating"
+ : activeJob?.status ==="failed"
+ ? "Failed"
+ : "Drafting";
 
  // 마운트 시 API에서 설문 문항 로드
  useEffect(() => {
-   surveyApi.getQuestions("prj-001").then((apiQuestions) => {
+   const loadQuestions = async () => {
+     const resolvedProjectId = await resolveDefaultProjectId();
+     setProjectId(resolvedProjectId);
+     const apiQuestions = await surveyApi.getQuestions(resolvedProjectId ?? undefined);
      if (apiQuestions.length > 0) {
        setQuestions(
          apiQuestions.map((q) => ({
-           id: q.order,
+           id: q.id,
            text: q.text,
            type: q.type as QuestionType,
          }))
        );
      }
-   });
+   };
+   loadQuestions();
  }, []);
 
  useEffect(() => {
  chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
  }, [messages]);
 
- const sendMessage = () => {
- if (!input.trim()) return;
- const newMsg: ChatMessage = { id: Date.now(), role:"user", text: input.trim() };
+ useEffect(() => {
+ if (!activeJob || activeJob.status ==="completed" || activeJob.status ==="failed" || activeJob.status ==="cancelled") {
+ return;
+ }
+
+ const timer = window.setInterval(async () => {
+   const nextJob = await aiJobApi.getJob(activeJob.id);
+   if (!nextJob) return;
+   setActiveJob(nextJob);
+
+   if (nextJob.status ==="completed" && projectId) {
+     const apiQuestions = await surveyApi.getQuestions(projectId);
+     setQuestions(
+       apiQuestions.map((q) => ({
+         id: q.id,
+         text: q.text,
+         type: q.type as QuestionType,
+       }))
+     );
+     setMessages((prev) => [...prev, {
+       id: Date.now(),
+       role:"bot",
+       text:`AI가 설문 초안을 생성했습니다. ${apiQuestions.length}개 문항을 반영했습니다.`,
+     }]);
+   }
+
+   if (nextJob.status ==="failed") {
+     setMessages((prev) => [...prev, {
+       id: Date.now(),
+       role:"bot",
+       text:`설문 생성에 실패했습니다. ${nextJob.error_message ?? "잠시 후 다시 시도해주세요."}`,
+     }]);
+   }
+ }, 1500);
+
+ return () => window.clearInterval(timer);
+ }, [activeJob, projectId]);
+
+ const sendMessage = async () => {
+ const message = input.trim();
+ if (!message || !projectId || activeJob?.status ==="queued" || activeJob?.status ==="running") return;
+ const newMsg: ChatMessage = { id: Date.now(), role:"user", text: message };
  setMessages((prev) => [...prev, newMsg]);
  setInput("");
 
- setTimeout(() => {
- const botMsg: ChatMessage = {
- id: Date.now() + 1,
- role:"bot",
- text:"요청 내용을 반영해서 문항을 수정했습니다. 우측 패널에서 변경사항을 확인해주세요.",
- };
- setMessages((prev) => [...prev, botMsg]);
- }, 900);
+ const job = await surveyApi.generateJob({
+   project_id: projectId,
+   user_prompt: message,
+   survey_type: "concept",
+   question_count: 5,
+   template: {
+     template_id: "tpl_concept_test_v1",
+     template_version: 1,
+     research_goal: "concept_validation",
+     required_blocks: ["awareness", "appeal", "purchase_intent", "concern", "open_feedback"],
+   },
+   segment_context: {
+     source: "survey_chat_page",
+     selected_segments: [],
+   },
+ });
+
+ if (!job) {
+   setMessages((prev) => [...prev, {
+     id: Date.now() + 1,
+     role:"bot",
+     text:"설문 생성 요청을 전송하지 못했습니다. 백엔드 상태를 확인해주세요.",
+   }]);
+   return;
+ }
+
+ setActiveJob(job);
+ setMessages((prev) => [...prev, {
+   id: Date.now() + 1,
+   role:"bot",
+   text:"설문 생성 job을 시작했습니다. AI가 초안을 생성하는 중입니다.",
+ }]);
  };
 
- const deleteQuestion = (id: number) => {
+ const deleteQuestion = (id: number | string) => {
  setQuestions((prev) => {
  const next = prev.filter((q) => q.id !== id);
  const maxPage = Math.max(0, Math.ceil(next.length / QUESTIONS_PER_PAGE) - 1);
@@ -291,9 +365,9 @@ export const SurveyChatPage: React.FC = () => {
  />
  <button
  onClick={sendMessage}
- disabled={!input.trim()}
+ disabled={!input.trim() || !projectId || activeJob?.status ==="queued" || activeJob?.status ==="running"}
  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
- input.trim()
+ input.trim() && projectId && activeJob?.status !=="queued" && activeJob?.status !=="running"
  ?"bg-primary text-white hover:bg-primary-hover active:scale-95"
  :"bg-[var(--muted)] text-[var(--subtle-foreground)] opacity-50"
  }`}
@@ -470,8 +544,8 @@ export const SurveyChatPage: React.FC = () => {
  <div className="flex items-center gap-3">
  <div className="flex items-center gap-2 bg-[var(--panel-soft)] px-3 py-1.5 rounded-lg border border-[var(--border)]">
  <span className="text-[10px] text-[var(--subtle-foreground)] font-semibold uppercase tracking-[0.14em]">Status</span>
- <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
- <span className="text-[12px] text-foreground font-semibold">Drafting</span>
+ <div className={`w-1.5 h-1.5 rounded-full ${generationStatus ==="Failed" ?"bg-[var(--destructive)]" :"bg-[var(--success)]"} ${generationStatus ==="Generating" ?"animate-pulse" :""}`} />
+ <span className="text-[12px] text-foreground font-semibold">{generationStatus}</span>
  </div>
  <p className="text-[12px] text-[var(--muted-foreground)] font-medium">
  총 <span className="text-primary font-bold">{questions.length}</span>개의 문항이 구성됨

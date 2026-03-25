@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { AppPagination } from "@/components/ui/AppPagination";
 import { cn } from "@/lib/utils";
-import { reportApi, type ReportSummary } from "@/lib/api";
+import { reportApi, resolveDefaultProjectId, type ReportSummary } from "@/lib/api";
 
 interface ReportItem {
   id: string;
@@ -20,15 +20,6 @@ interface ReportItem {
   format: "PDF" | "DOCX" | "PPTX";
   size: string;
 }
-
-const REPORT_ITEMS: ReportItem[] = [
-  { id: "r1", title: "Galaxy S26 컨셉 테스트 분석 리포트", project: "Galaxy S26 컨셉 테스트", createdAt: "2026-03-08", type: "컨셉 테스트", typeColor: "#3B82F6", typeBg: "#EFF6FF", format: "PDF", size: "2.4 MB" },
-  { id: "r2", title: "MZ세대 스마트폰 Usage 종합 리포트", project: "MZ세대 스마트폰 Usage 조사", createdAt: "2026-03-05", type: "Usage 조사", typeColor: "#6366F1", typeBg: "#EEF2FF", format: "DOCX", size: "1.8 MB" },
-  { id: "r3", title: "브랜드 인지도 Q1 2026 최종 리포트", project: "브랜드 인지도 조사 Q1 2026", createdAt: "2026-03-01", type: "브랜드 인식", typeColor: "#8B5CF6", typeBg: "#F5F3FF", format: "PPTX", size: "5.2 MB" },
-  { id: "r4", title: "온라인 쇼핑 만족도 분석 리포트", project: "온라인 쇼핑 경험 만족도", createdAt: "2026-02-20", type: "Usage 조사", typeColor: "#6366F1", typeBg: "#EEF2FF", format: "PDF", size: "3.1 MB" },
-  { id: "r5", title: "2030 뷰티 소비자 인식 중간 리포트", project: "2030 뷰티 소비자 인식 조사", createdAt: "2026-02-14", type: "브랜드 인식", typeColor: "#8B5CF6", typeBg: "#F5F3FF", format: "DOCX", size: "1.5 MB" },
-  { id: "r6", title: "Global UX Usability Final Report", project: "UX Global Standard", createdAt: "2026-02-10", type: "UX 테스트", typeColor: "#10B981", typeBg: "#ECFDF5", format: "PDF", size: "4.7 MB" },
-];
 
 const FORMAT_ICONS = {
   PDF: <FilePieChart size={24} />,
@@ -63,15 +54,16 @@ function mapReportItem(r: ReportSummary): ReportItem {
 export const ReportHistoryPage: React.FC = () => {
   const [downloadOpenId, setDownloadOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [reportItems, setReportItems] = useState<ReportItem[]>(REPORT_ITEMS);
+  const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const downloadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    reportApi.listReports("prj-001", 1, 50).then(({ items }) => {
-      if (items.length > 0) {
-        setReportItems(items.map(mapReportItem));
-      }
-    });
+    const loadReports = async () => {
+      const projectId = await resolveDefaultProjectId();
+      const { items } = await reportApi.listReports(projectId ?? undefined, 1, 50);
+      setReportItems(items.map(mapReportItem));
+    };
+    loadReports();
   }, []);
 
   useEffect(() => {

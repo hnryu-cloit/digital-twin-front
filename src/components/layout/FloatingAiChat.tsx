@@ -1,6 +1,7 @@
 import type React from"react";
 import { useRef, useState, useEffect } from"react";
 import { Send, User, X, RotateCcw } from"lucide-react";
+import { projectApi, resolveDefaultProjectId, type ProjectDetail } from"@/lib/api";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
 
@@ -29,7 +30,7 @@ const mockResponses: Record<string, Message> = {
  content:"현재 분석 결과, 30대 Gamer 세그먼트의 구매 의향이 전주 대비 12% 상승했습니다. 특히 카메라의 AI 보정 기능이 주된 요인으로 분석됩니다.",
  evidence: [
  { label:"데이터 신뢰도", value:"94%" },
- { label:"분석 표본", value:"30,000명" },
+ { label:"분석 표본", value:"집계 중" },
  ],
  confidence: 94,
  timestamp:"",
@@ -49,6 +50,7 @@ const mockResponses: Record<string, Message> = {
 
 export const FloatingAiChat: React.FC = () => {
  const [isOpen, setIsOpen] = useState(false);
+ const [project, setProject] = useState<ProjectDetail | null>(null);
  const [messages, setMessages] = useState<Message[]>(initialMessages);
  const [input, setInput] = useState("");
  const [loading, setLoading] = useState(false);
@@ -60,6 +62,16 @@ export const FloatingAiChat: React.FC = () => {
  setTimeout(() => bottomRef.current?.scrollIntoView({ behavior:"smooth" }), 100);
  }
  }, [isOpen, messages]);
+
+ useEffect(() => {
+ const loadProject = async () => {
+ const projectId = await resolveDefaultProjectId();
+ if (!projectId) return;
+ const projectDetail = await projectApi.getProject(projectId);
+ setProject(projectDetail);
+ };
+ loadProject();
+ }, []);
 
  const send = () => {
  const text = input.trim();
@@ -79,6 +91,11 @@ export const FloatingAiChat: React.FC = () => {
  const res = text.includes("리포트") ? mockResponses["리포트"] : mockResponses["default"];
  const aiMsg: Message = {
  ...res,
+ evidence: res.evidence?.map((item) =>
+ item.label === "분석 표본"
+ ? { ...item, value: `${(project?.target_responses ?? 0).toLocaleString()}명` }
+ : item
+ ),
  id: nextId.current++,
  timestamp: new Date().toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit" }),
  };
