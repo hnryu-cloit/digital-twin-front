@@ -315,10 +315,22 @@ export interface SurveyDraftQuestion extends SurveyQuestion {
   evidence: SurveyDraftEvidenceItem[];
 }
 
+export interface SurveyDraftGenerationMeta {
+  question_count: number;
+  draft_count: number;
+  confirmed_count: number;
+  latest_job_id?: string | null;
+  user_prompt?: string | null;
+  template_id?: string | null;
+  template_version?: number | null;
+  segment_source?: string | null;
+}
+
 export interface SurveyDraftPreview {
   project_id: string;
   status: string;
   summary: string;
+  generation_meta: SurveyDraftGenerationMeta;
   questions: SurveyDraftQuestion[];
 }
 
@@ -566,9 +578,16 @@ export interface ReportSummary {
 }
 
 export interface ReportDetail extends ReportSummary {
-  sections: { id: string; title: string; content: string }[];
+  sections: { id: string; title: string; content: string; evidence?: { label: string; value: string }[]; action?: string }[];
   kpis: { label: string; value: string }[];
-  charts: { id: string; type: string; title: string }[];
+  charts: { id: string; type: string; title: string; data?: Record<string, unknown>[] }[];
+}
+
+export interface ReportDownloadInfo {
+  report_id: string;
+  format: string;
+  download_url: string;
+  expires_at: string;
 }
 
 export const reportApi = {
@@ -601,6 +620,15 @@ export const reportApi = {
     } catch (error) {
       console.warn("reportApi.listReports failed.", error);
       return { items: [], total: 0 };
+    }
+  },
+  getDownloadInfo: async (reportId: string, format = "pdf"): Promise<ReportDownloadInfo | null> => {
+    try {
+      const { data } = await apiClient.get(`/reports/${reportId}/download?format=${format}`);
+      return data;
+    } catch (error) {
+      console.warn("reportApi.getDownloadInfo failed.", error);
+      return null;
     }
   },
 };

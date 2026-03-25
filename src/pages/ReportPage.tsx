@@ -37,6 +37,7 @@ import {
   surveyApi,
   type KeywordTrendItem,
   type Persona,
+  type ReportDownloadInfo,
   type ProjectDetail,
   type ReportDetail,
   type ResponseDistributionItem,
@@ -150,6 +151,7 @@ export const ReportPage: React.FC = () => {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [keywords, setKeywords] = useState<KeywordTrendItem[]>([]);
   const [questionDistributions, setQuestionDistributions] = useState<DistributionWithQuestion[]>([]);
+  const [downloadInfo, setDownloadInfo] = useState<ReportDownloadInfo | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -173,8 +175,10 @@ export const ReportPage: React.FC = () => {
 
       if (items[0]?.id) {
         const detail = await reportApi.getReport(items[0].id);
+        const nextDownloadInfo = await reportApi.getDownloadInfo(items[0].id, "pdf");
         if (!cancelled) {
           setReportData(detail);
+          setDownloadInfo(nextDownloadInfo);
         }
       }
 
@@ -207,7 +211,7 @@ export const ReportPage: React.FC = () => {
 
   const totalCount = personas.length;
 
-  const radarData = useMemo(() => {
+  const fallbackRadarData = useMemo(() => {
     const maxFrequency = Math.max(...keywords.map((item) => item.frequency), 1);
     return keywords.slice(0, 5).map((item) => ({
       subject: item.keyword,
@@ -217,7 +221,7 @@ export const ReportPage: React.FC = () => {
     }));
   }, [keywords]);
 
-  const trendData = useMemo(() => {
+  const fallbackTrendData = useMemo(() => {
     return questionDistributions.slice(0, 7).map((item, index) => ({
       label: item.questionId || `Q${index + 1}`,
       value: Math.max(...item.distribution.map((entry) => entry.value), 0),
@@ -225,14 +229,14 @@ export const ReportPage: React.FC = () => {
   }, [questionDistributions]);
 
   const insightCards = useMemo<FindingCardData[]>(() => {
-    const reportSections = (reportData?.sections ?? []).slice(0, 2).map((section, index) => ({
+    const reportSections = (reportData?.sections ?? []).filter((section) => section.id === "findings").map((section, index) => ({
       id: section.id,
       tag: index === 0 ? "Report Section" : "Analysis Note",
       label: section.title,
       value: section.title,
       desc: section.content,
-      evidence: reportData?.kpis?.slice(0, 3).map((kpi) => ({ label: kpi.label, value: kpi.value })) ?? [],
-      action: section.content,
+      evidence: section.evidence ?? reportData?.kpis?.slice(0, 3).map((kpi) => ({ label: kpi.label, value: kpi.value })) ?? [],
+      action: section.action ?? section.content,
       tone: "primary" as const,
     }));
 
@@ -255,7 +259,7 @@ export const ReportPage: React.FC = () => {
     return [...reportSections, ...(keywordCard ? [keywordCard] : [])].slice(0, 3);
   }, [keywords, reportData]);
 
-  const ageOpportunityData = useMemo(() => {
+  const fallbackAgeOpportunityData = useMemo(() => {
     const buckets = new Map<string, number>([
       ["20대", 0],
       ["30대", 0],
@@ -277,7 +281,7 @@ export const ReportPage: React.FC = () => {
     }));
   }, [personas]);
 
-  const segmentCards = useMemo<SegmentCardData[]>(() => {
+  const fallbackSegmentCards = useMemo<SegmentCardData[]>(() => {
     const grouped = new Map<string, Persona[]>();
     personas.forEach((persona) => {
       const current = grouped.get(persona.segment) ?? [];
@@ -299,7 +303,13 @@ export const ReportPage: React.FC = () => {
   }, [personas, totalCount]);
 
   const dominantQuestion = questionDistributions[0];
-  const executiveSummary = reportData?.sections?.[0]?.content ?? "리포트 본문 데이터가 아직 없습니다.";
+  const executiveSummary = reportData?.sections?.find((section) => section.id === "summary")?.content ?? "리포트 본문 데이터가 아직 없습니다.";
+  const radarData = (reportData?.charts?.find((chart) => chart.id === "keyword-radar")?.data as typeof fallbackRadarData | undefined) ?? fallbackRadarData;
+  const trendData = (reportData?.charts?.find((chart) => chart.id === "question-strength")?.data as typeof fallbackTrendData | undefined) ?? fallbackTrendData;
+  const ageOpportunityData = (reportData?.charts?.find((chart) => chart.id === "age-distribution")?.data as typeof fallbackAgeOpportunityData | undefined) ?? fallbackAgeOpportunityData;
+  const segmentCards = (reportData?.charts?.find((chart) => chart.id === "segment-cards")?.data as SegmentCardData[] | undefined) ?? fallbackSegmentCards;
+  const reportDistributionData = (reportData?.charts?.find((chart) => chart.id === "question-distribution")?.data as Array<{ question_id: string; question_text: string; distribution: ResponseDistributionItem[] }> | undefined) ?? [];
+  const reportDominantQuestion = reportDistributionData[0];
 
   const scrollToSection = (id: SectionId) => {
     setSection(id);
@@ -362,7 +372,14 @@ export const ReportPage: React.FC = () => {
             </button>
             {downloadOpen && (
               <div className="absolute right-0 top-full z-50 mt-3 w-56 rounded-2xl border border-[var(--border)] bg-card p-1.5 shadow-[var(--shadow-lg)]">
-                <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">PDF (High Quality) 다운로드</button>
+                <a
+                  href={downloadInfo?.download_url ?? "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary"
+                >
+                  PDF (High Quality) 다운로드
+                </a>
                 <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">DOCX (Editable) 다운로드</button>
                 <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">PPTX (Presentation) 다운로드</button>
               </div>
@@ -374,10 +391,10 @@ export const ReportPage: React.FC = () => {
       <div className="hide-scrollbar flex-1 overflow-y-auto px-10 pb-10 scroll-smooth">
         <div className="mx-auto max-w-[1600px] space-y-8 pb-24 pt-2">
           <section className="grid grid-cols-4 gap-6">
-            <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value={project?.target_responses?.toLocaleString() ?? "0"} sub={`${personas.length.toLocaleString()}명 페르소나 데이터 반영`} delta={reportData?.kpis?.[0]?.value} reliability="99.2%" />
+            <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value={reportData?.kpis?.[2]?.value ?? project?.target_responses?.toLocaleString() ?? "0"} sub={`${personas.length.toLocaleString()}명 페르소나 데이터 반영`} delta={reportData?.kpis?.[0]?.value} reliability="99.2%" />
             <KpiCard icon={<Target size={22} />} label="리포트 핵심 KPI" value={reportData?.kpis?.[0]?.value ?? "데이터 없음"} sub={reportData?.kpis?.[0]?.label ?? "핵심 KPI 미생성"} reliability="95.0%" />
-            <KpiCard icon={<ShieldCheck size={22} />} label="응답 논리 정합성" value={reportData?.kpis?.[1]?.value ?? "데이터 없음"} sub={reportData?.kpis?.[1]?.label ?? "정합성 지표 미생성"} reliability="99.9%" />
-            <KpiCard icon={<Zap size={22} />} label="전략 액션 수" value={String(reportData?.sections?.length ?? 0).padStart(2, "0")} sub="리포트 섹션 기반 권장 액션" delta={keywords[0] ? `${keywords[0].frequency}회` : undefined} reliability="High" />
+            <KpiCard icon={<ShieldCheck size={22} />} label="총 시뮬레이션 응답" value={reportData?.kpis?.[3]?.value ?? "데이터 없음"} sub={reportData?.kpis?.[3]?.label ?? "응답 지표 미생성"} reliability="99.9%" />
+            <KpiCard icon={<Zap size={22} />} label="전략 액션 수" value={String(insightCards.length).padStart(2, "0")} sub="리포트 인사이트 기반 권장 액션" delta={keywords[0] ? `${keywords[0].frequency}회` : undefined} reliability="High" />
           </section>
 
           <div className="grid grid-cols-[280px_1fr] items-start gap-8">
@@ -472,7 +489,7 @@ export const ReportPage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--subtle-foreground)]">Confidence Index</p>
-                        <p className="text-[18px] font-bold text-primary">{reportData?.kpis?.[1]?.value ?? "N/A"}</p>
+                        <p className="text-[18px] font-bold text-primary">{reportData?.kpis?.[3]?.value ?? "N/A"}</p>
                       </div>
                     </div>
 
@@ -584,12 +601,12 @@ export const ReportPage: React.FC = () => {
                     <div className="relative z-10">
                       <p className="mb-6 text-[11px] font-black uppercase tracking-[0.3em] text-white/80 opacity-60">Opportunity Matrix</p>
                       <h4 className="mb-6 text-[24px] font-black leading-tight">
-                        {dominantQuestion?.questionId ?? "Q-00"} 기준
+                        {(reportDominantQuestion?.question_id ?? dominantQuestion?.questionId) ?? "Q-00"} 기준
                         <br />
-                        최우세 응답 {Math.max(...(dominantQuestion?.distribution ?? []).map((item) => item.value), 0)}%
+                        최우세 응답 {Math.max(...((reportDominantQuestion?.distribution ?? dominantQuestion?.distribution ?? []).map((item) => item.value)), 0)}%
                       </h4>
                       <p className="mb-8 text-[14px] font-medium italic leading-relaxed text-white/80">
-                        {dominantQuestion?.questionText ?? "분석 가능한 문항 데이터가 아직 없습니다."}
+                        {reportDominantQuestion?.question_text ?? dominantQuestion?.questionText ?? "분석 가능한 문항 데이터가 아직 없습니다."}
                       </p>
                       <button className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-[13px] font-black text-white transition-all hover:bg-white/20">
                         세부 시뮬레이션 결과 보기 <ExternalLink size={14} />
