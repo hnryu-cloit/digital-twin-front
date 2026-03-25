@@ -1,5 +1,6 @@
 import type React from"react";
 import { useState, useRef, useEffect } from"react";
+import { useLocation } from "react-router-dom";
 import {
  Send,
  Sparkles,
@@ -14,13 +15,14 @@ import {
  Sliders,
  MoreHorizontal,
  ShieldCheck,
+ X,
 } from"lucide-react";
 import { WorkflowStepper } from"@/components/layout/WorkflowStepper";
 import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
-import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob } from"@/lib/api";
+import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview } from"@/lib/api";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -28,6 +30,8 @@ interface Question {
  id: number | string;
  text: string;
  type: QuestionType;
+ options?: string[];
+ status?: string;
 }
 
 const TYPE_COLORS: Record<QuestionType, { bg: string; text: string; border: string }> = {
@@ -146,9 +150,80 @@ function TooltipMenu({ onClose }: TooltipMenuProps) {
  );
 }
 
+function PreviewModal({ preview, onClose }: { preview: SurveyDraftPreview; onClose: () => void }) {
+ return (
+ <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+ <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-card shadow-2xl">
+ <div className="flex items-start justify-between border-b border-[var(--border)] px-8 py-6">
+ <div>
+ <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Draft Preview</p>
+ <h2 className="mt-2 text-[24px] font-black text-foreground">설문 초안 미리보기</h2>
+ <p className="mt-2 text-[13px] font-medium leading-relaxed text-[var(--muted-foreground)]">{preview.summary}</p>
+ </div>
+ <button
+ onClick={onClose}
+ className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] text-[var(--muted-foreground)] transition-colors hover:text-foreground"
+ >
+ <X size={18} />
+ </button>
+ </div>
+
+ <div className="grid flex-1 overflow-hidden md:grid-cols-[1fr_320px]">
+ <div className="overflow-y-auto px-8 py-6">
+ <div className="space-y-5">
+ {preview.questions.map((question, index) => (
+ <div key={question.id} className="rounded-3xl border border-[var(--border)] bg-background p-6">
+ <div className="mb-3 flex items-center gap-3">
+ <span className="rounded-xl bg-primary px-3 py-1 text-[11px] font-black text-white">Q{index + 1}</span>
+ <TypeBadge type={question.type as QuestionType} />
+ <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
+ {question.status ?? "draft"}
+ </span>
+ </div>
+ <p className="text-[15px] font-bold leading-relaxed text-foreground">{question.text}</p>
+ <p className="mt-3 text-[13px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{question.rationale}</p>
+ {question.options && question.options.length > 0 ? (
+ <div className="mt-4 flex flex-wrap gap-2">
+ {question.options.map((option) => (
+ <span key={`${question.id}-${option}`} className="rounded-full border border-[var(--border)] bg-card px-3 py-1 text-[12px] font-semibold text-[var(--secondary-foreground)]">
+ {option}
+ </span>
+ ))}
+ </div>
+ ) : null}
+ </div>
+ ))}
+ </div>
+ </div>
+
+ <div className="overflow-y-auto border-l border-[var(--border)] bg-[var(--panel-soft)]/35 px-6 py-6">
+ <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Question Evidence</p>
+ <div className="mt-4 space-y-4">
+ {preview.questions.map((question, index) => (
+ <div key={`evidence-${question.id}`} className="rounded-2xl border border-[var(--border)] bg-card p-4">
+ <p className="mb-3 text-[13px] font-black text-foreground">Q{index + 1} 근거</p>
+ <div className="space-y-2">
+ {question.evidence.map((item) => (
+ <div key={`${question.id}-${item.label}`} className="flex items-center justify-between gap-3 border-b border-[var(--border)]/60 py-2 last:border-b-0">
+ <span className="text-[12px] font-semibold text-[var(--secondary-foreground)]">{item.label}</span>
+ <span className="text-[12px] font-black text-primary">{item.value}</span>
+ </div>
+ ))}
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ );
+}
+
 const QUESTIONS_PER_PAGE = 5;
 
 export const SurveyChatPage: React.FC = () => {
+ const location = useLocation();
  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
  const [input, setInput] = useState("");
@@ -158,6 +233,10 @@ export const SurveyChatPage: React.FC = () => {
  const [editingId, setEditingId] = useState<number | string | null>(null);
  const [editText, setEditText] = useState("");
  const [currentPage, setCurrentPage] = useState(0);
+ const [preview, setPreview] = useState<SurveyDraftPreview | null>(null);
+ const [previewOpen, setPreviewOpen] = useState(false);
+ const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+ const [confirming, setConfirming] = useState(false);
  const chatEndRef = useRef<HTMLDivElement>(null);
 
  const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
@@ -174,21 +253,27 @@ export const SurveyChatPage: React.FC = () => {
  // 마운트 시 API에서 설문 문항 로드
  useEffect(() => {
    const loadQuestions = async () => {
-     const resolvedProjectId = await resolveDefaultProjectId();
+     const requestedProjectId =
+       typeof (location.state as { projectId?: unknown } | null)?.projectId === "string"
+         ? ((location.state as { projectId?: string }).projectId ?? null)
+         : null;
+     const resolvedProjectId = requestedProjectId ?? await resolveDefaultProjectId();
      setProjectId(resolvedProjectId);
      const apiQuestions = await surveyApi.getQuestions(resolvedProjectId ?? undefined);
-     if (apiQuestions.length > 0) {
-       setQuestions(
-         apiQuestions.map((q) => ({
-           id: q.id,
-           text: q.text,
-           type: q.type as QuestionType,
-         }))
-       );
-     }
+	     if (apiQuestions.length > 0) {
+	       setQuestions(
+	         apiQuestions.map((q) => ({
+	           id: q.id,
+	           text: q.text,
+	           type: q.type as QuestionType,
+           options: q.options ?? [],
+           status: q.status,
+	         }))
+	       );
+	     }
    };
    loadQuestions();
- }, []);
+ }, [location.state]);
 
  useEffect(() => {
  chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
@@ -206,13 +291,15 @@ export const SurveyChatPage: React.FC = () => {
 
    if (nextJob.status ==="completed" && projectId) {
      const apiQuestions = await surveyApi.getQuestions(projectId);
-     setQuestions(
-       apiQuestions.map((q) => ({
-         id: q.id,
-         text: q.text,
-         type: q.type as QuestionType,
-       }))
-     );
+	     setQuestions(
+	       apiQuestions.map((q) => ({
+	         id: q.id,
+	         text: q.text,
+	         type: q.type as QuestionType,
+         options: q.options ?? [],
+         status: q.status,
+	       }))
+	     );
      setMessages((prev) => [...prev, {
        id: Date.now(),
        role:"bot",
@@ -289,9 +376,10 @@ export const SurveyChatPage: React.FC = () => {
 
  const saveEdit = () => {
  setQuestions((prev) =>
- prev.map((q) => (q.id === editingId ? { ...q, text: editText } : q))
+ prev.map((q) => (q.id === editingId ? { ...q, text: editText, status:"draft" } : q))
  );
  setEditingId(null);
+ setSyncStatus("idle");
  };
 
  const addQuestion = () => {
@@ -299,6 +387,8 @@ export const SurveyChatPage: React.FC = () => {
  id: Date.now(),
  text:"새 문항을 입력하세요.",
  type:"단일선택",
+ options: [],
+ status:"draft",
  };
  setQuestions((prev) => {
  const next = [...prev, newQ];
@@ -307,6 +397,84 @@ export const SurveyChatPage: React.FC = () => {
  });
  setEditingId(newQ.id);
  setEditText(newQ.text);
+ setSyncStatus("idle");
+ };
+
+ const syncQuestions = async () => {
+ if (!projectId) return false;
+ setSyncStatus("saving");
+ const saved = await surveyApi.saveQuestions(
+ projectId,
+ questions.map((question) => ({
+ text: question.text,
+ type: question.type,
+ options: question.options ?? [],
+ }))
+ );
+ if (saved.length === 0 && questions.length > 0) {
+ setSyncStatus("error");
+ return false;
+ }
+ setQuestions(
+ saved.map((q) => ({
+ id: q.id,
+ text: q.text,
+ type: q.type as QuestionType,
+ options: q.options ?? [],
+ status: q.status,
+ }))
+ );
+ setSyncStatus("saved");
+ return true;
+ };
+
+ const openPreview = async () => {
+ if (!projectId) return;
+ const synced = await syncQuestions();
+ if (!synced) return;
+ const nextPreview = await surveyApi.getPreview(projectId);
+ if (!nextPreview) {
+ setSyncStatus("error");
+ return;
+ }
+ setPreview(nextPreview);
+ setPreviewOpen(true);
+ };
+
+ const confirmSurvey = async () => {
+ if (!projectId || confirming) return;
+ setConfirming(true);
+ const synced = await syncQuestions();
+ if (!synced) {
+ setConfirming(false);
+ return;
+ }
+ const confirmed = await surveyApi.confirm(projectId);
+ if (!confirmed) {
+ setSyncStatus("error");
+ setConfirming(false);
+ return;
+ }
+ const nextPreview = await surveyApi.getPreview(projectId);
+ if (nextPreview) {
+ setPreview(nextPreview);
+ setQuestions(
+ nextPreview.questions.map((q) => ({
+ id: q.id,
+ text: q.text,
+ type: q.type as QuestionType,
+ options: q.options ?? [],
+ status: q.status,
+ }))
+ );
+ }
+ setMessages((prev) => [...prev, {
+ id: Date.now(),
+ role:"bot",
+ text:"현재 설문 초안을 저장하고 확정했습니다. 이후 시뮬레이션과 리포트 흐름에서 사용할 수 있습니다.",
+ }]);
+ setSyncStatus("saved");
+ setConfirming(false);
  };
 
  return (
@@ -550,17 +718,29 @@ export const SurveyChatPage: React.FC = () => {
  <p className="text-[12px] text-[var(--muted-foreground)] font-medium">
  총 <span className="text-primary font-bold">{questions.length}</span>개의 문항이 구성됨
  </p>
+ <p className="text-[12px] font-medium text-[var(--muted-foreground)]">
+ {syncStatus ==="saving" ? "초안을 저장하는 중입니다." : syncStatus ==="saved" ? "초안이 서버에 저장되었습니다." : syncStatus ==="error" ? "초안 저장에 실패했습니다." : "편집 후 미리보기로 근거를 검토할 수 있습니다."}
+ </p>
  </div>
  <div className="flex gap-2.5">
- <button className="px-6 py-2.5 rounded-xl border border-[var(--border)] bg-card text-[var(--secondary-foreground)] font-semibold hover:bg-[var(--surface-hover)] transition-colors text-[13px]">
+ <button
+ onClick={openPreview}
+ disabled={!projectId || syncStatus ==="saving" || confirming}
+ className="px-6 py-2.5 rounded-xl border border-[var(--border)] bg-card text-[var(--secondary-foreground)] font-semibold hover:bg-[var(--surface-hover)] transition-colors text-[13px] disabled:cursor-not-allowed disabled:opacity-60"
+ >
  미리보기
  </button>
- <button className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-[var(--shadow-sm)])] active:scale-95 text-[13px]">
- 설문 저장 및 확정
+ <button
+ onClick={confirmSurvey}
+ disabled={!projectId || syncStatus ==="saving" || confirming}
+ className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-[var(--shadow-sm)])] active:scale-95 text-[13px] disabled:cursor-not-allowed disabled:opacity-60"
+ >
+ {confirming ?"확정 중..." :"설문 저장 및 확정"}
  </button>
  </div>
  </div>
  </div>
+ {previewOpen && preview ? <PreviewModal preview={preview} onClose={() => setPreviewOpen(false)} /> : null}
  </div>
  </div>
  );

@@ -301,6 +301,25 @@ export interface SurveyQuestion {
   text: string;
   type: string;
   order: number;
+  options?: string[];
+  status?: string;
+}
+
+export interface SurveyDraftEvidenceItem {
+  label: string;
+  value: string;
+}
+
+export interface SurveyDraftQuestion extends SurveyQuestion {
+  rationale: string;
+  evidence: SurveyDraftEvidenceItem[];
+}
+
+export interface SurveyDraftPreview {
+  project_id: string;
+  status: string;
+  summary: string;
+  questions: SurveyDraftQuestion[];
 }
 
 export interface AIJob {
@@ -329,6 +348,42 @@ export const surveyApi = {
     } catch (error) {
       console.warn("surveyApi.getQuestions failed.", error);
       return [];
+    }
+  },
+  getPreview: async (projectId?: string): Promise<SurveyDraftPreview | null> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return null;
+      const { data } = await apiClient.get(`/surveys/${resolvedProjectId}/preview`);
+      return data;
+    } catch (error) {
+      console.warn("surveyApi.getPreview failed.", error);
+      return null;
+    }
+  },
+  saveQuestions: async (
+    projectId: string | undefined,
+    questions: Array<{ text: string; type: string; options?: string[] }>
+  ): Promise<SurveyQuestion[]> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return [];
+      const { data } = await apiClient.put(`/surveys/${resolvedProjectId}/questions`, { questions });
+      return data.questions ?? [];
+    } catch (error) {
+      console.warn("surveyApi.saveQuestions failed.", error);
+      return [];
+    }
+  },
+  confirm: async (projectId?: string): Promise<boolean> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      if (!resolvedProjectId) return false;
+      await apiClient.post("/surveys/confirm", { project_id: resolvedProjectId });
+      return true;
+    } catch (error) {
+      console.warn("surveyApi.confirm failed.", error);
+      return false;
     }
   },
   generateJob: async (payload: {
