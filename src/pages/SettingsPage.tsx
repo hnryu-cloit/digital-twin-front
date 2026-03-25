@@ -1,15 +1,16 @@
 import type React from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Shield, Database, FileText, LayoutGrid, Users,
   Sparkles, Save, RotateCcw, Terminal, Target, Globe, BarChart2,
-  Star, Eye, Package, TrendingUp, MapPin, Clock,
+  Eye, Package, TrendingUp, MapPin, Clock,
   Activity, AlertTriangle, CheckCircle2, Zap, Search,
   Briefcase, MessageSquare, History, TableProperties, Network, Key
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { settingsApi } from "@/lib/api";
 
 /* ─── 네비게이션 구조 ─── */
 interface NavSection {
@@ -69,34 +70,210 @@ function SettingGroup({ title, children }: { title?: string; children: React.Rea
   );
 }
 
-function PromptEditor({ template }: { template: string }) {
-  const [prompt, setPrompt] = useState(`You are an expert researcher specializing in ${template}. 
-Your goal is to analyze raw persona response data and generate strategic insights.
-Focus on:
-1. Identifying statistically significant patterns.
-2. Highlighting risk factors based on p-value < 0.05.
-3. Suggesting actionable marketing strategies for Samsung Galaxy S26.`);
+const PROMPT_PRESETS = [
+  { id: "survey", label: "설문 생성", icon: Target },
+  { id: "simulation", label: "시뮬레이션", icon: BarChart2 },
+  { id: "assistant", label: "어시스턴트", icon: Sparkles },
+] as const;
+
+const DEFAULT_PROMPT_TEXT: Record<string, string> = {
+  survey: "Generate concise and structured survey questions.",
+  simulation: "Respond as a market research digital twin.",
+  assistant: "Answer with evidence and confidence.",
+};
+
+function PromptSettingsSection() {
+  const [selectedPromptType, setSelectedPromptType] = useState<(typeof PROMPT_PRESETS)[number]["id"]>("survey");
+  const [prompt, setPrompt] = useState("");
+  const [savedPrompt, setSavedPrompt] = useState("");
+  const [temperature, setTemperature] = useState(0.7);
+  const [topP, setTopP] = useState(0.9);
+  const [savedLlm, setSavedLlm] = useState({ temperature: 0.7, top_p: 0.9 });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      setErrorMessage(null);
+      const [promptResponse, llmResponse] = await Promise.all([
+        settingsApi.getPrompt(selectedPromptType),
+        settingsApi.getLlmParameters(),
+      ]);
+
+      if (!promptResponse) {
+        setErrorMessage("설정 정보를 불러오지 못했습니다.");
+      } else {
+        setPrompt(promptResponse.prompt);
+        setSavedPrompt(promptResponse.prompt);
+      }
+
+      if (llmResponse) {
+        setTemperature(llmResponse.temperature);
+        setTopP(llmResponse.top_p);
+        setSavedLlm(llmResponse);
+      }
+      setLoading(false);
+    };
+
+    loadSettings();
+  }, [selectedPromptType]);
+
+  const resetCurrent = () => {
+    setPrompt(savedPrompt || DEFAULT_PROMPT_TEXT[selectedPromptType]);
+    setTemperature(savedLlm.temperature);
+    setTopP(savedLlm.top_p);
+    setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
+    setErrorMessage(null);
+  };
+
+  const saveCurrent = async () => {
+    setSaving(true);
+    setStatusMessage(null);
+    setErrorMessage(null);
+
+    const [promptResponse, llmResponse] = await Promise.all([
+      settingsApi.savePrompt(selectedPromptType, prompt),
+      settingsApi.saveLlmParameters({ temperature, top_p: topP }),
+    ]);
+
+    if (!promptResponse || !llmResponse) {
+      setErrorMessage("일부 설정 저장에 실패했습니다.");
+      setSaving(false);
+      return;
+    }
+
+    setSavedPrompt(promptResponse.prompt);
+    setSavedLlm(llmResponse);
+    setStatusMessage("프롬프트와 LLM 파라미터를 저장했습니다.");
+    setSaving(false);
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-black text-foreground">시스템 프롬프트 (System Prompt)</span>
-        <span className="bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-black uppercase tracking-tighter text-[var(--muted-foreground)] rounded-md border border-[var(--border)]">v2.4.1 Stable</span>
+    <>
+      <SectionTitle title="시스템 프롬프트 설정 및 버전 관리" desc="리서치 템플릿별 AI 시스템 프롬프트를 설정하고, 배포된 버전 이력을 관리합니다." />
+
+      <div className="grid grid-cols-1 gap-6">
+        <SettingGroup title="엔진 성능 대시보드">
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: "평균 응답 속도", value: "1.2s", color: "text-green-500", bg: "bg-green-50" },
+              { label: "분석 정확도(QA)", value: "98.4%", color: "text-primary", bg: "bg-[var(--primary-light-bg)]" },
+              { label: "토큰 효율성", value: "92%", color: "text-amber-500", bg: "bg-amber-50" },
+              { label: "실패율", value: "0.02%", color: "text-[var(--muted-foreground)]", bg: "bg-[var(--panel-soft)]" },
+            ].map((s) => (
+              <div key={s.label} className={cn("p-5 rounded-xl border border-[var(--border)] text-center shadow-sm", s.bg)}>
+                <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">{s.label}</p>
+                <p className={cn("text-2xl font-black tracking-tight", s.color)}>{s.value}</p>
+              </div>
+            ))}
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="분석 지시문(Prompt) 파인튜닝">
+          <div className="mb-5 flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+            {PROMPT_PRESETS.map((preset) => (
+              <Button
+                key={preset.id}
+                variant={preset.id === selectedPromptType ? "default" : "outline"}
+                size="sm"
+                className="shrink-0 gap-2"
+                onClick={() => setSelectedPromptType(preset.id)}
+              >
+                <preset.icon size={14} /> {preset.label}
+              </Button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[13px] font-black text-foreground">시스템 프롬프트 (System Prompt)</span>
+              <span className="bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-black uppercase tracking-tighter text-[var(--muted-foreground)] rounded-md border border-[var(--border)]">
+                {selectedPromptType}
+              </span>
+            </div>
+
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              disabled={loading}
+              className="w-full bg-card border border-[var(--border)] rounded-xl px-4 py-3 h-64 font-mono text-[13px] outline-none focus:border-primary transition-colors text-foreground placeholder:text-[var(--subtle-foreground)] leading-relaxed disabled:opacity-60"
+            />
+
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">temperature</label>
+                <div className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="2"
+                    step="0.1"
+                    value={temperature}
+                    onChange={(e) => setTemperature(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="mt-2 text-[12px] font-black text-primary">{temperature.toFixed(1)}</div>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">top_p</label>
+                <div className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={topP}
+                    onChange={(e) => setTopP(Number(e.target.value))}
+                    className="w-full"
+                  />
+                  <div className="mt-2 text-[12px] font-black text-primary">{topP.toFixed(2)}</div>
+                </div>
+              </div>
+            </div>
+
+            {statusMessage ? <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-[12px] font-bold text-green-700">{statusMessage}</div> : null}
+            {errorMessage ? <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[12px] font-bold text-red-700">{errorMessage}</div> : null}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" size="sm" className="gap-2" onClick={resetCurrent} disabled={loading || saving}>
+                <RotateCcw size={14} /> 초기화
+              </Button>
+              <Button size="sm" className="gap-2" onClick={saveCurrent} disabled={loading || saving || !prompt.trim()}>
+                <Save size={14} /> {saving ? "저장 중..." : "변경사항 적용"}
+              </Button>
+            </div>
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="프롬프트 버전 히스토리">
+          <div className="space-y-3">
+            {[
+              { version: "live", label: "Current", date: "실시간 조회", author: "backend settings API", changes: "현재 저장된 프롬프트와 LLM 파라미터가 적용됩니다.", active: true },
+              { version: "fallback", label: "Default", date: "코드 기본값", author: "app/core/defaults.py", changes: "서버 저장값이 없을 때 기본 프롬프트와 기본 LLM 파라미터를 사용합니다.", active: false },
+            ].map((v) => (
+              <div key={v.version} className={cn("p-5 rounded-xl border transition-all", v.active ? "bg-[#eef3ff] border-primary/30" : "bg-card border-[var(--border)] hover:border-[var(--border-hover)]")}>
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-mono text-[13px] font-black text-foreground">{v.version}</span>
+                    <Badge variant="outline" className={cn("text-[9px] font-black uppercase tracking-wider", v.active ? "text-primary border-primary/40 bg-white" : "text-[var(--muted-foreground)]")}>{v.label}</Badge>
+                    {v.active && <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> 현재 적용 중</span>}
+                  </div>
+                </div>
+                <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-relaxed mb-3">{v.changes}</p>
+                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--muted-foreground)]">
+                  <span className="flex items-center gap-1"><Clock size={10} /> {v.date}</span>
+                  <span className="flex items-center gap-1"><Users size={10} /> {v.author}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </SettingGroup>
       </div>
-      <textarea
-        value={prompt}
-        onChange={e => setPrompt(e.target.value)}
-        className="w-full bg-card border border-[var(--border)] rounded-xl px-4 py-3 h-64 font-mono text-[13px] outline-none focus:border-primary transition-colors text-foreground placeholder:text-[var(--subtle-foreground)] leading-relaxed"
-      />
-      <div className="flex justify-end gap-3 pt-2">
-        <Button variant="outline" size="sm" className="gap-2">
-          <RotateCcw size={14} /> 초기화
-        </Button>
-        <Button size="sm" className="gap-2">
-          <Save size={14} /> 변경사항 적용
-        </Button>
-      </div>
-    </div>
+    </>
   );
 }
 
@@ -563,90 +740,7 @@ const CONTENT: Record<string, React.ReactNode> = {
       </div>
     </>
   ),
-  prompt: (
-    <>
-      <SectionTitle title="시스템 프롬프트 설정 및 버전 관리" desc="리서치 템플릿별 AI 시스템 프롬프트를 설정하고, 배포된 버전 이력을 관리합니다." />
-
-      <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="엔진 성능 대시보드">
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: "평균 응답 속도", value: "1.2s", color: "text-green-500", bg: "bg-green-50" },
-              { label: "분석 정확도(QA)", value: "98.4%", color: "text-primary", bg: "bg-[var(--primary-light-bg)]" },
-              { label: "토큰 효율성", value: "92%", color: "text-amber-500", bg: "bg-amber-50" },
-              { label: "실패율", value: "0.02%", color: "text-[var(--muted-foreground)]", bg: "bg-[var(--panel-soft)]" },
-            ].map(s => (
-              <div key={s.label} className={cn("p-5 rounded-xl border border-[var(--border)] text-center shadow-sm", s.bg)}>
-                <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">{s.label}</p>
-                <p className={cn("text-2xl font-black tracking-tight", s.color)}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="분석 지시문(Prompt) 파인튜닝">
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-            {[
-              { id: "concept", label: "컨셉 테스트", icon: Target },
-              { id: "usage", label: "Usage 조사", icon: BarChart2 },
-              { id: "brand", label: "브랜드 인식", icon: Globe },
-              { id: "csat", label: "만족도(NPS)", icon: Star },
-            ].map(t => (
-              <Button
-                key={t.id}
-                variant={t.id === "concept" ? "default" : "outline"}
-                size="sm"
-                className="shrink-0 gap-2"
-              >
-                <t.icon size={14} /> {t.label}
-              </Button>
-            ))}
-          </div>
-          <PromptEditor template="Concept Test" />
-        </SettingGroup>
-
-        <SettingGroup title="프롬프트 버전 히스토리">
-          <div className="space-y-3">
-            {[
-              { version: "v2.4.1", label: "Stable", date: "2026-03-12 10:00", author: "dh.lee@samsung.com", changes: "Galaxy S26 컨셉 테스트 특화 지시문 추가 및 리스크 감지 임계값 조정", active: true },
-              { version: "v2.4.0", label: "Deprecated", date: "2026-02-28 14:30", author: "mj.kim@samsung.com", changes: "CoT 추론 강도 상향 (p-value 기준 0.05 → 0.03), 응답 포맷 표준화", active: false },
-              { version: "v2.3.2", label: "Archived", date: "2026-01-15 09:15", author: "dh.lee@samsung.com", changes: "다국어 응답 지원 추가 (EN/JP), 글로벌 리서치 프로젝트 대응", active: false },
-              { version: "v2.3.0", label: "Archived", date: "2025-12-01 11:00", author: "ty.jung@samsung.com", changes: "초기 프로덕션 배포 버전. 기본 페르소나 분석 지시문 세팅", active: false },
-            ].map(v => (
-              <div key={v.version} className={cn(
-                "p-5 rounded-xl border transition-all",
-                v.active ? "bg-[#eef3ff] border-primary/30" : "bg-card border-[var(--border)] hover:border-[var(--border-hover)]"
-              )}>
-                <div className="flex justify-between items-start mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-mono text-[13px] font-black text-foreground">{v.version}</span>
-                    <Badge variant="outline" className={cn(
-                      "text-[9px] font-black uppercase tracking-wider",
-                      v.active ? "text-primary border-primary/40 bg-white" : "text-[var(--muted-foreground)]"
-                    )}>{v.label}</Badge>
-                    {v.active && <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> 현재 적용 중</span>}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="text-[11px] h-7 px-3 gap-1"><Eye size={12} /> 내용 보기</Button>
-                    {!v.active && <Button variant="outline" size="sm" className="text-[11px] h-7 px-3 gap-1"><RotateCcw size={12} /> 롤백</Button>}
-                  </div>
-                </div>
-                <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-relaxed mb-3">{v.changes}</p>
-                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--muted-foreground)]">
-                  <span className="flex items-center gap-1"><Clock size={10} /> {v.date}</span>
-                  <span className="flex items-center gap-1"><Users size={10} /> {v.author}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 4개 버전 (현재: v2.4.1)</span>
-            <Button size="sm" className="gap-2"><Sparkles size={14} /> 새 버전 배포</Button>
-          </div>
-        </SettingGroup>
-      </div>
-    </>
-  ),
+  prompt: null,
   report: (
     <>
       <SectionTitle title="리포트 배포 및 자동화" desc="생성된 리포트의 정기 배포 주기와 수신 채널, 보안 워터마크 정책을 설정합니다." />
@@ -951,7 +1045,7 @@ export const SettingsPage: React.FC = () => {
               </div>
             </section>
 
-            {CONTENT[active] || <div className="py-32 text-center text-[var(--muted-foreground)] italic font-black uppercase text-xl">Section Coming Soon</div>}
+            {active === "prompt" ? <PromptSettingsSection /> : (CONTENT[active] || <div className="py-32 text-center text-[var(--muted-foreground)] italic font-black uppercase text-xl">Section Coming Soon</div>)}
           </div>
         </div>
       </div>

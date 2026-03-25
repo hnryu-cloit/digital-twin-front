@@ -148,6 +148,12 @@ export interface SegmentFilterOptions {
   product_groups: FilterOptionItem[];
 }
 
+export interface DataTableSummary {
+  available: boolean;
+  rows?: number;
+  columns?: number;
+}
+
 export async function resolveDefaultProjectId(): Promise<string | null> {
   if (!_defaultProjectIdPromise) {
     _defaultProjectIdPromise = (async () => {
@@ -291,6 +297,18 @@ export const segmentApi = {
     } catch (error) {
       console.warn("segmentApi.getFilterOptions failed.", error);
       return null;
+    }
+  },
+};
+
+export const dataApi = {
+  listTables: async (): Promise<Record<string, DataTableSummary>> => {
+    try {
+      const { data } = await apiClient.get("/data/tables");
+      return data ?? {};
+    } catch (error) {
+      console.warn("dataApi.listTables failed.", error);
+      return {};
     }
   },
 };
@@ -628,6 +646,59 @@ export const reportApi = {
       return data;
     } catch (error) {
       console.warn("reportApi.getDownloadInfo failed.", error);
+      return null;
+    }
+  },
+};
+
+/* ─── Settings ─── */
+export interface PromptSettingsResponse {
+  prompt_type: string;
+  prompt: string;
+}
+
+export interface LlmParameterResponse {
+  temperature: number;
+  top_p: number;
+}
+
+export const settingsApi = {
+  getPrompt: async (promptType: string): Promise<PromptSettingsResponse | null> => {
+    try {
+      const { data } = await apiClient.get(`/settings/prompts/${promptType}`);
+      return data;
+    } catch (error) {
+      console.warn("settingsApi.getPrompt failed.", error);
+      return null;
+    }
+  },
+  savePrompt: async (promptType: string, prompt: string): Promise<PromptSettingsResponse | null> => {
+    try {
+      const { data } = await apiClient.put("/settings/prompts", {
+        prompt_type: promptType,
+        prompt,
+      });
+      return data;
+    } catch (error) {
+      console.warn("settingsApi.savePrompt failed.", error);
+      return null;
+    }
+  },
+  getLlmParameters: async (): Promise<LlmParameterResponse | null> => {
+    try {
+      const { data } = await apiClient.get("/settings/llm-parameters");
+      return data;
+    } catch (error) {
+      console.warn("settingsApi.getLlmParameters failed.", error);
+      return null;
+    }
+  },
+  saveLlmParameters: async (payload: LlmParameterResponse): Promise<LlmParameterResponse | null> => {
+    try {
+      const { data } = await apiClient.put("/settings/llm-parameters", payload);
+      return data;
+    } catch (error) {
+      console.warn("settingsApi.saveLlmParameters failed.", error);
       return null;
     }
   },
