@@ -1,13 +1,14 @@
 import type React from "react";
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { projectApi, type Project } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { projectApi, type Project, type ProjectCreatePayload } from "@/lib/api";
 import {
   Clock, BarChart2, ChevronRight,
   Target, Star,
   Globe, Package, Eye,
-  Loader
+  Loader,
+  X
 } from "lucide-react";
 
 /* ─── Static Mock Data ─── */
@@ -89,14 +90,175 @@ const ProjectCard: React.FC<{ project: Project; onClick: () => void }> = ({ proj
   );
 };
 
-/* ─── Wizard Modal Placeholder ─── */
-const WizardModal: React.FC<{ initialTemplate?: SurveyType; onClose: () => void }> = ({ onClose }) => {
+type WizardFormState = {
+  name: string;
+  type: string;
+  purpose: string;
+  description: string;
+  target_responses: number;
+  tags: string;
+  data_sources: string;
+};
+
+function buildInitialFormState(template?: SurveyType): WizardFormState {
+  return {
+    name: template ? `${template.title} 프로젝트` : "",
+    type: template?.title ?? "컨셉 테스트",
+    purpose: template?.desc ?? "",
+    description: "",
+    target_responses: 1000,
+    tags: template?.tags.join(", ") ?? "",
+    data_sources: "survey, persona, simulation",
+  };
+}
+
+/* ─── Wizard Modal ─── */
+const WizardModal: React.FC<{
+  initialTemplate?: SurveyType;
+  onClose: () => void;
+  onSubmit: (payload: ProjectCreatePayload) => Promise<void>;
+  isSubmitting: boolean;
+  submitError: string | null;
+}> = ({ initialTemplate, onClose, onSubmit, isSubmitting, submitError }) => {
+  const [form, setForm] = useState<WizardFormState>(() => buildInitialFormState(initialTemplate));
+
+  const updateField = <K extends keyof WizardFormState>(key: K, value: WizardFormState[K]) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await onSubmit({
+      name: form.name.trim(),
+      type: form.type.trim(),
+      purpose: form.purpose.trim(),
+      description: form.description.trim() || undefined,
+      target_responses: Math.max(1, Number(form.target_responses) || 1),
+      tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      data_sources: form.data_sources.split(",").map((item) => item.trim()).filter(Boolean),
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-card p-10 rounded-[40px] shadow-2xl flex flex-col items-center gap-6">
-        <h2 className="text-2xl font-black">프로젝트 설계 모드</h2>
-        <p className="text-muted-foreground text-center">현재 API 연결 기반 리팩토링 중입니다. 리서치 설계를 시작하려면 백엔드 연동을 완료하세요.</p>
-        <button onClick={onClose} className="bg-primary text-white px-8 py-3 rounded-2xl font-black">닫기</button>
+      <div className="w-full max-w-3xl rounded-[32px] bg-card p-8 shadow-2xl">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">새 프로젝트 시작</h2>
+            <p className="mt-2 text-[13px] font-medium text-muted-foreground">
+              프로젝트 정보를 입력하면 backend에 즉시 생성하고 설문 설계 흐름으로 이동합니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-[var(--panel-soft)] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="grid gap-5 md:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">프로젝트명</span>
+              <input
+                value={form.name}
+                onChange={(event) => updateField("name", event.target.value)}
+                placeholder="예: Galaxy S26 컨셉 테스트"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+                required
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">조사 유형</span>
+              <input
+                value={form.type}
+                onChange={(event) => updateField("type", event.target.value)}
+                placeholder="예: 컨셉 테스트"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+                required
+              />
+            </label>
+          </div>
+
+          <label className="space-y-2">
+            <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">조사 목적</span>
+            <textarea
+              value={form.purpose}
+              onChange={(event) => updateField("purpose", event.target.value)}
+              placeholder="프로젝트의 조사 목적을 입력하세요."
+              className="min-h-[96px] w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+              required
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">설명</span>
+            <textarea
+              value={form.description}
+              onChange={(event) => updateField("description", event.target.value)}
+              placeholder="선택 입력입니다. 제품/캠페인 배경을 적어두면 이후 설문 설계에 활용할 수 있습니다."
+              className="min-h-[88px] w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+            />
+          </label>
+
+          <div className="grid gap-5 md:grid-cols-3">
+            <label className="space-y-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">목표 응답 수</span>
+              <input
+                type="number"
+                min={1}
+                value={form.target_responses}
+                onChange={(event) => updateField("target_responses", Number(event.target.value))}
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+                required
+              />
+            </label>
+            <label className="space-y-2 md:col-span-2">
+              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">태그</span>
+              <input
+                value={form.tags}
+                onChange={(event) => updateField("tags", event.target.value)}
+                placeholder="쉼표로 구분해 입력"
+                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+              />
+            </label>
+          </div>
+
+          <label className="space-y-2">
+            <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">데이터 소스</span>
+            <input
+              value={form.data_sources}
+              onChange={(event) => updateField("data_sources", event.target.value)}
+              placeholder="예: survey, persona, simulation"
+              className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+            />
+          </label>
+
+          {submitError ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-bold text-red-600">
+              {submitError}
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-border bg-card px-5 py-3 text-[13px] font-black transition-colors hover:bg-muted"
+            >
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !form.name.trim() || !form.type.trim() || !form.purpose.trim()}
+              className="rounded-2xl bg-primary px-6 py-3 text-[13px] font-black text-white shadow-lg transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? "생성 중..." : "프로젝트 생성"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
@@ -105,13 +267,33 @@ const WizardModal: React.FC<{ initialTemplate?: SurveyType; onClose: () => void 
 /* ─── Main HomePage Component ─── */
 export function HomePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [wizardTemplate, setWizardTemplate] = useState<SurveyType | undefined>();
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["projects"],
     queryFn: () => projectApi.getProjects(1, 4),
     retry: false,
+  });
+
+  const createProjectMutation = useMutation({
+    mutationFn: projectApi.createProject,
+    onSuccess: async (project) => {
+      if (!project) {
+        setSubmitError("프로젝트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setWizardOpen(false);
+      setWizardTemplate(undefined);
+      setSubmitError(null);
+      navigate("/survey", { state: { projectId: project.id } });
+    },
+    onError: () => {
+      setSubmitError("프로젝트 생성 요청 중 오류가 발생했습니다.");
+    },
   });
 
   // 에러 발생하거나 로딩 중일 때 MOCK_PROJECTS를 기본값으로 사용하여 렌더링 보장
@@ -122,6 +304,7 @@ export function HomePage() {
 
   const openWizard = (tmpl?: SurveyType) => {
     setWizardTemplate(tmpl);
+    setSubmitError(null);
     setWizardOpen(true);
   };
 
@@ -152,7 +335,13 @@ export function HomePage() {
             {isLoading && !data ? (
               <div className="col-span-full py-20 flex justify-center"><Loader className="animate-spin text-primary opacity-20" /></div>
             ) : (
-              projects.map(p => <ProjectCard key={p.id} project={p} onClick={() => navigate("/survey")} />)
+              projects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onClick={() => navigate("/survey", { state: { projectId: project.id } })}
+                />
+              ))
             )}
           </div>
         </section>
@@ -176,7 +365,18 @@ export function HomePage() {
         </section>
       </div>
 
-      {wizardOpen && <WizardModal initialTemplate={wizardTemplate} onClose={() => setWizardOpen(false)} />}
+      {wizardOpen && (
+        <WizardModal
+          initialTemplate={wizardTemplate}
+          onClose={() => setWizardOpen(false)}
+          onSubmit={async (payload) => {
+            setSubmitError(null);
+            await createProjectMutation.mutateAsync(payload);
+          }}
+          isSubmitting={createProjectMutation.isPending}
+          submitError={submitError}
+        />
+      )}
     </div>
   );
 }

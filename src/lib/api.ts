@@ -77,6 +77,16 @@ export interface ProjectListResponse {
   total: number;
 }
 
+export interface ProjectCreatePayload {
+  name: string;
+  type: string;
+  purpose: string;
+  description?: string;
+  data_sources?: string[];
+  tags?: string[];
+  target_responses: number;
+}
+
 export interface ProjectDetail {
   id: string;
   name: string;
@@ -142,7 +152,7 @@ export async function resolveDefaultProjectId(): Promise<string | null> {
   if (!_defaultProjectIdPromise) {
     _defaultProjectIdPromise = (async () => {
       try {
-        const { data } = await apiClient.get("/v1/projects?page=1&size=1");
+        const { data } = await apiClient.get("/projects?page=1&size=1");
         return data.items?.[0]?.id ?? null;
       } catch (error) {
         console.warn("resolveDefaultProjectId failed.", error);
@@ -163,7 +173,7 @@ export const fetchIndividualPersonas = async (projectId?: string): Promise<Perso
   try {
     const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
     if (!resolvedProjectId) return [];
-    const { data } = await apiClient.get(`/v1/personas?project_id=${resolvedProjectId}&page=1&size=100`);
+    const { data } = await apiClient.get(`/personas?project_id=${resolvedProjectId}&page=1&size=100`);
     return data.items || [];
   } catch (error) {
     console.warn("fetchIndividualPersonas failed, returning empty.", error);
@@ -213,7 +223,7 @@ function mapProject(raw: any): Project {
 export const projectApi = {
   getProjects: async (page = 1, size = 10): Promise<ProjectListResponse> => {
     try {
-      const { data } = await apiClient.get(`/v1/projects?page=${page}&size=${size}`);
+      const { data } = await apiClient.get(`/projects?page=${page}&size=${size}`);
       const items: Project[] = (data.items ?? []).map(mapProject);
       return { items, page: data.page ?? page, size: data.size ?? size, total: data.total ?? items.length };
     } catch (error) {
@@ -221,9 +231,19 @@ export const projectApi = {
       return { items: [], page, size, total: 0 };
     }
   },
+  createProject: async (payload: ProjectCreatePayload): Promise<ProjectDetail | null> => {
+    try {
+      const { data } = await apiClient.post("/projects", payload);
+      _defaultProjectIdPromise = Promise.resolve(data.id ?? null);
+      return data;
+    } catch (error) {
+      console.warn("projectApi.createProject failed.", error);
+      return null;
+    }
+  },
   getProject: async (projectId: string): Promise<ProjectDetail | null> => {
     try {
-      const { data } = await apiClient.get(`/v1/projects/${projectId}`);
+      const { data } = await apiClient.get(`/projects/${projectId}`);
       return data;
     } catch (error) {
       console.warn("projectApi.getProject failed.", error);
@@ -235,7 +255,7 @@ export const projectApi = {
 export const personaApi = {
   getPersonas: async (projectId: string, page = 1, size = 12): Promise<PersonaListResponse> => {
     try {
-      const { data } = await apiClient.get(`/v1/personas?project_id=${projectId}&page=${page}&size=${size}`);
+      const { data } = await apiClient.get(`/personas?project_id=${projectId}&page=${page}&size=${size}`);
       return data;
     } catch (error) {
       console.warn("personaApi.getPersonas failed.", error);
@@ -252,7 +272,7 @@ export const personaApi = {
     overwrite_existing?: boolean;
   }): Promise<AIJob | null> => {
     try {
-      const { data } = await apiClient.post("/v1/personas/generate-job", payload);
+      const { data } = await apiClient.post("/personas/generate-job", payload);
       return data;
     } catch (error) {
       console.warn("personaApi.generateJob failed.", error);
@@ -330,12 +350,42 @@ export const surveyApi = {
 };
 
 export const aiJobApi = {
+  listJobs: async (params?: {
+    projectId?: string;
+    jobType?: string;
+  }): Promise<{ items: AIJob[]; total: number }> => {
+    try {
+      const query = new URLSearchParams();
+      const resolvedProjectId = params?.projectId ?? await resolveDefaultProjectId();
+      if (resolvedProjectId) {
+        query.set("project_id", resolvedProjectId);
+      }
+      if (params?.jobType) {
+        query.set("job_type", params.jobType);
+      }
+      const queryString = query.toString();
+      const { data } = await apiClient.get(`/ai/jobs${queryString ? `?${queryString}` : ""}`);
+      return { items: data.items ?? [], total: data.total ?? 0 };
+    } catch (error) {
+      console.warn("aiJobApi.listJobs failed.", error);
+      return { items: [], total: 0 };
+    }
+  },
   getJob: async (jobId: string): Promise<AIJob | null> => {
     try {
       const { data } = await apiClient.get(`/ai/jobs/${jobId}`);
       return data;
     } catch (error) {
       console.warn("aiJobApi.getJob failed.", error);
+      return null;
+    }
+  },
+  cancelJob: async (jobId: string): Promise<AIJob | null> => {
+    try {
+      const { data } = await apiClient.post(`/ai/jobs/${jobId}/cancel`);
+      return data;
+    } catch (error) {
+      console.warn("aiJobApi.cancelJob failed.", error);
       return null;
     }
   },
