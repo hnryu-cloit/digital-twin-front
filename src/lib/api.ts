@@ -110,6 +110,7 @@ export interface ProjectDetail {
 
 export interface Persona {
   id: string;
+  project_id?: string;
   name: string;
   segment: string;
   keywords: string[];
@@ -123,6 +124,29 @@ export interface Persona {
   buy_channel: string;
   product_group: string;
   churn_risk?: string;
+}
+
+export interface PersonaIndividualStory {
+  index?: number;
+  name?: string;
+  job?: string;
+  personality?: string;
+  samsung_experience?: string;
+}
+
+export interface PersonaDetail extends Persona {
+  profile: string;
+  purchase_history: string[];
+  individual_stories: PersonaIndividualStory[];
+  activity_logs: string[];
+  cot: string[];
+  purchase_intent: number;
+  marketing_acceptance: number;
+  brand_attitude: number;
+  score?: {
+    future_value?: number;
+    churn_risk?: number;
+  };
 }
 
 export interface PersonaListResponse {
@@ -266,6 +290,15 @@ export const personaApi = {
     } catch (error) {
       console.warn("personaApi.getPersonas failed.", error);
       return { items: [], page, size, total: 0, view_mode: "card" };
+    }
+  },
+  getPersona: async (personaId: string): Promise<PersonaDetail | null> => {
+    try {
+      const { data } = await apiClient.get(`/personas/${personaId}`);
+      return data;
+    } catch (error) {
+      console.warn("personaApi.getPersona failed.", error);
+      return null;
     }
   },
   generateJob: async (payload: {
@@ -609,6 +642,18 @@ export interface ReportDownloadInfo {
 }
 
 export const reportApi = {
+  generateJob: async (payload: {
+    project_id: string;
+    report_type?: string;
+  }): Promise<AIJob | null> => {
+    try {
+      const { data } = await apiClient.post("/reports/generate-job", payload);
+      return data;
+    } catch (error) {
+      console.warn("reportApi.generateJob failed.", error);
+      return null;
+    }
+  },
   getReport: async (reportId: string): Promise<ReportDetail | null> => {
     try {
       const { data } = await apiClient.get(`/reports/${reportId}`);

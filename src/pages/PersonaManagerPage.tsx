@@ -1,6 +1,6 @@
 import type React from"react";
 import { useState, useEffect } from"react";
-import { aiJobApi, fetchIndividualPersonas, personaApi, projectApi, resolveDefaultProjectId, type AIJob, type ProjectDetail } from "@/lib/api";
+import { aiJobApi, fetchIndividualPersonas, personaApi, projectApi, resolveDefaultProjectId, type AIJob, type PersonaIndividualStory, type ProjectDetail } from "@/lib/api";
 import { AppPagination } from"@/components/ui/AppPagination";
 import {
  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
@@ -23,6 +23,7 @@ type TechLevel ="초보" |"중급" |"전문가";
 
 interface Persona {
  id: string;
+ projectId?: string;
  name: string;
  age: number;
  gender: Gender;
@@ -42,6 +43,7 @@ interface Persona {
  marketingAcceptance: number;
  futureValue: number;
  purchaseHistory: string[];
+ individualStories: PersonaIndividualStory[];
  userLogs: string[];
  brandAttitude: number;
 }
@@ -292,22 +294,61 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
  <h3 className="mb-5 flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.1em] text-[var(--secondary-foreground)]">
  <MessageSquare size={16} className="text-primary" /> 전략적 행동 제언
  </h3>
- <div className="grid grid-cols-2 gap-6">
- <div className="bg-[var(--panel-soft)] p-5 rounded-2xl border border-[var(--border)]">
+       <div className="grid grid-cols-2 gap-6">
+          <div className="bg-[var(--panel-soft)] p-5 rounded-2xl border border-[var(--border)]">
  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--subtle-foreground)]">경쟁사 인식 현황</p>
  <p className="text-[13px] font-semibold leading-relaxed text-foreground">"{persona.competitorPerception}"</p>
  </div>
- <div className="bg-[var(--panel-soft)] p-5 rounded-2xl border border-[var(--border)]">
- <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--subtle-foreground)]">데이터 종합 진단</p>
- <p className="text-[13px] font-semibold leading-relaxed text-foreground">{insightText}</p>
- </div>
- </div>
- </section>
- </div>
+          <div className="bg-[var(--panel-soft)] p-5 rounded-2xl border border-[var(--border)]">
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[var(--subtle-foreground)]">데이터 종합 진단</p>
+            <p className="text-[13px] font-semibold leading-relaxed text-foreground">{insightText}</p>
+          </div>
+        </div>
+        {persona.individualStories.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5">
+            <h4 className="mb-4 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--secondary-foreground)]">
+              <MessageSquare size={14} className="text-primary" /> 개별 스토리 샘플
+            </h4>
+            <div className="space-y-3">
+              {persona.individualStories.map((story, index) => (
+                <div key={`${story.name ?? "story"}-${index}`} className="rounded-xl border border-[var(--border)] bg-card p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[13px] font-bold text-foreground">{story.name ?? `샘플 ${index + 1}`}</p>
+                    {story.job ? <span className="text-[11px] font-semibold text-[var(--muted-foreground)]">{story.job}</span> : null}
+                  </div>
+                  {story.personality ? <p className="mt-2 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{story.personality}</p> : null}
+                  {story.samsung_experience ? <p className="mt-2 text-[12px] font-semibold leading-relaxed text-primary">{story.samsung_experience}</p> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </section>
+     </div>
  )}
 
  {detailTab ==="activity" && (
  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 grid grid-cols-2 gap-6">
+ <div className="app-card p-6 border-[var(--border)]">
+ <h3 className="mb-5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--secondary-foreground)]">
+ <MessageSquare size={15} /> 개별 스토리
+ </h3>
+ <div className="space-y-3">
+ {persona.individualStories.length > 0 ? persona.individualStories.map((story, i) => (
+ <div key={`${story.name ?? "story"}-${i}`} className="bg-[var(--panel-soft)] border border-[var(--border)] p-4 rounded-xl">
+ <p className="text-[12px] font-bold text-foreground">{story.name ?? `샘플 ${i + 1}`}</p>
+ {story.job ? <p className="text-[11px] font-semibold text-[var(--muted-foreground)] mt-1">{story.job}</p> : null}
+ {story.personality ? <p className="text-[12px] font-medium text-[var(--secondary-foreground)] mt-2 leading-relaxed">{story.personality}</p> : null}
+ {story.samsung_experience ? <p className="text-[11px] font-semibold text-primary mt-2 leading-relaxed">{story.samsung_experience}</p> : null}
+ </div>
+ )) : (
+ <div className="bg-[var(--panel-soft)] border border-[var(--border)] p-4 rounded-xl text-[12px] font-medium text-[var(--muted-foreground)]">
+ 개별 스토리 데이터가 아직 없습니다.
+ </div>
+ )}
+ </div>
+ </div>
+
  <div className="app-card p-6 border-[var(--border)]">
  <h3 className="mb-5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-[0.1em] text-[var(--secondary-foreground)]">
  <Package size={15} /> 최근 구매/소유 이력
@@ -438,6 +479,7 @@ export const PersonaManagerPage: React.FC = () => {
 
      const mappedPersonas: Persona[] = items.map((item: any, idx: number) => ({
        id: item.id,
+       projectId: item.project_id,
        name: item.name || "이름 없음",
        age: item.age || 0,
        gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
@@ -457,6 +499,7 @@ export const PersonaManagerPage: React.FC = () => {
        marketingAcceptance: item.marketing_acceptance ?? 80,
        futureValue: item.score?.future_value ?? 85,
        purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
+       individualStories: item.individual_stories?.length ? item.individual_stories : [],
        userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
        brandAttitude: item.brand_attitude ?? 80,
      }));
@@ -503,6 +546,36 @@ export const PersonaManagerPage: React.FC = () => {
      window.clearInterval(timer);
    };
  }, [activeJob, projectId]);
+
+ useEffect(() => {
+   if (!detailTarget?.id) return;
+   let cancelled = false;
+   const loadDetail = async () => {
+     const detail = await personaApi.getPersona(detailTarget.id);
+     if (!detail || cancelled) return;
+     setDetailTarget((current) => {
+       if (!current || current.id !== detail.id) return current;
+       const merged: Persona = {
+         ...current,
+         projectId: detail.project_id,
+         description: detail.profile || current.description,
+         purchaseHistory: detail.purchase_history?.length ? detail.purchase_history : current.purchaseHistory,
+         individualStories: detail.individual_stories ?? current.individualStories,
+         userLogs: detail.activity_logs?.length ? detail.activity_logs : current.userLogs,
+         competitorPerception: detail.cot?.join(", ") || current.competitorPerception,
+         purchaseIntent: detail.purchase_intent ?? current.purchaseIntent,
+         marketingAcceptance: detail.marketing_acceptance ?? current.marketingAcceptance,
+         brandAttitude: detail.brand_attitude ?? current.brandAttitude,
+         futureValue: detail.score?.future_value ?? current.futureValue,
+       };
+       return merged;
+     });
+   };
+   void loadDetail();
+   return () => {
+     cancelled = true;
+   };
+ }, [detailTarget?.id]);
 
  const handleGeneratePersonas = async () => {
    if (!projectId) return;

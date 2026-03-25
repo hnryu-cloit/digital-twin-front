@@ -29,6 +29,7 @@ import {
   YAxis,
 } from "recharts";
 import {
+  aiJobApi,
   fetchIndividualPersonas,
   projectApi,
   reportApi,
@@ -36,6 +37,7 @@ import {
   simulationApi,
   surveyApi,
   type KeywordTrendItem,
+  type AIJob,
   type Persona,
   type ReportDownloadInfo,
   type ProjectDetail,
@@ -152,20 +154,23 @@ export const ReportPage: React.FC = () => {
   const [keywords, setKeywords] = useState<KeywordTrendItem[]>([]);
   const [questionDistributions, setQuestionDistributions] = useState<DistributionWithQuestion[]>([]);
   const [downloadInfo, setDownloadInfo] = useState<ReportDownloadInfo | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [activeReportJob, setActiveReportJob] = useState<AIJob | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadData = async () => {
-      const projectId = await resolveDefaultProjectId();
-      if (cancelled || !projectId) return;
+      const resolvedProjectId = await resolveDefaultProjectId();
+      if (cancelled || !resolvedProjectId) return;
+      setProjectId(resolvedProjectId);
 
       const [{ items }, projectDetail, personaItems, surveyQuestions, keywordItems] = await Promise.all([
-        reportApi.listReports(projectId, 1, 1),
-        projectApi.getProject(projectId),
-        fetchIndividualPersonas(projectId),
-        surveyApi.getQuestions(projectId),
-        simulationApi.getKeywords(projectId),
+        reportApi.listReports(resolvedProjectId, 1, 1),
+        projectApi.getProject(resolvedProjectId),
+        fetchIndividualPersonas(resolvedProjectId),
+        surveyApi.getQuestions(resolvedProjectId),
+        simulationApi.getKeywords(resolvedProjectId),
       ]);
 
       if (cancelled) return;
@@ -186,7 +191,7 @@ export const ReportPage: React.FC = () => {
         surveyQuestions.map(async (question) => ({
           questionId: question.id,
           questionText: question.text,
-          distribution: await simulationApi.getDistribution(projectId, question.id),
+          distribution: await simulationApi.getDistribution(resolvedProjectId, question.id),
         })),
       );
 
@@ -201,6 +206,38 @@ export const ReportPage: React.FC = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!activeReportJob) return;
+    if (activeReportJob.status !== "queued" && activeReportJob.status !== "running") return;
+    let cancelled = false;
+    const pollJob = async () => {
+      const latest = await aiJobApi.getJob(activeReportJob.id);
+      if (!latest || cancelled) return;
+      setActiveReportJob(latest);
+      if (latest.status === "completed") {
+        const reportId = typeof latest.result_ref?.report_id === "string" ? latest.result_ref.report_id : null;
+        if (reportId) {
+          const [detail, nextDownloadInfo] = await Promise.all([
+            reportApi.getReport(reportId),
+            reportApi.getDownloadInfo(reportId, "pdf"),
+          ]);
+          if (!cancelled) {
+            setReportData(detail);
+            setDownloadInfo(nextDownloadInfo);
+          }
+        }
+      }
+    };
+    void pollJob();
+    const timer = window.setInterval(() => {
+      void pollJob();
+    }, 1500);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeReportJob]);
 
   const sectionRefs: Record<SectionId, React.RefObject<HTMLDivElement>> = {
     summary: useRef<HTMLDivElement>(null),
@@ -338,6 +375,17 @@ export const ReportPage: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  const handleGenerateReport = async () => {
+    if (!projectId) return;
+    const job = await reportApi.generateJob({
+      project_id: projectId,
+      report_type: "strategy",
+    });
+    if (job) {
+      setActiveReportJob(job);
+    }
+  };
+
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       if (downloadRef.current && !downloadRef.current.contains(event.target as Node)) setDownloadOpen(false);
@@ -357,9 +405,13 @@ export const ReportPage: React.FC = () => {
           <p className="app-page-description">{`${(project?.target_responses ?? 0).toLocaleString()}건 규모 프로젝트 기반 컨설팅 인사이트 보고서입니다.`}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <button className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-black text-[var(--secondary-foreground)] shadow-[var(--shadow-sm)] transition-all hover:bg-[var(--panel-soft)] active:scale-95">
+          <button
+            onClick={() => void handleGenerateReport()}
+            disabled={!projectId || activeReportJob?.status === "queued" || activeReportJob?.status === "running"}
+            className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-black text-[var(--secondary-foreground)] shadow-[var(--shadow-sm)] transition-all hover:bg-[var(--panel-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
+          >
             <RotateCcw size={16} />
-            재분석 실행
+            {activeReportJob?.status === "queued" || activeReportJob?.status === "running" ? "리포트 생성 중" : "재분석 실행"}
           </button>
           <div className="relative" ref={downloadRef}>
             <button
