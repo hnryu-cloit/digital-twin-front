@@ -9,6 +9,7 @@ import { ReportPage } from "@/pages/ReportPage";
 import { PersonaManagerPage } from "@/pages/PersonaManagerPage";
 import { ReportHistoryPage } from "@/pages/ReportHistoryPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { AiJobCenterPage } from "@/pages/AiJobCenterPage";
 
 export const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ export const App: React.FC = () => {
         <Route path="/live" element={<LiveAnalysisPage />} />
         <Route path="/report" element={<ReportPage />} />
         <Route path="/persona" element={<PersonaManagerPage />} />
+        <Route path="/jobs" element={<AiJobCenterPage />} />
         <Route path="/reports" element={<ReportHistoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

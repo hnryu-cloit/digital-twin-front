@@ -10,6 +10,7 @@ import {
   ChevronRight,
   FileText,
   Home,
+  Layers3,
   LogOut,
   Menu,
   MessageSquare,
@@ -33,6 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Radio size={16} />, path: "/live", label: "실시간 응답 분석", section: "워크플로우" },
   { icon: <FileText size={16} />, path: "/report", label: "분석 결과 리포트", section: "워크플로우" },
   { icon: <Users size={16} />, path: "/persona", label: "페르소나 관리", section: "운영" },
+  { icon: <Layers3 size={16} />, path: "/jobs", label: "AI 작업 허브", section: "운영" },
   { icon: <Activity size={16} />, path: "/reports", label: "리포트 히스토리 관리", section: "운영" },
 ];
 
