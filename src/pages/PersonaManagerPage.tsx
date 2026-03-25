@@ -1,6 +1,6 @@
 import type React from"react";
 import { useState, useEffect } from"react";
-import { aiJobApi, fetchIndividualPersonas, personaApi, projectApi, resolveDefaultProjectId, type AIJob, type PersonaIndividualStory, type ProjectDetail } from "@/lib/api";
+import { aiJobApi, personaApi, projectApi, type AIJob, type PersonaIndividualStory, type ProjectDetail, type ProjectOption } from "@/lib/api";
 import { AppPagination } from"@/components/ui/AppPagination";
 import {
  Table, TableHeader, TableBody, TableHead, TableRow, TableCell,
@@ -18,7 +18,7 @@ import {
 
 /* ─── Types ─── */
 type Gender ="남성" |"여성";
-type Segment ="MZ 얼리어답터" |"프리미엄 구매자" |"실용 중시 가족형" |"게이밍 성향군" |"비즈니스 프로";
+type Segment = string;
 type TechLevel ="초보" |"중급" |"전문가";
 
 interface Persona {
@@ -56,6 +56,8 @@ const SEGMENT_COLORS: Record<Segment, { bg: string; text: string; border: string
   "비즈니스 프로":    { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
 };
 
+const DEFAULT_SEGMENT_COLOR = { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" };
+
 
 const ICON_META = [
   { bg: "#eef3ff", color: "#2f66ff" },
@@ -64,7 +66,7 @@ const ICON_META = [
   { bg: "#eef3ff", color: "#2f66ff" },
   { bg: "#eef3ff", color: "#2f66ff" },
 ];
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 50;
 
 /* ─── Helpers ─── */
 function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number }) {
@@ -439,10 +441,52 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
  );
 }
 
+const TECH_LEVEL_MAP: Record<string, TechLevel> = {
+  "MZ 얼리어답터": "전문가", "게이밍 성향군": "전문가",
+  "프리미엄 구매자": "중급", "비즈니스 프로": "중급",
+  "실용 중시 가족형": "초보", "콘텐츠 크리에이터": "중급",
+};
+const SPEND_MAP: Record<string, string> = {
+  "MZ 얼리어답터": "20-30만원", "게이밍 성향군": "50만원 이상",
+  "프리미엄 구매자": "30-50만원", "비즈니스 프로": "30-50만원",
+  "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
+};
+
+function mapPersonaItems(items: any[]): Persona[] {
+  return (items || []).map((item: any, idx: number) => ({
+    id: item.id,
+    projectId: item.project_id,
+    name: item.name || "이름 없음",
+    age: item.age || 0,
+    gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
+    occupation: item.occupation || "직업 미상",
+    device: (item.purchase_history?.[0]) || item.product_group || "Galaxy S24",
+    segments: [item.segment || "MZ 얼리어답터"] as Segment[],
+    keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
+    purchaseIntent: item.purchase_intent ?? 70,
+    color: "var(--primary)",
+    iconBg: "#eef3ff",
+    iconKey: idx % 5,
+    description: item.profile || "디지털 트윈 페르소나입니다.",
+    techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
+    monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
+    interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
+    competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
+    marketingAcceptance: item.marketing_acceptance ?? 80,
+    futureValue: item.future_value ?? 85,
+    purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
+    individualStories: item.individual_stories?.length ? item.individual_stories : [],
+    userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
+    brandAttitude: item.brand_attitude ?? 80,
+  }));
+}
+
 export const PersonaManagerPage: React.FC = () => {
  const [personas, setPersonas] = useState<Persona[]>([]);
+ const [total, setTotal] = useState(0);
  const [project, setProject] = useState<ProjectDetail | null>(null);
  const [projectId, setProjectId] = useState<string | null>(null);
+ const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
  const [loading, setLoading] = useState(true);
  const [viewMode, setViewMode] = useState<"card" |"list">("card");
  const [page, setPage] = useState(1);
@@ -450,77 +494,56 @@ export const PersonaManagerPage: React.FC = () => {
  const [activeJob, setActiveJob] = useState<AIJob | null>(null);
  const [detailTarget, setDetailTarget] = useState<Persona | undefined>();
 
- const loadData = async (requestedProjectId?: string | null, nextLoading = true) => {
+ const fetchPersonas = async (pid: string | null, pg: number, q: string) => {
    try {
-     if (nextLoading) setLoading(true);
-     const resolvedProjectId = requestedProjectId ?? await resolveDefaultProjectId();
-     setProjectId(resolvedProjectId);
-     if (!resolvedProjectId) {
-       setProject(null);
-       setPersonas([]);
-       return;
-     }
-
-     const [items, projectDetail] = await Promise.all([
-       fetchIndividualPersonas(resolvedProjectId),
-       projectApi.getProject(resolvedProjectId),
-     ]);
-
-     const TECH_LEVEL_MAP: Record<string, TechLevel> = {
-       "MZ 얼리어답터": "전문가", "게이밍 성향군": "전문가",
-       "프리미엄 구매자": "중급", "비즈니스 프로": "중급",
-       "실용 중시 가족형": "초보", "콘텐츠 크리에이터": "중급",
-     };
-     const SPEND_MAP: Record<string, string> = {
-       "MZ 얼리어답터": "20-30만원", "게이밍 성향군": "50만원 이상",
-       "프리미엄 구매자": "30-50만원", "비즈니스 프로": "30-50만원",
-       "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
-     };
-
-     const mappedPersonas: Persona[] = items.map((item: any, idx: number) => ({
-       id: item.id,
-       projectId: item.project_id,
-       name: item.name || "이름 없음",
-       age: item.age || 0,
-       gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
-       occupation: item.occupation || "직업 미상",
-       device: (item.purchase_history?.[0]) || item.product_group || "Galaxy S24",
-       segments: [item.segment || "MZ 얼리어답터"] as Segment[],
-       keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
-       purchaseIntent: item.purchase_intent ?? 70,
-       color: "var(--primary)",
-       iconBg: "#eef3ff",
-       iconKey: idx % 5,
-       description: item.profile || "디지털 트윈 페르소나입니다.",
-       techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
-       monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
-       interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
-       competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
-       marketingAcceptance: item.marketing_acceptance ?? 80,
-       futureValue: item.score?.future_value ?? 85,
-       purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
-       individualStories: item.individual_stories?.length ? item.individual_stories : [],
-       userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
-       brandAttitude: item.brand_attitude ?? 80,
-     }));
-
-     setProject(projectDetail);
-     setPersonas(mappedPersonas);
+     const response = await personaApi.getPersonas(pid ?? undefined, pg, PAGE_SIZE, q);
+     setPersonas(mapPersonaItems(response.items));
+     setTotal(response.total);
    } catch (error) {
      console.error("Failed to fetch personas:", error);
      setPersonas([]);
+     setTotal(0);
+   }
+ };
+
+ const loadAll = async (pid: string | null) => {
+   try {
+     setLoading(true);
+     setProjectId(pid);
+     setPage(1);
+     setSearchQuery("");
+     const [response, projectDetail, options] = await Promise.all([
+       personaApi.getPersonas(pid ?? undefined, 1, PAGE_SIZE, ""),
+       pid ? projectApi.getProject(pid) : Promise.resolve(null),
+       projectApi.getProjectOptions(),
+     ]);
+     setProjectOptions(options);
+     setProject(projectDetail);
+     setPersonas(mapPersonaItems(response.items));
+     setTotal(response.total);
+   } catch (error) {
+     console.error("Failed to load persona data:", error);
+     setPersonas([]);
+     setTotal(0);
    } finally {
-     if (nextLoading) setLoading(false);
+     setLoading(false);
    }
  };
 
  useEffect(() => {
-   void loadData();
+   void loadAll(null);
  }, []);
 
- useEffect(() => {
+ const handleSearchChange = (q: string) => {
+   setSearchQuery(q);
    setPage(1);
- }, [searchQuery]);
+   void fetchPersonas(projectId, 1, q);
+ };
+
+ const handlePageChange = (pg: number) => {
+   setPage(pg);
+   void fetchPersonas(projectId, pg, searchQuery);
+ };
 
  useEffect(() => {
    if (!activeJob || !projectId) return;
@@ -532,7 +555,7 @@ export const PersonaManagerPage: React.FC = () => {
      if (!latestJob || cancelled) return;
      setActiveJob(latestJob);
      if (latestJob.status === "completed") {
-       await loadData(projectId, false);
+       await fetchPersonas(projectId, page, searchQuery);
      }
    };
 
@@ -590,21 +613,7 @@ export const PersonaManagerPage: React.FC = () => {
    }
  };
 
- const filteredPersonas = personas.filter((persona) => {
-   if (!searchQuery.trim()) return true;
-   const keyword = searchQuery.trim().toLowerCase();
-   return [
-     persona.name,
-     persona.occupation,
-     persona.device,
-     persona.description,
-     ...persona.segments,
-     ...persona.keywords,
-   ].some((value) => value.toLowerCase().includes(keyword));
- });
-
- const paginated = filteredPersonas.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
- const totalPages = Math.max(1, Math.ceil(filteredPersonas.length / PAGE_SIZE));
+ const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
  const generationStatusLabel =
    activeJob?.status === "running" ? "생성 중" :
    activeJob?.status === "queued" ? "대기 중" :
@@ -646,13 +655,28 @@ export const PersonaManagerPage: React.FC = () => {
  </p>
  </div>
  <div className="flex items-center gap-3 shrink-0 pt-1">
+ <select
+ className="rounded-xl border border-[var(--border)] bg-card px-4 py-2.5 text-[13px] font-semibold text-foreground outline-none"
+ value={projectId ?? ""}
+ onChange={(event) => {
+   const nextProjectId = event.target.value || null;
+   void loadAll(nextProjectId);
+ }}
+ >
+ <option value="">전체 프로젝트</option>
+ {projectOptions.map((option) => (
+ <option key={option.id} value={option.id}>
+ {option.name}
+ </option>
+ ))}
+ </select>
  <div className="flex items-center gap-2.5 bg-card border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-[var(--shadow-[var(--shadow-sm)])] focus-within:border-primary transition-colors">
  <Search size={15} className="text-[var(--subtle-foreground)]" />
  <input
  className="bg-transparent outline-none text-[13px] font-medium w-48 text-foreground placeholder:text-[var(--subtle-foreground)]"
  placeholder="페르소나 검색..."
  value={searchQuery}
- onChange={(event) => setSearchQuery(event.target.value)}
+ onChange={(event) => handleSearchChange(event.target.value)}
  />
  </div>
  <Button
@@ -696,7 +720,7 @@ export const PersonaManagerPage: React.FC = () => {
  </div>
  <div className="flex items-center gap-3">
  <p className="text-[11px] font-bold text-[var(--subtle-foreground)] uppercase tracking-[0.14em]">
- 총 <span className="text-primary">{(project?.persona_count ?? personas.length).toLocaleString()}</span>명의 자산 등록됨
+ 총 <span className="text-primary">{(project?.persona_count ?? total).toLocaleString()}</span>명의 자산 등록됨
  </p>
  <Badge variant="outline" className={generationStatusClass}>
  생성 상태: {generationStatusLabel}
@@ -712,9 +736,9 @@ export const PersonaManagerPage: React.FC = () => {
  )}
 
  {/* ── 카드 뷰 ── */}
- {viewMode ==="card" ? (
+ {personas.length > 0 ? viewMode ==="card" ? (
  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
- {paginated.map(p => {
+ {personas.map(p => {
  const riskFlag = 100 - Math.round((p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3));
  const riskMeta =
  riskFlag >= 50
@@ -741,15 +765,18 @@ export const PersonaManagerPage: React.FC = () => {
  </header>
 
  <div className="flex flex-wrap gap-1.5">
- {p.segments.map(seg => (
+ {p.segments.map(seg => {
+ const segmentColor = SEGMENT_COLORS[seg] ?? DEFAULT_SEGMENT_COLOR;
+ return (
  <Badge
  key={seg}
  variant="outline"
- style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}
+ style={{ backgroundColor: segmentColor.bg, color: segmentColor.text, borderColor: segmentColor.border }}
  >
  {seg}
  </Badge>
- ))}
+ );
+ })}
  </div>
 
  <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[var(--muted-foreground)] min-h-[36px]">
@@ -791,7 +818,7 @@ export const PersonaManagerPage: React.FC = () => {
  </TableRow>
  </TableHeader>
  <TableBody>
- {paginated.map(p => {
+ {personas.map(p => {
  const risk = 100 - Math.round(p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3);
  const riskCls = risk >= 50
  ? "border-red-200 bg-red-50/50 text-[var(--destructive)]"
@@ -813,11 +840,14 @@ export const PersonaManagerPage: React.FC = () => {
  </TableCell>
  <TableCell className="px-6 py-4">
  <div className="flex flex-wrap gap-1">
- {p.segments.map(seg => (
- <Badge key={seg} variant="outline" style={{ backgroundColor: SEGMENT_COLORS[seg].bg, color: SEGMENT_COLORS[seg].text, borderColor: SEGMENT_COLORS[seg].border }}>
+ {p.segments.map(seg => {
+ const segmentColor = SEGMENT_COLORS[seg] ?? DEFAULT_SEGMENT_COLOR;
+ return (
+ <Badge key={seg} variant="outline" style={{ backgroundColor: segmentColor.bg, color: segmentColor.text, borderColor: segmentColor.border }}>
  {seg}
  </Badge>
- ))}
+ );
+ })}
  </div>
  </TableCell>
  <TableCell className="px-6 py-4">
@@ -850,9 +880,9 @@ export const PersonaManagerPage: React.FC = () => {
  </TableBody>
  </Table>
  </div>
- )}
+ ) : null}
  <div className="flex justify-center pt-2 pb-10">
- <AppPagination current={page} total={totalPages} onChange={setPage} />
+ <AppPagination current={page} total={totalPages} onChange={handlePageChange} />
  </div>
  </div>
 

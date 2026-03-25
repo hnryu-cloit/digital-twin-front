@@ -77,6 +77,11 @@ export interface ProjectListResponse {
   total: number;
 }
 
+export interface ProjectOption {
+  id: string;
+  name: string;
+}
+
 export interface ProjectCreatePayload {
   name: string;
   type: string;
@@ -199,14 +204,19 @@ export async function resolveDefaultProjectId(): Promise<string | null> {
  * 기존 DashboardPage와 PersonaManagerPage에서 사용하던 함수
  * 안정성을 위해 목업 데이터를 반환하거나 백엔드 연동을 시도함
  */
-export const fetchIndividualPersonas = async (projectId?: string): Promise<Persona[]> => {
+export const fetchIndividualPersonas = async (projectId?: string | null): Promise<Persona[]> => {
   try {
-    const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
-    if (!resolvedProjectId) return [];
-    const { data } = await apiClient.get(`/personas?project_id=${resolvedProjectId}&page=1&size=100`);
+    const query = new URLSearchParams({
+      page: "1",
+      size: "100",
+    });
+    if (projectId) {
+      query.set("project_id", projectId);
+    }
+    const { data } = await apiClient.get(`/personas?${query.toString()}`);
     return data.items || [];
   } catch (error) {
-    console.warn("fetchIndividualPersonas failed, returning empty.", error);
+    console.error("fetchIndividualPersonas failed:", error);
     return [];
   }
 };
@@ -280,12 +290,27 @@ export const projectApi = {
       return null;
     }
   },
+  getProjectOptions: async (): Promise<ProjectOption[]> => {
+    try {
+      const { data } = await apiClient.get("/projects?page=1&size=100");
+      return (data.items ?? []).map((item: { id: string; name?: string; title?: string }) => ({
+        id: item.id,
+        name: item.name ?? item.title ?? item.id,
+      }));
+    } catch (error) {
+      console.warn("projectApi.getProjectOptions failed.", error);
+      return [];
+    }
+  },
 };
 
 export const personaApi = {
-  getPersonas: async (projectId: string, page = 1, size = 12): Promise<PersonaListResponse> => {
+  getPersonas: async (projectId: string | undefined, page = 1, size = 12, search = ""): Promise<PersonaListResponse> => {
     try {
-      const { data } = await apiClient.get(`/personas?project_id=${projectId}&page=${page}&size=${size}`);
+      const query = new URLSearchParams({ page: String(page), size: String(size) });
+      if (projectId) query.set("project_id", projectId);
+      if (search.trim()) query.set("search", search.trim());
+      const { data } = await apiClient.get(`/personas?${query.toString()}`);
       return data;
     } catch (error) {
       console.warn("personaApi.getPersonas failed.", error);
@@ -385,6 +410,16 @@ export interface SurveyDraftPreview {
   questions: SurveyDraftQuestion[];
 }
 
+export interface SurveyTemplate {
+  template_id: string;
+  template_version: number;
+  title: string;
+  survey_type: string;
+  description: string;
+  recommended_question_count: number;
+  required_blocks: string[];
+}
+
 export interface AIJob {
   id: string;
   project_id: string;
@@ -402,6 +437,15 @@ export interface AIJob {
 }
 
 export const surveyApi = {
+  getTemplates: async (): Promise<SurveyTemplate[]> => {
+    try {
+      const { data } = await apiClient.get("/surveys/templates");
+      return data.items ?? [];
+    } catch (error) {
+      console.warn("surveyApi.getTemplates failed.", error);
+      return [];
+    }
+  },
   getQuestions: async (projectId?: string): Promise<SurveyQuestion[]> => {
     try {
       const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
@@ -707,6 +751,63 @@ export interface LlmParameterResponse {
   top_p: number;
 }
 
+export interface SeoSettings {
+  enabled: boolean;
+  scope: string[];
+  locale: {
+    language: string;
+    country: string;
+  };
+  meta: {
+    title_template: string;
+    description_template: string;
+    canonical_base_url: string;
+    og_image_mode: "default" | "per-project" | "manual";
+  };
+  keywords: {
+    manual_keywords: string[];
+    ai_extraction_enabled: boolean;
+    excluded_keywords: string[];
+    brand_priority: boolean;
+  };
+  content_policy: {
+    summary_length: "short" | "medium" | "long";
+    auto_headings: boolean;
+    faq_block: boolean;
+    structured_data: boolean;
+  };
+  publishing: {
+    auto_publish: boolean;
+    approval_required: boolean;
+  };
+}
+
+export interface GeoSettings {
+  enabled: boolean;
+  default_market: string;
+  included_regions: string[];
+  excluded_regions: string[];
+  sampling: {
+    weights: { region: string; ratio: number; min_sample?: number }[];
+    rebalance_enabled: boolean;
+  };
+  localization: {
+    auto_translation: boolean;
+    cultural_filter_enabled: boolean;
+    locale_format: {
+      currency: string;
+      measurement: "metric" | "imperial";
+      date_format: string;
+    };
+  };
+  apply_to: {
+    survey_generation: boolean;
+    persona_generation: boolean;
+    simulation: boolean;
+    report_rendering: boolean;
+  };
+}
+
 export const settingsApi = {
   getPrompt: async (promptType: string): Promise<PromptSettingsResponse | null> => {
     try {
@@ -747,4 +848,26 @@ export const settingsApi = {
       return null;
     }
   },
+  getJsonSetting: async <T extends object>(key: string): Promise<T | null> => {
+    try {
+      const { data } = await apiClient.get(`/settings/kv/${key}`);
+      return (data?.value ?? {}) as T;
+    } catch (error) {
+      console.warn("settingsApi.getJsonSetting failed.", error);
+      return null;
+    }
+  },
+  saveJsonSetting: async <T extends object>(key: string, value: T): Promise<T | null> => {
+    try {
+      const { data } = await apiClient.put("/settings/kv", { key, value });
+      return (data?.value ?? {}) as T;
+    } catch (error) {
+      console.warn("settingsApi.saveJsonSetting failed.", error);
+      return null;
+    }
+  },
+  getSeoSettings: async (): Promise<SeoSettings | null> => settingsApi.getJsonSetting<SeoSettings>("seo_policy"),
+  saveSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> => settingsApi.saveJsonSetting("seo_policy", value),
+  getGeoSettings: async (): Promise<GeoSettings | null> => settingsApi.getJsonSetting<GeoSettings>("geo_policy"),
+  saveGeoSettings: async (value: GeoSettings): Promise<GeoSettings | null> => settingsApi.saveJsonSetting("geo_policy", value),
 };

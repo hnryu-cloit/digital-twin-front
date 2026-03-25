@@ -166,7 +166,7 @@ export const DashboardPage: React.FC = () => {
           "TikTok": "통신사 대리점",
           "LinkedIn": "오프라인 유통",
         };
-        const mapped: FilterPersona[] = items.map((item: any) => ({
+        const mapped: FilterPersona[] = (items || []).map((item: any) => ({
           id: item.id,
           name: item.name || "이름 없음",
           age: item.age || 30,
@@ -177,12 +177,12 @@ export const DashboardPage: React.FC = () => {
           householdType: item.household_type || "1인 가구",
           device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
           segments: [item.segment || "MZ 얼리어답터"] as PersonaSegment[],
-          techLevel: (item.score?.future_value >= 90 ? "전문가" : item.score?.future_value >= 75 ? "중급" : "초보") as "전문가" | "중급" | "초보",
+          techLevel: (item.future_value >= 90 ? "전문가" : item.future_value >= 75 ? "중급" : "초보") as "전문가" | "중급" | "초보",
           interests: item.interests?.length ? item.interests : ["스마트폰"],
           keywords: item.keywords?.length ? item.keywords : ["성능"],
           spendingLevel: (SEGMENT_SPEND[item.segment] ?? "실용형") as SpendingLevel,
           purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as "높음" | "보통" | "낮음",
-          brandLoyalty: (item.score?.engagement_score >= 80 ? "높음" : item.score?.engagement_score >= 65 ? "중간" : "낮음") as BrandLoyalty,
+          brandLoyalty: (item.brand_attitude >= 80 ? "높음" : item.brand_attitude >= 65 ? "중간" : "낮음") as BrandLoyalty,
           snsActivity: (item.preferred_channel === "Instagram" || item.preferred_channel === "TikTok" ? "활발" : item.preferred_channel === "YouTube" ? "보통" : "낮음") as SnsActivity,
           contentChannels: item.preferred_channel ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel] : ["YouTube"],
           buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",

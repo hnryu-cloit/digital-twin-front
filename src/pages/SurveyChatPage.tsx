@@ -22,7 +22,7 @@ import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
-import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview } from"@/lib/api";
+import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview, type SurveyTemplate } from"@/lib/api";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -49,38 +49,20 @@ const TYPE_ICONS: Record<QuestionType, React.ReactNode> = {
  주관식: <AlignLeft size={11} />,
 };
 
-const INITIAL_QUESTIONS: Question[] = [
- { id: 1, text:"귀하는 현재 어떤 스마트폰을 사용하고 계십니까?", type:"단일선택" },
- { id: 2, text:"S26의 새로운 AI 카메라 기능에 대해 들어본 적이 있습니까?", type:"단일선택" },
- { id: 3, text:"해당 기능이 구매 결정에 얼마나 영향을 미칠 것 같습니까?", type:"리커트척도" },
- { id: 4, text:"가장 기대되는 AI 기능은 무엇입니까?", type:"주관식" },
- { id: 5, text:"다음 중 스마트폰 구매 시 가장 중요하게 고려하는 요소를 모두 선택해 주세요.", type:"복수선택" },
- { id: 6, text:"S26의 예상 출시 가격대가 구매 의향에 얼마나 영향을 미칩니까?", type:"리커트척도" },
- { id: 7, text:"현재 사용 중인 스마트폰의 카메라 기능에 대해 얼마나 만족하십니까?", type:"리커트척도" },
- { id: 8, text:"AI 카메라 기능 외에 S26에서 가장 기대하는 신기능은 무엇입니까?", type:"주관식" },
- { id: 9, text:"귀하의 연령대는 어디에 해당하십니까?", type:"단일선택" },
- { id: 10, text:"다음 중 평소 자주 사용하는 카메라 촬영 모드를 모두 선택해 주세요.", type:"복수선택" },
- { id: 11, text:"S26 출시 후 6개월 이내에 구매할 의향이 있으십니까?", type:"단일선택" },
- { id: 12, text:"S26 AI 카메라 기능에 대한 전반적인 인상을 자유롭게 적어주세요.", type:"주관식" },
-];
+const INITIAL_QUESTIONS: Question[] = [];
 
 type ChatRole ="user" |"bot";
 interface ChatMessage {
- id: number;
+ id: number | string;
  role: ChatRole;
  text: string;
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
  {
- id: 1,
- role:"user",
- text:"S26 AI 카메라 기능에 대한 선호도 조사를 하고 싶어. 컨셉 테스트 유형으로 만들어줘.",
- },
- {
- id: 2,
+ id: "msg-1",
  role:"bot",
- text:"네, 컨셉 테스트 유형으로 5개 문항을 생성했습니다. 우측 패널에서 확인해주세요.",
+ text:"반갑습니다! 삼성 디지털 트윈 설문 설계 어시스턴트입니다. 어떤 조사를 도와드릴까요?",
  },
 ];
 
@@ -299,6 +281,8 @@ export const SurveyChatPage: React.FC = () => {
  const [previewOpen, setPreviewOpen] = useState(false);
  const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
  const [confirming, setConfirming] = useState(false);
+ const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
+ const [selectedTemplateId, setSelectedTemplateId] = useState("tpl_concept_test_v1");
  const chatEndRef = useRef<HTMLDivElement>(null);
 
  const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
@@ -321,7 +305,16 @@ export const SurveyChatPage: React.FC = () => {
          : null;
      const resolvedProjectId = requestedProjectId ?? await resolveDefaultProjectId();
      setProjectId(resolvedProjectId);
-     const apiQuestions = await surveyApi.getQuestions(resolvedProjectId ?? undefined);
+     const [apiQuestions, apiTemplates] = await Promise.all([
+       surveyApi.getQuestions(resolvedProjectId ?? undefined),
+       surveyApi.getTemplates(),
+     ]);
+     setTemplates(apiTemplates);
+     if (apiTemplates.length > 0) {
+       setSelectedTemplateId((current) =>
+         apiTemplates.some((item) => item.template_id === current) ? current : apiTemplates[0].template_id
+       );
+     }
 	     if (apiQuestions.length > 0) {
 	       setQuestions(
 	         apiQuestions.map((q) => ({
@@ -384,6 +377,7 @@ export const SurveyChatPage: React.FC = () => {
  const sendMessage = async () => {
  const message = input.trim();
  if (!message || !projectId || activeJob?.status ==="queued" || activeJob?.status ==="running") return;
+ const selectedTemplate = templates.find((item) => item.template_id === selectedTemplateId);
  const newMsg: ChatMessage = { id: Date.now(), role:"user", text: message };
  setMessages((prev) => [...prev, newMsg]);
  setInput("");
@@ -391,12 +385,15 @@ export const SurveyChatPage: React.FC = () => {
  const job = await surveyApi.generateJob({
    project_id: projectId,
    user_prompt: message,
-   survey_type: "concept",
-   question_count: 5,
-   template: {
+   survey_type: selectedTemplate?.survey_type ?? "concept",
+   question_count: selectedTemplate?.recommended_question_count ?? 5,
+   template: selectedTemplate ? {
+     template_id: selectedTemplate.template_id,
+     template_version: selectedTemplate.template_version,
+     required_blocks: selectedTemplate.required_blocks,
+   } : {
      template_id: "tpl_concept_test_v1",
      template_version: 1,
-     research_goal: "concept_validation",
      required_blocks: ["awareness", "appeal", "purchase_intent", "concern", "open_feedback"],
    },
    segment_context: {
@@ -557,6 +554,33 @@ export const SurveyChatPage: React.FC = () => {
  <div className="flex flex-1 overflow-hidden">
  {/* ── Left: Chat Panel ── */}
  <div className="w-[420px] shrink-0 flex flex-col bg-card border-r border-[var(--border)] overflow-hidden">
+ {/* Template Selector */}
+ <div className="shrink-0 border-b border-[var(--border)] px-6 py-4">
+ <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
+ <div className="flex items-center justify-between gap-3">
+ <div>
+ <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">Survey Template</p>
+ <p className="mt-1 text-[13px] font-semibold text-foreground">
+ {templates.find((item) => item.template_id === selectedTemplateId)?.description ?? "설문 유형에 맞는 템플릿을 선택하세요."}
+ </p>
+ </div>
+ <select
+ value={selectedTemplateId}
+ onChange={(e) => setSelectedTemplateId(e.target.value)}
+ className="min-w-[170px] rounded-xl border border-[var(--border)] bg-card px-3 py-2 text-[12px] font-semibold text-foreground outline-none"
+ >
+ <option value="tpl_concept_test_v1">컨셉 테스트</option>
+ {templates
+   .filter((item) => item.template_id !== "tpl_concept_test_v1")
+   .map((item) => (
+     <option key={item.template_id} value={item.template_id}>
+       {item.title}
+     </option>
+   ))}
+ </select>
+ </div>
+ </div>
+ </div>
  {/* Messages */}
  <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4 hide-scrollbar">
  {messages.map((msg) => (

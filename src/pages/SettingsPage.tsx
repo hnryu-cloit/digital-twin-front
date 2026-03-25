@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { settingsApi } from "@/lib/api";
+import { settingsApi, type GeoSettings, type SeoSettings } from "@/lib/api";
 
 /* ─── 네비게이션 구조 ─── */
 interface NavSection {
@@ -81,6 +81,826 @@ const DEFAULT_PROMPT_TEXT: Record<string, string> = {
   simulation: "Respond as a market research digital twin.",
   assistant: "Answer with evidence and confidence.",
 };
+
+const DEFAULT_SEO_SETTINGS: SeoSettings = {
+  enabled: true,
+  scope: ["report", "project", "insight"],
+  locale: { language: "ko", country: "KR" },
+  meta: {
+    title_template: "{프로젝트명} | Digital Twin Insight {YYYY}",
+    description_template: "{프로젝트명} 핵심 인사이트와 리서치 결과를 요약합니다.",
+    canonical_base_url: "https://insight.example.com/reports",
+    og_image_mode: "per-project",
+  },
+  keywords: {
+    manual_keywords: ["디지털 트윈", "리서치 자동화", "시장조사"],
+    ai_extraction_enabled: true,
+    excluded_keywords: ["무료", "이벤트"],
+    brand_priority: true,
+  },
+  content_policy: {
+    summary_length: "medium",
+    auto_headings: true,
+    faq_block: true,
+    structured_data: true,
+  },
+  publishing: {
+    auto_publish: false,
+    approval_required: true,
+  },
+};
+
+const DEFAULT_GEO_SETTINGS: GeoSettings = {
+  enabled: true,
+  default_market: "대한민국",
+  included_regions: ["수도권", "영남권", "호남권", "충청/강원/제주"],
+  excluded_regions: [],
+  sampling: {
+    weights: [
+      { region: "수도권", ratio: 45, min_sample: 400 },
+      { region: "영남권", ratio: 25, min_sample: 200 },
+      { region: "호남권", ratio: 15, min_sample: 120 },
+      { region: "충청/강원/제주", ratio: 15, min_sample: 120 },
+    ],
+    rebalance_enabled: true,
+  },
+  localization: {
+    auto_translation: true,
+    cultural_filter_enabled: true,
+    locale_format: {
+      currency: "KRW",
+      measurement: "metric",
+      date_format: "YYYY-MM-DD",
+    },
+  },
+  apply_to: {
+    survey_generation: true,
+    persona_generation: true,
+    simulation: true,
+    report_rendering: false,
+  },
+};
+
+function parseCsv(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function toCsv(items: string[]): string {
+  return items.join(", ");
+}
+
+function ToggleRow({
+  label,
+  desc,
+  checked,
+  onChange,
+}: {
+  label: string;
+  desc: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4 shadow-sm">
+      <div>
+        <p className="text-[13px] font-black text-foreground">{label}</p>
+        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{desc}</p>
+      </div>
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-4 w-4 accent-primary" />
+    </label>
+  );
+}
+
+function SeoSettingsSection() {
+  const [settings, setSettings] = useState<SeoSettings>(DEFAULT_SEO_SETTINGS);
+  const [savedSettings, setSavedSettings] = useState<SeoSettings>(DEFAULT_SEO_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const response = await settingsApi.getSeoSettings();
+      const next = response ? { ...DEFAULT_SEO_SETTINGS, ...response } : DEFAULT_SEO_SETTINGS;
+      setSettings(next);
+      setSavedSettings(next);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
+  const keywordCoverage = settings.keywords.manual_keywords.length + (settings.keywords.ai_extraction_enabled ? 5 : 0);
+  const previewTitle = settings.meta.title_template.replace("{프로젝트명}", "Galaxy S26 AI 카메라").replace("{YYYY}", "2026");
+  const previewDescription = settings.meta.description_template.replace("{프로젝트명}", "Galaxy S26 AI 카메라");
+  const normalizedPreviewUrl = `${settings.meta.canonical_base_url.replace(/\/$/, "")}/galaxy-s26-ai-camera`;
+  const contentReadiness = [
+    settings.content_policy.auto_headings,
+    settings.content_policy.faq_block,
+    settings.content_policy.structured_data,
+    settings.keywords.ai_extraction_enabled,
+  ].filter(Boolean).length;
+  const qualityChecks = [
+    {
+      label: "타이틀 길이",
+      state: previewTitle.length >= 20 && previewTitle.length <= 60 ? "ok" : "warn",
+      helper: `${previewTitle.length}자`,
+    },
+    {
+      label: "설명 길이",
+      state: previewDescription.length >= 70 && previewDescription.length <= 160 ? "ok" : "warn",
+      helper: `${previewDescription.length}자`,
+    },
+    {
+      label: "키워드 밀도",
+      state: settings.keywords.manual_keywords.length >= 3 ? "ok" : "warn",
+      helper: `${settings.keywords.manual_keywords.length}개 수동 키워드`,
+    },
+    {
+      label: "발행 안전성",
+      state: settings.publishing.auto_publish && !settings.publishing.approval_required ? "warn" : "ok",
+      helper: settings.publishing.approval_required ? "승인 절차 유지" : "자동 발행 우선",
+    },
+  ] as const;
+  const seoPriorityCards = [
+    {
+      title: "검색 결과 품질",
+      value: `${Math.min(100, 58 + contentReadiness * 9)}점`,
+      desc: "메타 정보, FAQ, 구조화 데이터, 헤딩 정책을 합산한 운영 점검 지표",
+      tone: "primary",
+    },
+    {
+      title: "콘텐츠 생성 방향",
+      value: settings.content_policy.summary_length === "short" ? "짧은 요약" : settings.content_policy.summary_length === "medium" ? "균형형 요약" : "긴 설명형",
+      desc: "AI가 검색용 요약과 섹션 구조를 만드는 기본 톤",
+      tone: "neutral",
+    },
+    {
+      title: "배포 리스크",
+      value: settings.publishing.auto_publish && !settings.publishing.approval_required ? "높음" : settings.publishing.auto_publish ? "보통" : "낮음",
+      desc: "승인 절차와 자동 발행 조합 기준의 운영 위험도",
+      tone: "danger",
+    },
+  ] as const;
+
+  const save = async () => {
+    setSaving(true);
+    setErrorMessage(null);
+    setStatusMessage(null);
+    const response = await settingsApi.saveSeoSettings(settings);
+    if (!response) {
+      setErrorMessage("SEO 설정 저장에 실패했습니다.");
+      setSaving(false);
+      return;
+    }
+    setSettings(response);
+    setSavedSettings(response);
+    setStatusMessage("SEO 정책을 저장했습니다.");
+    setSaving(false);
+  };
+
+  const reset = () => {
+    setSettings(savedSettings);
+    setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
+    setErrorMessage(null);
+  };
+
+  return (
+    <>
+      <SectionTitle title="SEO 정책 콘솔" desc="검색 노출용 메타데이터와 키워드 생성 규칙, 발행 검수 정책을 실제 설정값 기준으로 관리합니다." />
+
+      <div className="grid grid-cols-1 gap-6">
+        <SettingGroup title="정책 상태">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {[
+                { label: "SEO 적용 상태", value: settings.enabled ? "활성" : "비활성", sub: settings.scope.join(" · ") || "적용 대상 없음" },
+                { label: "키워드 커버리지", value: `${keywordCoverage}개`, sub: settings.keywords.ai_extraction_enabled ? "AI 추출 포함" : "수동 키워드만 사용" },
+                { label: "발행 정책", value: settings.publishing.approval_required ? "승인 필요" : "자동 발행", sub: settings.publishing.auto_publish ? "자동 발행 허용" : "초안 저장 우선" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">{item.label}</p>
+                  <p className="mt-3 text-2xl font-black text-foreground">{item.value}</p>
+                  <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{item.sub}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[var(--primary-light-bg)] via-card to-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Search Operations Brief</p>
+                  <h3 className="mt-2 text-[18px] font-black tracking-tight text-foreground">검색 노출 정책을 콘텐츠 운영 흐름과 연결</h3>
+                </div>
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <Search size={18} />
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.locale.language.toUpperCase()} / {settings.locale.country}</Badge>
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.meta.og_image_mode}</Badge>
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.scope.length}개 노출 채널</Badge>
+              </div>
+              <p className="mt-4 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
+                이 정책은 리포트 메타데이터, 인사이트 요약, 랜딩 설명문에 공통 적용됩니다. 검색 프리뷰 길이와 승인 정책을 함께 보면 운영 리스크를 빠르게 판단할 수 있습니다.
+              </p>
+            </div>
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="운영 우선순위">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {seoPriorityCards.map((card) => (
+              <div
+                key={card.title}
+                className={cn(
+                  "rounded-2xl border p-5 shadow-sm",
+                  card.tone === "primary" && "border-primary/20 bg-[var(--primary-light-bg)]",
+                  card.tone === "neutral" && "border-[var(--border)] bg-[var(--panel-soft)]",
+                  card.tone === "danger" && "border-amber-200 bg-amber-50/80",
+                )}
+              >
+                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">{card.title}</p>
+                <p className="mt-3 text-2xl font-black text-foreground">{card.value}</p>
+                <p className="mt-2 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="기본 정책">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ToggleRow label="SEO 정책 활성화" desc="리포트와 프로젝트 소개 콘텐츠에 검색 노출용 규칙을 적용합니다." checked={settings.enabled} onChange={(enabled) => setSettings((prev) => ({ ...prev, enabled }))} />
+            <ToggleRow label="브랜드 키워드 우선 반영" desc="메타데이터와 요약 생성 시 브랜드 키워드를 우선 순위로 배치합니다." checked={settings.keywords.brand_priority} onChange={(brand_priority) => setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, brand_priority } }))} />
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">기본 언어</label>
+              <select value={settings.locale.language} onChange={(e) => setSettings((prev) => ({ ...prev, locale: { ...prev.locale, language: e.target.value } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="ko">한국어</option>
+                <option value="en">영어</option>
+                <option value="ja">일본어</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">기본 국가</label>
+              <select value={settings.locale.country} onChange={(e) => setSettings((prev) => ({ ...prev, locale: { ...prev.locale, country: e.target.value } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="KR">대한민국</option>
+                <option value="US">미국</option>
+                <option value="JP">일본</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">적용 대상</label>
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {[
+                ["report", "리포트"],
+                ["project", "프로젝트 소개"],
+                ["insight", "인사이트 요약"],
+                ["landing", "랜딩 페이지"],
+              ].map(([value, label]) => (
+                <label key={value} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-[var(--secondary-foreground)] shadow-sm">
+                  <input
+                    type="checkbox"
+                    checked={settings.scope.includes(value)}
+                    onChange={(e) => setSettings((prev) => ({
+                      ...prev,
+                      scope: e.target.checked ? [...prev.scope, value] : prev.scope.filter((item) => item !== value),
+                    }))}
+                    className="h-4 w-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="메타 및 키워드 규칙">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">타이틀 템플릿</label>
+              <input value={settings.meta.title_template} onChange={(e) => setSettings((prev) => ({ ...prev, meta: { ...prev.meta, title_template: e.target.value } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Canonical Base URL</label>
+              <input value={settings.meta.canonical_base_url} onChange={(e) => setSettings((prev) => ({ ...prev, meta: { ...prev.meta, canonical_base_url: e.target.value } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">OG 이미지 정책</label>
+              <select value={settings.meta.og_image_mode} onChange={(e) => setSettings((prev) => ({ ...prev, meta: { ...prev.meta, og_image_mode: e.target.value as SeoSettings["meta"]["og_image_mode"] } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="default">기본 템플릿</option>
+                <option value="per-project">프로젝트별 비주얼</option>
+                <option value="manual">수동 업로드</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">요약 길이</label>
+              <select value={settings.content_policy.summary_length} onChange={(e) => setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, summary_length: e.target.value as SeoSettings["content_policy"]["summary_length"] } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="short">짧게</option>
+                <option value="medium">균형형</option>
+                <option value="long">길게</option>
+              </select>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">메타 설명 템플릿</label>
+            <textarea value={settings.meta.description_template} onChange={(e) => setSettings((prev) => ({ ...prev, meta: { ...prev.meta, description_template: e.target.value } }))} className="h-28 w-full rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm" />
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">수동 키워드</label>
+              <input value={toCsv(settings.keywords.manual_keywords)} onChange={(e) => setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, manual_keywords: parseCsv(e.target.value) } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">제외 키워드</label>
+              <input value={toCsv(settings.keywords.excluded_keywords)} onChange={(e) => setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, excluded_keywords: parseCsv(e.target.value) } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <ToggleRow label="AI 키워드 추출" desc="본문 요약에서 보조 키워드를 자동 생성합니다." checked={settings.keywords.ai_extraction_enabled} onChange={(ai_extraction_enabled) => setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, ai_extraction_enabled } }))} />
+            <ToggleRow label="자동 헤딩 생성" desc="H1~H3 구조를 정책에 맞춰 생성합니다." checked={settings.content_policy.auto_headings} onChange={(auto_headings) => setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, auto_headings } }))} />
+            <ToggleRow label="FAQ 블록 생성" desc="주요 질문과 답변을 검색 노출용 블록으로 생성합니다." checked={settings.content_policy.faq_block} onChange={(faq_block) => setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, faq_block } }))} />
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="발행 정책 및 미리보기">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-5">
+              <div className="space-y-4">
+                <ToggleRow label="구조화 데이터(schema.org) 사용" desc="리포트와 인사이트 페이지에 구조화 마크업을 삽입합니다." checked={settings.content_policy.structured_data} onChange={(structured_data) => setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, structured_data } }))} />
+                <ToggleRow label="자동 발행 허용" desc="검수 조건 충족 시 초안 단계를 건너뛰고 배포합니다." checked={settings.publishing.auto_publish} onChange={(auto_publish) => setSettings((prev) => ({ ...prev, publishing: { ...prev.publishing, auto_publish } }))} />
+                <ToggleRow label="승인 절차 필요" desc="최종 게시 전에 운영자 승인을 필수로 요구합니다." checked={settings.publishing.approval_required} onChange={(approval_required) => setSettings((prev) => ({ ...prev, publishing: { ...prev.publishing, approval_required } }))} />
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Content Guidance</p>
+                    <p className="mt-1 text-[14px] font-black text-foreground">운영자가 바로 이해할 수 있는 생성 원칙</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {[
+                    `요약 길이: ${settings.content_policy.summary_length}`,
+                    settings.content_policy.auto_headings ? "헤딩 구조 자동 생성" : "헤딩은 수동 검수 우선",
+                    settings.content_policy.faq_block ? "FAQ 블록 포함" : "FAQ 블록 미포함",
+                    settings.meta.og_image_mode === "manual" ? "OG 이미지는 수동 관리" : "OG 이미지는 정책 자동 생성",
+                  ].map((item) => (
+                    <div key={item} className="rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[12px] font-bold text-[var(--secondary-foreground)]">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Search Preview</p>
+                    <p className="mt-1 text-[12px] font-medium text-[var(--secondary-foreground)]">Google 검색 결과와 공유 미리보기를 동시에 점검합니다.</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
+                    <Globe size={16} />
+                  </div>
+                </div>
+                <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                  <p className="text-[18px] font-black leading-snug text-[#1A0DAB]">{previewTitle}</p>
+                  <p className="mt-1 text-[12px] font-bold text-[#188038]">{normalizedPreviewUrl}</p>
+                  <p className="mt-3 text-[13px] font-medium leading-relaxed text-[#4D5156]">{previewDescription}</p>
+                </div>
+                <div className="mt-4 rounded-2xl border border-[var(--border)] bg-card p-4 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Open Graph Preview</p>
+                    <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.meta.og_image_mode}</Badge>
+                  </div>
+                  <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel-soft)]">
+                    <div className="h-28 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
+                    <div className="p-4">
+                      <p className="text-[13px] font-black text-foreground">{previewTitle}</p>
+                      <p className="mt-1 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{previewDescription}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {settings.keywords.manual_keywords.slice(0, 5).map((keyword) => (
+                    <Badge key={keyword} variant="outline" className="border-primary/30 bg-white text-primary">{keyword}</Badge>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-card p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-amber-50 p-2.5 text-amber-500 shadow-sm">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Quality Checks</p>
+                    <p className="mt-1 text-[14px] font-black text-foreground">저장 전에 확인할 검색 품질 포인트</p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {qualityChecks.map((check) => (
+                    <div key={check.label} className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
+                      <div>
+                        <p className="text-[12px] font-black text-foreground">{check.label}</p>
+                        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{check.helper}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "font-black uppercase tracking-wider",
+                          check.state === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-600" : "border-amber-200 bg-amber-50 text-amber-600",
+                        )}
+                      >
+                        {check.state === "ok" ? "적정" : "점검 필요"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          {(statusMessage || errorMessage) && (
+            <div className={cn("rounded-xl border px-4 py-3 text-[12px] font-bold", errorMessage ? "border-red-200 bg-red-50 text-red-500" : "border-primary/20 bg-[var(--primary-light-bg)] text-primary")}>
+              {errorMessage ?? statusMessage}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" size="lg" className="gap-2" onClick={reset} disabled={loading || saving || !isDirty}>
+              <RotateCcw size={16} /> 되돌리기
+            </Button>
+            <Button size="lg" className="gap-2" onClick={save} disabled={loading || saving || !isDirty}>
+              <Save size={16} /> {saving ? "저장 중..." : "SEO 정책 저장"}
+            </Button>
+          </div>
+        </SettingGroup>
+      </div>
+    </>
+  );
+}
+
+function GeoSettingsSection() {
+  const [settings, setSettings] = useState<GeoSettings>(DEFAULT_GEO_SETTINGS);
+  const [savedSettings, setSavedSettings] = useState<GeoSettings>(DEFAULT_GEO_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const response = await settingsApi.getGeoSettings();
+      const next = response ? { ...DEFAULT_GEO_SETTINGS, ...response } : DEFAULT_GEO_SETTINGS;
+      setSettings(next);
+      setSavedSettings(next);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
+  const totalRatio = settings.sampling.weights.reduce((sum, item) => sum + Number(item.ratio || 0), 0);
+  const ratioValid = totalRatio === 100;
+  const highestRegion = [...settings.sampling.weights].sort((a, b) => b.ratio - a.ratio)[0];
+  const totalMinSample = settings.sampling.weights.reduce((sum, item) => sum + Number(item.min_sample || 0), 0);
+  const geoChecks = [
+    {
+      label: "가중치 합계",
+      state: ratioValid ? "ok" : "warn",
+      helper: `${totalRatio}%`,
+    },
+    {
+      label: "포함 지역 수",
+      state: settings.included_regions.length >= 2 ? "ok" : "warn",
+      helper: `${settings.included_regions.length}개 시장`,
+    },
+    {
+      label: "기본 시장 지정",
+      state: settings.default_market.trim() ? "ok" : "warn",
+      helper: settings.default_market || "미지정",
+    },
+    {
+      label: "로컬라이징 정책",
+      state: settings.localization.auto_translation || settings.localization.cultural_filter_enabled ? "ok" : "warn",
+      helper: settings.localization.auto_translation ? "번역 활성" : "번역 비활성",
+    },
+  ] as const;
+  const geoPriorityCards = [
+    {
+      title: "대표 시장",
+      value: highestRegion ? highestRegion.region : "미설정",
+      desc: highestRegion ? `현재 기본 가중치 ${highestRegion.ratio}%` : "가중치 설정 필요",
+      tone: "primary",
+    },
+    {
+      title: "최소 확보 표본",
+      value: `${totalMinSample.toLocaleString()}명`,
+      desc: "리전별 min sample 합계 기준의 초기 수집 목표치",
+      tone: "neutral",
+    },
+    {
+      title: "운영 리스크",
+      value: ratioValid ? "안정" : "점검 필요",
+      desc: ratioValid ? "가중치 합계와 시장 범위가 정상입니다." : "가중치 합계 또는 시장 범위를 재검토해야 합니다.",
+      tone: "danger",
+    },
+  ] as const;
+
+  const updateWeight = (region: string, field: "ratio" | "min_sample", value: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      sampling: {
+        ...prev.sampling,
+        weights: prev.sampling.weights.map((item) => item.region === region ? { ...item, [field]: value } : item),
+      },
+    }));
+  };
+
+  const save = async () => {
+    if (!ratioValid) {
+      setErrorMessage("지역별 가중치 합계는 100이어야 합니다.");
+      return;
+    }
+    setSaving(true);
+    setErrorMessage(null);
+    setStatusMessage(null);
+    const response = await settingsApi.saveGeoSettings(settings);
+    if (!response) {
+      setErrorMessage("GEO 설정 저장에 실패했습니다.");
+      setSaving(false);
+      return;
+    }
+    setSettings(response);
+    setSavedSettings(response);
+    setStatusMessage("GEO 타겟팅 정책을 저장했습니다.");
+    setSaving(false);
+  };
+
+  const reset = () => {
+    setSettings(savedSettings);
+    setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
+    setErrorMessage(null);
+  };
+
+  return (
+    <>
+      <SectionTitle title="GEO 정책 콘솔" desc="대상 시장 범위, 샘플링 비중, 로컬라이징 정책을 실제 생성 흐름에 반영할 수 있도록 관리합니다." />
+
+      <div className="grid grid-cols-1 gap-6">
+        <SettingGroup title="시장 운영 브리프">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {geoPriorityCards.map((card) => (
+                <div
+                  key={card.title}
+                  className={cn(
+                    "rounded-2xl border p-5 shadow-sm",
+                    card.tone === "primary" && "border-primary/20 bg-[var(--primary-light-bg)]",
+                    card.tone === "neutral" && "border-[var(--border)] bg-[var(--panel-soft)]",
+                    card.tone === "danger" && "border-amber-200 bg-amber-50/80",
+                  )}
+                >
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">{card.title}</p>
+                  <p className="mt-3 text-2xl font-black text-foreground">{card.value}</p>
+                  <p className="mt-2 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{card.desc}</p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[var(--primary-light-bg)] via-card to-card p-5 shadow-sm">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Geo Operations Brief</p>
+                  <h3 className="mt-2 text-[18px] font-black tracking-tight text-foreground">시장 범위와 샘플링 정책을 같은 화면에서 통제</h3>
+                </div>
+                <div className="rounded-xl bg-primary/10 p-3 text-primary">
+                  <MapPin size={18} />
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.default_market || "기본 시장 미지정"}</Badge>
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.localization.locale_format.currency}</Badge>
+                <Badge variant="outline" className="border-primary/30 bg-white text-primary">{settings.localization.locale_format.measurement}</Badge>
+              </div>
+              <p className="mt-4 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
+                이 정책은 설문 생성, 페르소나 샘플링, 시뮬레이션 응답, 리포트 현지화에 연결됩니다. 지역 가중치와 번역 정책을 같이 보면서 운영 리스크를 점검하는 용도입니다.
+              </p>
+            </div>
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="시장 범위 및 적용 대상">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ToggleRow label="GEO 타겟팅 활성화" desc="신규 프로젝트와 설문 생성 시 지역 정책을 기본값으로 적용합니다." checked={settings.enabled} onChange={(enabled) => setSettings((prev) => ({ ...prev, enabled }))} />
+            <ToggleRow label="대표성 자동 보정" desc="실행 중 응답 분포가 목표 비율에서 벗어나면 후속 배치를 재조정합니다." checked={settings.sampling.rebalance_enabled} onChange={(rebalance_enabled) => setSettings((prev) => ({ ...prev, sampling: { ...prev.sampling, rebalance_enabled } }))} />
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">기본 시장</label>
+              <input value={settings.default_market} onChange={(e) => setSettings((prev) => ({ ...prev, default_market: e.target.value }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">포함 지역</label>
+              <input value={toCsv(settings.included_regions)} onChange={(e) => setSettings((prev) => ({ ...prev, included_regions: parseCsv(e.target.value) }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">제외 지역</label>
+            <input value={toCsv(settings.excluded_regions)} onChange={(e) => setSettings((prev) => ({ ...prev, excluded_regions: parseCsv(e.target.value) }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[
+              ["survey_generation", "설문 생성"],
+              ["persona_generation", "페르소나 생성"],
+              ["simulation", "시뮬레이션"],
+              ["report_rendering", "리포트 렌더링"],
+            ].map(([key, label]) => (
+              <label key={key} className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-[var(--secondary-foreground)] shadow-sm">
+                <input
+                  type="checkbox"
+                  checked={settings.apply_to[key as keyof GeoSettings["apply_to"]]}
+                  onChange={(e) => setSettings((prev) => ({ ...prev, apply_to: { ...prev.apply_to, [key]: e.target.checked } }))}
+                  className="h-4 w-4 accent-primary"
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="지역별 샘플링 비중">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+            <div className="space-y-5">
+              <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-card shadow-sm">
+                <table className="w-full text-left">
+                  <thead className="bg-[var(--panel-soft)]">
+                    <tr className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                      <th className="px-4 py-3">Region</th>
+                      <th className="px-4 py-3">Ratio</th>
+                      <th className="px-4 py-3">Min Sample</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settings.sampling.weights.map((item) => (
+                      <tr key={item.region} className="border-t border-[var(--border)]">
+                        <td className="px-4 py-3 text-[13px] font-black text-foreground">{item.region}</td>
+                        <td className="px-4 py-3">
+                          <input type="number" min={0} max={100} value={item.ratio} onChange={(e) => updateWeight(item.region, "ratio", Number(e.target.value))} className="h-10 w-24 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 text-[13px] font-bold text-foreground outline-none focus:border-primary" />
+                        </td>
+                        <td className="px-4 py-3">
+                          <input type="number" min={0} value={item.min_sample ?? 0} onChange={(e) => updateWeight(item.region, "min_sample", Number(e.target.value))} className="h-10 w-28 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 text-[13px] font-bold text-foreground outline-none focus:border-primary" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
+                    <Globe size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Localization Guidance</p>
+                    <p className="mt-1 text-[14px] font-black text-foreground">시장별 응답 문맥에 직접 영향을 주는 로컬라이징 기준</p>
+                  </div>
+                </div>
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {[
+                    settings.localization.auto_translation ? "자동 번역 활성화" : "원문 중심 운영",
+                    settings.localization.cultural_filter_enabled ? "문화권 금기어 필터 적용" : "금기어 필터 비활성",
+                    `통화: ${settings.localization.locale_format.currency}`,
+                    `도량형: ${settings.localization.locale_format.measurement}`,
+                  ].map((item) => (
+                    <div key={item} className="rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[12px] font-bold text-[var(--secondary-foreground)]">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="space-y-5">
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Market Mix Preview</p>
+                    <p className="mt-1 text-[12px] font-medium text-[var(--secondary-foreground)]">현재 설정이 실제 샘플링 비중으로 어떻게 보이는지 확인합니다.</p>
+                  </div>
+                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
+                    <MapPin size={16} />
+                  </div>
+                </div>
+                <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">기본 시장</p>
+                      <p className="mt-2 text-[16px] font-black text-foreground">{settings.default_market || "미지정"}</p>
+                    </div>
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">비중 합계</p>
+                      <p className={cn("mt-2 text-[16px] font-black", ratioValid ? "text-foreground" : "text-red-500")}>{totalRatio}%</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {settings.sampling.weights.map((item) => (
+                      <div key={item.region}>
+                        <div className="mb-1 flex items-center justify-between text-[12px] font-bold text-[var(--secondary-foreground)]">
+                          <span>{item.region}</span>
+                          <span>{item.ratio}%</span>
+                        </div>
+                        <div className="h-2 rounded-full overflow-hidden border border-[var(--border)] bg-card">
+                          <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(item.ratio, 100)}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-card p-5 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-amber-50 p-2.5 text-amber-500 shadow-sm">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">Policy Checks</p>
+                    <p className="mt-1 text-[14px] font-black text-foreground">저장 전에 확인할 지역 정책 리스크</p>
+                  </div>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {geoChecks.map((check) => (
+                    <div key={check.label} className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
+                      <div>
+                        <p className="text-[12px] font-black text-foreground">{check.label}</p>
+                        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{check.helper}</p>
+                      </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "font-black uppercase tracking-wider",
+                          check.state === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-600" : "border-amber-200 bg-amber-50 text-amber-600",
+                        )}
+                      >
+                        {check.state === "ok" ? "정상" : "점검 필요"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </SettingGroup>
+
+        <SettingGroup title="로컬라이징 정책">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ToggleRow label="자동 현지화 번역" desc="시장 언어에 맞춰 설문/리포트 문구를 자동 변환합니다." checked={settings.localization.auto_translation} onChange={(auto_translation) => setSettings((prev) => ({ ...prev, localization: { ...prev.localization, auto_translation } }))} />
+            <ToggleRow label="문화권 금기어 필터" desc="현지 문화권에서 문제될 수 있는 표현을 차단합니다." checked={settings.localization.cultural_filter_enabled} onChange={(cultural_filter_enabled) => setSettings((prev) => ({ ...prev, localization: { ...prev.localization, cultural_filter_enabled } }))} />
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">통화</label>
+              <select value={settings.localization.locale_format.currency} onChange={(e) => setSettings((prev) => ({ ...prev, localization: { ...prev.localization, locale_format: { ...prev.localization.locale_format, currency: e.target.value } } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="KRW">KRW</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">도량형</label>
+              <select value={settings.localization.locale_format.measurement} onChange={(e) => setSettings((prev) => ({ ...prev, localization: { ...prev.localization, locale_format: { ...prev.localization.locale_format, measurement: e.target.value as "metric" | "imperial" } } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
+                <option value="metric">Metric</option>
+                <option value="imperial">Imperial</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">날짜 형식</label>
+              <input value={settings.localization.locale_format.date_format} onChange={(e) => setSettings((prev) => ({ ...prev, localization: { ...prev.localization, locale_format: { ...prev.localization.locale_format, date_format: e.target.value } } }))} className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm" />
+            </div>
+          </div>
+          {(statusMessage || errorMessage) && (
+            <div className={cn("rounded-xl border px-4 py-3 text-[12px] font-bold", errorMessage ? "border-red-200 bg-red-50 text-red-500" : "border-primary/20 bg-[var(--primary-light-bg)] text-primary")}>
+              {errorMessage ?? statusMessage}
+            </div>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" size="lg" className="gap-2" onClick={reset} disabled={loading || saving || !isDirty}>
+              <RotateCcw size={16} /> 되돌리기
+            </Button>
+            <Button size="lg" className="gap-2" onClick={save} disabled={loading || saving || !isDirty || !ratioValid}>
+              <MapPin size={16} /> {saving ? "저장 중..." : "GEO 정책 저장"}
+            </Button>
+          </div>
+        </SettingGroup>
+      </div>
+    </>
+  );
+}
 
 function PromptSettingsSection() {
   const [selectedPromptType, setSelectedPromptType] = useState<(typeof PROMPT_PRESETS)[number]["id"]>("survey");
@@ -800,141 +1620,8 @@ const CONTENT: Record<string, React.ReactNode> = {
       </div>
     </>
   ),
-  seo: (
-    <>
-      <SectionTitle title="SEO 최적화 및 콘텐츠 노출" desc="리서치 콘텐츠의 검색 엔진 가시성과 메타데이터 자동화 정책을 설정합니다." />
-      
-      <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="SEO 상태 스코어카드">
-          <div className="grid grid-cols-3 gap-5">
-            <div className="bg-[var(--panel-soft)] border border-[var(--border)] p-6 rounded-xl border-t-4 border-t-green-500 shadow-sm">
-              <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">콘텐츠 색인율</p>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-black text-foreground leading-none">94.2%</span>
-                <TrendingUp size={16} className="text-green-500 mb-1" />
-              </div>
-            </div>
-            <div className="bg-[var(--panel-soft)] border border-[var(--border)] p-6 rounded-xl border-t-4 border-t-primary shadow-sm">
-              <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">메타 데이터 완성도</p>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-black text-foreground leading-none">88.0%</span>
-                <div className="w-2 h-2 rounded-full bg-primary animate-pulse mb-2.5 ml-1 shadow-[0_0_8px_rgba(49,107,255,0.6)]" />
-              </div>
-            </div>
-            <div className="bg-[var(--panel-soft)] border border-[var(--border)] p-6 rounded-xl border-t-4 border-t-amber-500 shadow-sm">
-              <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">키워드 매칭률</p>
-              <div className="flex items-end gap-2">
-                <span className="text-3xl font-black text-foreground leading-none">72.5%</span>
-                <span className="text-[12px] font-black text-amber-500 mb-1">+2.1%</span>
-              </div>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="메타데이터 자동 생성 규칙">
-          <div className="space-y-5">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase text-[var(--muted-foreground)] ml-1 tracking-widest">리포트 타이틀 템플릿</label>
-                <input className="w-full bg-card border border-[var(--border)] rounded-xl px-4 h-[44px] text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm" defaultValue="{프로젝트명} | Digital Twin Insight {YYYY}" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase text-[var(--muted-foreground)] ml-1 tracking-widest">AI 요약 추출 모델</label>
-                <select className="w-full bg-card border border-[var(--border)] rounded-xl px-4 h-[44px] text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
-                  <option>SEO 전용 고속 모델</option>
-                  <option>전략 요약 정밀 모델</option>
-                </select>
-              </div>
-            </div>
-            <label className="flex items-center justify-between p-5 rounded-xl bg-[var(--primary-light-bg)] border border-primary/20 shadow-sm cursor-pointer hover:border-primary/40 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="p-2.5 bg-primary/10 text-primary rounded-xl shadow-sm"><Sparkles size={18} /></div>
-                <div>
-                  <p className="text-[14px] font-black text-primary">AI 기반 자동 키워드 태깅</p>
-                  <p className="text-[11px] font-medium text-[var(--secondary-foreground)] mt-0.5">리포트 본문에서 핵심 SEO 키워드 5~10개 자동 추출</p>
-                </div>
-              </div>
-              <input type="checkbox" defaultChecked className="w-4 h-4 accent-primary" />
-            </label>
-          </div>
-        </SettingGroup>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" size="lg" className="gap-2"><Eye size={16} /> 검색 프리뷰 확인</Button>
-          <Button size="lg" className="gap-2"><Save size={16} /> SEO 설정 저장</Button>
-        </div>
-      </div>
-    </>
-  ),
-  geo: (
-    <>
-      <SectionTitle title="GEO 지역 타겟팅" desc="리서치 대상 지역 범위 및 지역별 페르소나 가중치를 인터랙티브하게 설정합니다." />
-      
-      <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="지역별 데이터 비중 가중치">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center p-2">
-            <div className="aspect-[4/3] bg-[var(--panel-soft)] rounded-3xl border border-[var(--border)] flex items-center justify-center relative overflow-hidden shadow-inner group">
-              <MapPin size={64} className="text-primary/10 group-hover:scale-110 transition-transform duration-1000" />
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
-              <div className="absolute top-1/4 left-1/3 w-10 h-10 rounded-full bg-primary/20 border-2 border-primary/40 animate-pulse shadow-[0_0_15px_rgba(49,107,255,0.3)]" />
-              <div className="absolute bottom-1/3 right-1/4 w-16 h-16 rounded-full bg-indigo-500/10 border-2 border-indigo-500/30" />
-              <p className="absolute bottom-5 text-[11px] font-black text-[var(--muted-foreground)] uppercase tracking-widest bg-card/80 px-3 py-1 rounded-full backdrop-blur-sm border border-[var(--border)]">Interactive Region Map</p>
-            </div>
-            <div className="space-y-5">
-              {[
-                { label: "수도권", value: 45, color: "bg-primary" },
-                { label: "영남권", value: 25, color: "bg-indigo-400" },
-                { label: "호남권", value: 15, color: "bg-indigo-300" },
-                { label: "충청/강원/제주", value: 15, color: "bg-indigo-200" },
-              ].map(r => (
-                <div key={r.label} className="space-y-2">
-                  <div className="flex justify-between text-[13px] font-bold">
-                    <span className="text-[var(--secondary-foreground)]">{r.label}</span>
-                    <span className="text-primary font-black">{r.value}%</span>
-                  </div>
-                  <div className="h-2.5 bg-card border border-[var(--border)] rounded-full overflow-hidden shadow-inner">
-                    <div className={cn("h-full rounded-full transition-all duration-1000", r.color)} style={{ width: `${r.value}%` }} />
-                  </div>
-                </div>
-              ))}
-              <div className="pt-5 mt-2 border-t border-[var(--border)]">
-                <p className="text-[11px] font-medium text-[var(--muted-foreground)] leading-relaxed bg-[var(--panel-soft)] p-3 rounded-lg border border-[var(--border)]">
-                  * 위 가중치는 신규 리서치 설계 시 기본 샘플링 비율로 자동 적용됩니다.
-                </p>
-              </div>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="다국어 및 로컬라이징 정책">
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--panel-soft)] border border-[var(--border)] shadow-sm cursor-pointer hover:bg-card transition-colors">
-                <span className="text-[13px] font-bold text-[var(--secondary-foreground)]">자동 현지화 번역 활성화</span>
-                <input type="checkbox" defaultChecked className="w-4 h-4" />
-              </label>
-              <label className="flex items-center justify-between p-4 rounded-xl bg-[var(--panel-soft)] border border-[var(--border)] shadow-sm cursor-pointer hover:bg-card transition-colors">
-                <span className="text-[13px] font-bold text-[var(--secondary-foreground)]">현지 문화권 금기어 필터링</span>
-                <input type="checkbox" defaultChecked className="w-4 h-4" />
-              </label>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[11px] font-black uppercase text-[var(--muted-foreground)] ml-1 tracking-widest">기준 통화 및 도량형</label>
-              <select className="w-full bg-card border border-[var(--border)] rounded-xl px-4 h-[44px] text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm">
-                <option>KRW (₩) / Metric (m, kg)</option>
-                <option>USD ($) / Imperial (ft, lb)</option>
-                <option>EUR (€) / Metric</option>
-              </select>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <div className="flex justify-end pt-2">
-          <Button size="lg" className="gap-2"><MapPin size={16} /> GEO 타겟팅 정책 확정</Button>
-        </div>
-      </div>
-    </>
-  ),
+  seo: <SeoSettingsSection />,
+  geo: <GeoSettingsSection />,
   menu: (
     <>
       <SectionTitle title="화면 위젯 및 대시보드 커스터마이징" desc="사용자별 업무 특성에 맞춰 대시보드 레이아웃과 위젯 배치를 최적화합니다." />
