@@ -343,6 +343,15 @@ export const personaApi = {
       return null;
     }
   },
+  importExcel: async (projectId: string, overwrite = true): Promise<{ persona_count: number } | null> => {
+    try {
+      const { data } = await apiClient.post(`/personas/import-excel?project_id=${projectId}&overwrite=${overwrite}`);
+      return data;
+    } catch (error) {
+      console.warn("personaApi.importExcel failed.", error);
+      return null;
+    }
+  },
 };
 
 export const segmentApi = {

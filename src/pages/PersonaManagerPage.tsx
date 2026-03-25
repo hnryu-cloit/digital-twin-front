@@ -600,6 +600,8 @@ export const PersonaManagerPage: React.FC = () => {
    };
  }, [detailTarget?.id]);
 
+ const [importing, setImporting] = useState(false);
+
  const handleGeneratePersonas = async () => {
    if (!projectId) return;
    const job = await personaApi.generateJob({
@@ -610,6 +612,21 @@ export const PersonaManagerPage: React.FC = () => {
    });
    if (job) {
      setActiveJob(job);
+   }
+ };
+
+ const handleImportExcel = async () => {
+   if (!projectId) return;
+   setImporting(true);
+   try {
+     const result = await personaApi.importExcel(projectId, true);
+     if (result) {
+       await fetchPersonas(projectId, 1, "");
+       setPage(1);
+       setSearchQuery("");
+     }
+   } finally {
+     setImporting(false);
    }
  };
 
@@ -679,6 +696,16 @@ export const PersonaManagerPage: React.FC = () => {
  onChange={(event) => handleSearchChange(event.target.value)}
  />
  </div>
+ <Button
+ size="sm"
+ variant="outline"
+ className="gap-2 text-[13px] font-bold px-5 active:scale-95"
+ onClick={() => void handleImportExcel()}
+ disabled={!projectId || importing}
+ >
+ <Cpu size={15} strokeWidth={2.5} />
+ {importing ? "불러오는 중..." : "실제 데이터 불러오기"}
+ </Button>
  <Button
  size="sm"
  className="gap-2 text-[13px] font-bold px-5 active:scale-95"
