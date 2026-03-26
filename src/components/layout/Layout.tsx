@@ -11,6 +11,7 @@ import {
   FileText,
   Home,
   Layers3,
+  Lock,
   LogOut,
   Menu,
   MessageSquare,
@@ -45,12 +46,47 @@ const SIDEBAR_FULL = "w-56";
 const CONTENT_MINI = "lg:pl-[72px]";
 const CONTENT_FULL = "lg:pl-56";
 
+const WORKFLOW_STEPS = [
+  { path: "/analytics", label: "세그먼트 분석" },
+  { path: "/survey",    label: "설문 디자인" },
+  { path: "/live",      label: "실시간 응답 분석" },
+  { path: "/report",   label: "분석 결과 리포트" },
+] as const;
+
+const WORKFLOW_PATHS = WORKFLOW_STEPS.map((s) => s.path) as string[];
+
 export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [projectName, setProjectName] = useState<string>("");
   const userMenuRef = useRef<HTMLDivElement>(null);
+
+  const isWorkflowPage = WORKFLOW_PATHS.includes(location.pathname);
+  const [furthestStepIndex, setFurthestStepIndex] = useState<number>(() => {
+    return parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+  });
+
+  useEffect(() => {
+    const stepIndex = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname);
+    if (stepIndex >= 0) {
+      setProjectName(sessionStorage.getItem("currentProjectName") ?? "");
+      const stored = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+      if (stepIndex > stored) {
+        sessionStorage.setItem("workflowFurthestStep", String(stepIndex));
+        setFurthestStepIndex(stepIndex);
+      } else {
+        setFurthestStepIndex(stored);
+      }
+    } else if (location.pathname === "/") {
+      sessionStorage.removeItem("workflowFurthestStep");
+      sessionStorage.removeItem("currentProjectName");
+      sessionStorage.removeItem("currentProjectId");
+      setFurthestStepIndex(-1);
+      setProjectName("");
+    }
+  }, [location.pathname]);
 
   const currentItem = [...NAV_ITEMS, { path: "/settings", label: "설정", section: "운영", icon: null }]
     .find((item) => item.path === location.pathname) ?? NAV_ITEMS[0];
@@ -96,12 +132,43 @@ export const Layout: React.FC = () => {
           <div className="hidden h-6 w-px bg-[var(--border)] lg:block" />
 
           <div className="flex min-w-0 flex-1 items-center justify-between px-6">
-            <div className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[var(--subtle-foreground)]">
-              <span>{currentItem.section}</span>
-              <ChevronRight size={12} className="opacity-50" />
-              <span className="truncate font-bold text-primary">
-                {currentItem.label}
-              </span>
+            <div className="flex min-w-0 items-center gap-1 text-[12px] font-medium text-[var(--subtle-foreground)] overflow-x-auto hide-scrollbar">
+              {isWorkflowPage ? (
+                <>
+                  {projectName && (
+                    <>
+                      <span className="shrink-0 font-semibold">{projectName}</span>
+                      <ChevronRight size={11} className="shrink-0 opacity-40" />
+                    </>
+                  )}
+                  {WORKFLOW_STEPS.map((step, i) => {
+                    const isActive = location.pathname === step.path;
+                    const isDone = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname) > i;
+                    return (
+                      <span key={step.path} className="flex shrink-0 items-center gap-1">
+                        <span className={
+                          isActive
+                            ? "font-black text-primary"
+                            : isDone
+                            ? "font-semibold text-[var(--muted-foreground)]"
+                            : "font-medium text-[var(--border)]"
+                        }>
+                          {step.label}
+                        </span>
+                        {i < WORKFLOW_STEPS.length - 1 && (
+                          <ChevronRight size={11} className="shrink-0 opacity-30" />
+                        )}
+                      </span>
+                    );
+                  })}
+                </>
+              ) : (
+                <>
+                  <span>{currentItem.section}</span>
+                  <ChevronRight size={12} className="opacity-50" />
+                  <span className="truncate font-bold text-primary">{currentItem.label}</span>
+                </>
+              )}
             </div>
 
             <div className="flex items-center gap-4">
@@ -136,34 +203,65 @@ export const Layout: React.FC = () => {
                   <div className="flex flex-col gap-1">
                     {items.map((item) => {
                       const isActive = location.pathname === item.path;
+                      const workflowIndex = WORKFLOW_PATHS.indexOf(item.path);
+                      const isWorkflowItem = workflowIndex >= 0;
+                      const isLocked = isWorkflowItem && workflowIndex > furthestStepIndex;
+
+                      const handleClick = () => {
+                        if (isLocked) return;
+                        if (isWorkflowItem) {
+                          const pid = sessionStorage.getItem("currentProjectId");
+                          navigate(item.path, pid ? { state: { projectId: pid } } : undefined);
+                        } else {
+                          navigate(item.path);
+                        }
+                      };
+
                       return (
-                        <button
-                          key={item.path}
-                          type="button"
-                          onClick={() => navigate(item.path)}
-                          title={collapsed ? item.label : undefined}
-                          className={`group relative flex w-full items-center rounded-xl py-2.5 transition-all active:scale-[0.97] ${
-                            collapsed ? "justify-center" : "gap-3 px-3 text-left"
-                          } ${
-                            isActive 
-                              ? "bg-[var(--primary-light-bg)] text-primary shadow-sm" 
-                              : "text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] hover:text-primary"
-                          }`}
-                        >
-                          <span className={`flex shrink-0 items-center justify-center transition-colors ${
-                            isActive ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"
-                          }`}>
-                            {item.icon}
-                          </span>
-                          {!collapsed && (
-                            <span className={`truncate text-[13px] tracking-tight ${isActive ? "font-bold" : "font-semibold"}`}>
-                              {item.label}
+                        <div key={item.path} className="relative group/nav">
+                          <button
+                            type="button"
+                            onClick={handleClick}
+                            title={collapsed ? item.label : undefined}
+                            className={`group relative flex w-full items-center rounded-xl py-2.5 transition-all ${
+                              collapsed ? "justify-center" : "gap-3 px-3 text-left"
+                            } ${
+                              isLocked
+                                ? "cursor-not-allowed opacity-40"
+                                : "active:scale-[0.97]"
+                            } ${
+                              isActive
+                                ? "bg-[var(--primary-light-bg)] text-primary shadow-sm"
+                                : isLocked
+                                ? "text-[var(--secondary-foreground)]"
+                                : "text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] hover:text-primary"
+                            }`}
+                          >
+                            <span className={`flex shrink-0 items-center justify-center transition-colors ${
+                              isActive ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"
+                            }`}>
+                              {item.icon}
                             </span>
+                            {!collapsed && (
+                              <span className={`flex-1 truncate text-[13px] tracking-tight ${isActive ? "font-bold" : "font-semibold"}`}>
+                                {item.label}
+                              </span>
+                            )}
+                            {!collapsed && isLocked && (
+                              <Lock size={10} className="shrink-0 text-[var(--subtle-foreground)]" />
+                            )}
+                            {isActive && (
+                              <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary" />
+                            )}
+                          </button>
+                          {isLocked && !collapsed && (
+                            <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 hidden group-hover/nav:block">
+                              <div className="whitespace-nowrap rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-semibold text-background shadow-lg">
+                                이전 단계 완료 후 진입 가능합니다
+                              </div>
+                            </div>
                           )}
-                          {isActive && (
-                            <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary" />
-                          )}
-                        </button>
+                        </div>
                       );
                     })}
                   </div>

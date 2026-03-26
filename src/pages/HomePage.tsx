@@ -97,7 +97,6 @@ type WizardFormState = {
   type: string;
   purpose: string;
   description: string;
-  target_responses: number;
   tags: string;
   data_sources: string[];
   custom_data_sources: string;
@@ -110,7 +109,6 @@ function buildInitialFormState(template?: SurveyType): WizardFormState {
     type: template?.title ?? "컨셉 테스트",
     purpose: template?.desc ?? "",
     description: "",
-    target_responses: 1000,
     tags: template?.tags.join(", ") ?? "",
     data_sources: ["demo", "purchase", "app_usage"],
     custom_data_sources: "survey, persona, simulation",
@@ -256,7 +254,6 @@ const WizardModal: React.FC<{
       type: form.type.trim(),
       purpose: form.purpose.trim(),
       description: form.description.trim() || undefined,
-      target_responses: Math.max(1, Number(form.target_responses) || 1),
       tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
       data_sources: Array.from(new Set(combinedDataSources)),
     });
@@ -313,17 +310,6 @@ const WizardModal: React.FC<{
                     value={form.name}
                     onChange={(event) => updateField("name", event.target.value)}
                     placeholder="예: Galaxy S26 초기 반응 조사"
-                    className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
-                    required
-                  />
-                </label>
-                <label className="space-y-2">
-                  <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">목표 응답 수</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.target_responses}
-                    onChange={(event) => updateField("target_responses", Number(event.target.value))}
                     className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
                     required
                   />
@@ -640,7 +626,9 @@ export function HomePage() {
       setWizardOpen(false);
       setWizardTemplate(undefined);
       setSubmitError(null);
-      navigate("/survey", { state: { projectId: project.id } });
+      sessionStorage.setItem("currentProjectName", project.name);
+      sessionStorage.setItem("currentProjectId", project.id);
+      navigate("/analytics", { state: { projectId: project.id } });
     },
     onError: () => {
       setSubmitError("프로젝트 생성 요청 중 오류가 발생했습니다.");
@@ -725,7 +713,7 @@ export function HomePage() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onClick={() => navigate("/survey", { state: { projectId: project.id } })}
+                  onClick={() => { sessionStorage.setItem("currentProjectName", project.name); sessionStorage.setItem("currentProjectId", project.id); navigate("/analytics", { state: { projectId: project.id } }); }}
                 />
               ))
             )}

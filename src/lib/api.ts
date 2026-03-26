@@ -89,7 +89,6 @@ export interface ProjectCreatePayload {
   description?: string;
   data_sources?: string[];
   tags?: string[];
-  target_responses: number;
 }
 
 export interface ProjectDetail {
@@ -667,6 +666,61 @@ export const simulationApi = {
     } catch (error) {
       console.warn("simulationApi.control failed.", error);
     }
+  },
+  /**
+   * Streams simulation SSE events via fetch (supports auth headers).
+   * Calls onEvent for each parsed event, onDone when stream ends.
+   * Returns an AbortController — call .abort() to cancel.
+   */
+  streamRun: (
+    projectId: string,
+    batchSize = 5,
+    onEvent: (event: Record<string, unknown>) => void,
+    onDone: () => void,
+    onError?: (err: unknown) => void,
+  ): AbortController => {
+    const controller = new AbortController();
+    const token = localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token") ?? "";
+
+    (async () => {
+      try {
+        const resp = await fetch(
+          `http://localhost:8000/api/simulations/stream?project_id=${encodeURIComponent(projectId)}&batch_size=${batchSize}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            signal: controller.signal,
+          },
+        );
+        if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+          for (const line of lines) {
+            if (!line.startsWith("data:")) continue;
+            const raw = line.slice(5).trim();
+            if (!raw) continue;
+            try {
+              const evt = JSON.parse(raw) as Record<string, unknown>;
+              onEvent(evt);
+              if (evt.type === "done") { onDone(); return; }
+            } catch { /* ignore malformed */ }
+          }
+        }
+        onDone();
+      } catch (err) {
+        if ((err as { name?: string }).name !== "AbortError") onError?.(err);
+      }
+    })();
+
+    return controller;
   },
 };
 
