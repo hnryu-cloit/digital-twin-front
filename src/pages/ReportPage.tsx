@@ -43,6 +43,8 @@ import {
   type ProjectDetail,
   type ReportDetail,
   type ResponseDistributionItem,
+  type ActionPlanResponse,
+  geminiApi,
 } from "@/lib/api";
 
 const SECTIONS = [
@@ -50,6 +52,7 @@ const SECTIONS = [
   { id: "findings", label: "전략적 핵심 인사이트", icon: "02" },
   { id: "detail", label: "데이터 기반 상세 분석", icon: "03" },
   { id: "segment", label: "세그먼트 기회 매트릭스", icon: "04" },
+  { id: "actionPlan", label: "마케팅 액션 플랜", icon: "05" },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]["id"];
@@ -156,6 +159,8 @@ export const ReportPage: React.FC = () => {
   const [downloadInfo, setDownloadInfo] = useState<ReportDownloadInfo | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [activeReportJob, setActiveReportJob] = useState<AIJob | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlanResponse | null>(null);
+  const [actionPlanLoading, setActionPlanLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -244,6 +249,7 @@ export const ReportPage: React.FC = () => {
     findings: useRef<HTMLDivElement>(null),
     detail: useRef<HTMLDivElement>(null),
     segment: useRef<HTMLDivElement>(null),
+    actionPlan: useRef<HTMLDivElement>(null),
   };
 
   const totalCount = personas.length;
@@ -383,6 +389,19 @@ export const ReportPage: React.FC = () => {
     });
     if (job) {
       setActiveReportJob(job);
+    }
+  };
+
+  const handleGenerateActionPlan = async () => {
+    if (!reportData?.id) return;
+    setActionPlanLoading(true);
+    try {
+      const plan = await geminiApi.getMarketingActionPlan(reportData.id);
+      if (plan) setActionPlan(plan);
+    } catch (error) {
+      console.error("Action plan generation failed:", error);
+    } finally {
+      setActionPlanLoading(false);
     }
   };
 
@@ -708,6 +727,103 @@ export const ReportPage: React.FC = () => {
                     </div>
                   )}
                 </div>
+              </section>
+
+              <section id="actionPlan" ref={sectionRefs.actionPlan} className="app-card p-12 overflow-hidden relative">
+                <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-2xl" />
+                <SectionHeader num="05" title="마케팅 액션 플랜 (90일)" badge="90-Day Execution Roadmap" />
+                
+                {!actionPlan && !actionPlanLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-center bg-[var(--panel-soft)]/30 rounded-3xl border border-dashed border-[var(--border)]">
+                    <div className="w-16 h-16 rounded-2xl bg-white border border-[var(--border)] flex items-center justify-center mb-5 shadow-sm text-primary">
+                      <Zap size={28} />
+                    </div>
+                    <h3 className="text-[16px] font-bold text-foreground">실행 가능한 마케팅 플랜이 필요하신가요?</h3>
+                    <p className="text-[13px] text-[var(--muted-foreground)] font-medium mt-2 max-w-xs leading-relaxed">
+                      분석 리포트 결과를 바탕으로 AI가 구체적인 90일 실행 계획과 예산 배분안을 수립합니다.
+                    </p>
+                    <button
+                      onClick={handleGenerateActionPlan}
+                      className="mt-6 flex items-center gap-2 bg-primary text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-hover transition-all shadow-md active:scale-95 text-[14px]"
+                    >
+                      <Zap size={16} />
+                      마케팅 액션 플랜 생성
+                    </button>
+                  </div>
+                ) : actionPlanLoading ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-center">
+                    <div className="relative mb-6">
+                      <div className="h-16 w-16 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Zap size={20} className="text-primary animate-pulse" />
+                      </div>
+                    </div>
+                    <p className="text-[15px] font-bold text-foreground">최적의 마케팅 믹스를 계산 중입니다...</p>
+                    <p className="text-[12px] text-[var(--muted-foreground)] mt-2">리포트의 핵심 인사이트를 실행 과제로 전환하고 있습니다.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8">
+                      <div className="space-y-6">
+                        <h4 className="flex items-center gap-2 text-[14px] font-black uppercase tracking-widest text-foreground">
+                          <Activity size={16} className="text-primary" />
+                          Phased Execution Roadmap
+                        </h4>
+                        <div className="overflow-hidden rounded-2xl border border-[var(--border)] shadow-sm">
+                          <table className="w-full text-left text-[13px] border-collapse">
+                            <thead>
+                              <tr className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Period</th>
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Core Action</th>
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Main Channel</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border)] bg-card">
+                              {actionPlan?.phases.map((phase, i) => (
+                                <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
+                                  <td className="px-6 py-4 font-black text-primary whitespace-nowrap">{phase.week}</td>
+                                  <td className="px-6 py-4 font-bold text-[var(--secondary-foreground)] leading-relaxed">{phase.action}</td>
+                                  <td className="px-6 py-4 font-semibold text-[var(--muted-foreground)]">{phase.channel}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="app-card border-primary/10 bg-primary/[0.02] p-6 shadow-sm">
+                          <h4 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-primary mb-4">
+                            <Target size={14} />
+                            Priority Segments
+                          </h4>
+                          <div className="space-y-3">
+                            {actionPlan?.priority_segments.map((seg, i) => (
+                              <div key={i} className="flex items-center gap-3 bg-white border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm">
+                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-black">{i+1}</div>
+                                <span className="text-[13px] font-bold text-foreground">{seg}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="app-card border-amber-200/50 bg-amber-50/30 p-6">
+                          <h4 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-amber-700 mb-4">
+                            <Target size={14} />
+                            Budget Allocation
+                          </h4>
+                          <p className="text-[14px] font-bold text-amber-900 leading-relaxed">
+                            {actionPlan?.budget_allocation}
+                          </p>
+                          <div className="mt-4 pt-4 border-t border-amber-200/50 flex items-center gap-2 text-[11px] font-bold text-amber-700/60">
+                            <ShieldCheck size={12} />
+                            Recommended based on ROI data
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
           </div>

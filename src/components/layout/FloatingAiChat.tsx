@@ -1,7 +1,7 @@
 import type React from"react";
 import { useRef, useState, useEffect } from"react";
 import { Send, User, X, RotateCcw } from"lucide-react";
-import { projectApi, resolveDefaultProjectId, type ProjectDetail } from"@/lib/api";
+import { assistantApi, projectApi, resolveDefaultProjectId, type ProjectDetail } from"@/lib/api";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
 
@@ -73,36 +73,54 @@ export const FloatingAiChat: React.FC = () => {
  loadProject();
  }, []);
 
- const send = () => {
- const text = input.trim();
- if (!text || loading) return;
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
 
- const userMsg: Message = {
- id: nextId.current++,
- role:"user",
- content: text,
- timestamp: new Date().toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit" }),
- };
- setMessages((prev) => [...prev, userMsg]);
- setInput("");
- setLoading(true);
+    const userMsg: Message = {
+      id: nextId.current++,
+      role: "user",
+      content: text,
+      timestamp: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setLoading(true);
 
- setTimeout(() => {
- const res = text.includes("리포트") ? mockResponses["리포트"] : mockResponses["default"];
- const aiMsg: Message = {
- ...res,
- evidence: res.evidence?.map((item) =>
- item.label === "분석 표본"
- ? { ...item, value: `${(project?.target_responses ?? 0).toLocaleString()}명` }
- : item
- ),
- id: nextId.current++,
- timestamp: new Date().toLocaleTimeString("ko-KR", { hour:"2-digit", minute:"2-digit" }),
- };
- setMessages((prev) => [...prev, aiMsg]);
- setLoading(false);
- }, 1200);
- };
+    try {
+      const history = messages.map(m => ({
+        role: m.role === "user" ? "user" : "assistant",
+        message: m.content
+      }));
+      
+      const res = await assistantApi.chat(text, history, project?.id);
+      
+      if (res) {
+        const aiMsg: Message = {
+          id: nextId.current++,
+          role: "assistant",
+          content: res.answer,
+          evidence: res.evidence,
+          confidence: res.confidence,
+          timestamp: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      } else {
+        throw new Error("No response from AI assistant");
+      }
+    } catch (error) {
+      console.error("AI Assistant Error:", error);
+      const errorMsg: Message = {
+        id: nextId.current++,
+        role: "assistant",
+        content: "죄송합니다. 메시지 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
+        timestamp: new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
  return (
  <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">

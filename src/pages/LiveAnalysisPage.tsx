@@ -1,5 +1,4 @@
-import type React from "react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart3,
   Pause,
@@ -25,12 +24,15 @@ import {
   YAxis,
   LabelList,
 } from "recharts";
+import { useLocation } from "react-router-dom";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import {
+  geminiApi,
   projectApi,
   resolveDefaultProjectId,
   simulationApi,
   surveyApi,
+  type CrossSegmentSummaryResponse,
   type KeywordTrendItem,
   type ProjectDetail,
   type ResponseDistributionItem,
@@ -163,6 +165,9 @@ function mapFeedItem(item: SimulationFeedItem): ChatResponse {
 }
 
 export const LiveAnalysisPage: React.FC = () => {
+  const location = useLocation();
+  const segmentFilter = (location.state as { segmentFilter?: { totalMatched: number; totalPopulation: number; segments: Array<{ name: string; count: number }>; filterSummary: string } } | null)?.segmentFilter ?? null;
+
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
   const [activeQuestion, setActiveQuestion] = useState("");
@@ -176,9 +181,17 @@ export const LiveAnalysisPage: React.FC = () => {
   const [completionRate, setCompletionRate] = useState(0);
   const [completedResponses, setCompletedResponses] = useState(0);
   const [targetResponses, setTargetResponses] = useState(0);
+  const [crossSegmentSummary, setCrossSegmentSummary] = useState<CrossSegmentSummaryResponse | null>(null);
+  const streamAbortRef = React.useRef<AbortController | null>(null);
 
   const activeResult = questionResults.find((question) => question.id === activeQuestion) ?? questionResults[0];
-  const totalPopulation = project?.target_responses ?? targetResponses;
+  const totalPopulation = segmentFilter?.totalMatched ?? project?.target_responses ?? targetResponses;
+
+  // 컴포넌트 언마운트 시 스트림 중단
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup only
+  React.useEffect(() => {
+    return () => { streamAbortRef.current?.abort(); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -271,13 +284,94 @@ export const LiveAnalysisPage: React.FC = () => {
   }, [projectId, activeQuestion]);
 
   const handleToggle = async () => {
-    await simulationApi.control(projectId ?? undefined, isLive ? "stop" : "start");
-    const progress = await simulationApi.getProgress(projectId ?? undefined);
-    if (!progress) return;
-    setCompletionRate(Math.round(progress.progress));
-    setCompletedResponses(progress.completed_responses);
-    setTargetResponses(progress.target_responses);
-    setIsLive(progress.status === "running");
+    if (isLive) {
+      // 중지
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
+      setIsLive(false);
+      return;
+    }
+
+    if (!projectId) return;
+    setIsLive(true);
+
+    // 스트리밍 시뮬레이션 시작
+    const batchSize = segmentFilter ? Math.min(5, segmentFilter.totalMatched || 5) : 5;
+    const ctrl = simulationApi.streamRun(
+      projectId,
+      batchSize,
+      (evt) => {
+        const type = evt.type as string;
+
+        if (type === "result") {
+          // 새 응답을 피드에 추가
+          const personaName = evt.persona_name as string;
+          const segment = evt.segment as string;
+          const answers = (evt.answers as Array<Record<string, unknown>>) ?? [];
+          for (const answer of answers) {
+            const feedItem: ChatResponse = {
+              id: `resp-${Date.now()}-${Math.random()}`,
+              personaName,
+              segment,
+              questionId: answer.question_id as string ?? "",
+              questionText: answer.question_text as string ?? "",
+              selectedOption: answer.selected_option as string ?? "",
+              rationale: answer.rationale as string ?? "",
+              integrityScore: answer.integrity_score as number ?? 85,
+              consistencyStatus: ((answer.integrity_score as number ?? 85) >= 90 ? "Good" : "Warn"),
+              timestamp: formatTimestamp(new Date().toISOString()),
+              cot: (answer.cot as string[]) ?? [],
+            };
+            setChatFeed((prev) => [feedItem, ...prev].slice(0, 100));
+          }
+          setCompletedResponses((prev) => prev + answers.length);
+        }
+
+        if (type === "progress") {
+          const done = evt.done as number ?? 0;
+          const total = evt.total as number ?? 1;
+          setCompletionRate(Math.round((done / total) * 100));
+        }
+
+        if (type === "done") {
+          setIsLive(false);
+          setCompletionRate(100);
+          // 최종 데이터 갱신
+          if (projectId) {
+            simulationApi.getKeywords(projectId).then(setKeywords);
+            simulationApi.getProgress(projectId).then((p) => {
+              if (p) {
+                setTargetResponses(p.target_responses);
+                setCompletedResponses(p.completed_responses);
+              }
+            });
+            // 크로스 세그먼트 요약 생성
+            geminiApi.getCrossSegmentSummary(projectId).then((summary) => {
+              if (summary) setCrossSegmentSummary(summary);
+            });
+            // 분포 갱신
+            setQuestionResults((prev) =>
+              prev.map((q) => {
+                simulationApi.getDistribution(projectId, q.id).then((data) =>
+                  setQuestionResults((prev2) =>
+                    prev2.map((q2) => (q2.id === q.id ? { ...q2, data } : q2)),
+                  ),
+                );
+                return q;
+              }),
+            );
+          }
+        }
+      },
+      () => {
+        setIsLive(false);
+      },
+      (err) => {
+        console.error("Simulation stream error:", err);
+        setIsLive(false);
+      },
+    );
+    streamAbortRef.current = ctrl;
   };
 
   return (
@@ -289,6 +383,21 @@ export const LiveAnalysisPage: React.FC = () => {
           <p className="app-page-eyebrow">실시간 시뮬레이션 모니터링</p>
           <h1 className="app-page-title mt-1">실시간 응답 분석 현황</h1>
           <p className="app-page-description">페르소나별 실시간 응답 현황과 AI 기반 핵심 감성 지표를 모니터링합니다.</p>
+          {segmentFilter && (
+            <div className="mt-3 flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-3 py-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-[11px] font-bold text-primary">응답 대상</span>
+                <span className="text-[11px] font-semibold text-foreground">{segmentFilter.filterSummary}</span>
+                <span className="text-[11px] font-bold text-primary">{segmentFilter.totalMatched.toLocaleString()}명</span>
+              </div>
+              {segmentFilter.segments.slice(0, 4).map((s) => (
+                <span key={s.name} className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--secondary-foreground)]">
+                  {s.name} {s.count}명
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <button
           onClick={handleToggle}
@@ -569,6 +678,42 @@ export const LiveAnalysisPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 시뮬레이션 완료 후 크로스 세그먼트 AI 요약 카드 */}
+      {crossSegmentSummary && (
+        <div className="mx-8 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="rounded-2xl border border-[var(--primary-light-border)] bg-gradient-to-r from-[var(--primary-light-bg)] to-card p-6 shadow-[var(--shadow-sm)]">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-[var(--shadow-sm)]">
+                <Sparkles size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">AI Cross-Segment Analysis</p>
+                <h3 className="text-[15px] font-black text-foreground">세그먼트 간 비교 요약</h3>
+              </div>
+            </div>
+            <p className="mb-4 text-[13px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
+              {crossSegmentSummary.summary}
+            </p>
+            {crossSegmentSummary.segment_highlights.length > 0 && (
+              <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                {crossSegmentSummary.segment_highlights.map((highlight) => (
+                  <div key={highlight.segment} className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-primary">{highlight.segment}</p>
+                    <p className="mt-1 text-[12px] font-bold text-[var(--secondary-foreground)]">{highlight.key_finding}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {crossSegmentSummary.notable_pattern && (
+              <div className="flex items-start gap-2 rounded-xl border border-[var(--border)]/50 bg-[var(--panel-soft)] px-4 py-3">
+                <Lightbulb size={14} className="mt-0.5 shrink-0 text-primary" />
+                <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">{crossSegmentSummary.notable_pattern}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {selectedChat && <CotModal chat={selectedChat} onClose={() => setSelectedChat(null)} />}
     </div>

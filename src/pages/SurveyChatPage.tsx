@@ -1,6 +1,6 @@
 import type React from"react";
 import { useState, useRef, useEffect } from"react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
  Send,
  Sparkles,
@@ -22,7 +22,7 @@ import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
-import { aiJobApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview, type SurveyTemplate } from"@/lib/api";
+import { aiJobApi, geminiApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview, type SurveyQualityCheckResponse, type SurveyTemplate } from"@/lib/api";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -268,6 +268,8 @@ const QUESTIONS_PER_PAGE = 5;
 
 export const SurveyChatPage: React.FC = () => {
  const location = useLocation();
+ const navigate = useNavigate();
+ const segmentFilter = (location.state as { segmentFilter?: { totalMatched: number; totalPopulation: number; hasFilters: boolean; segments: Array<{ name: string; count: number }>; personaIds: string[]; filterSummary: string } } | null)?.segmentFilter ?? null;
  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
  const [input, setInput] = useState("");
@@ -281,6 +283,8 @@ export const SurveyChatPage: React.FC = () => {
  const [previewOpen, setPreviewOpen] = useState(false);
  const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
  const [confirming, setConfirming] = useState(false);
+ const [qualityCheck, setQualityCheck] = useState<SurveyQualityCheckResponse | null>(null);
+ const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
  const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
  const [selectedTemplateId, setSelectedTemplateId] = useState("tpl_concept_test_v1");
  const chatEndRef = useRef<HTMLDivElement>(null);
@@ -398,7 +402,10 @@ export const SurveyChatPage: React.FC = () => {
    },
    segment_context: {
      source: "survey_chat_page",
-     selected_segments: [],
+     selected_segments: segmentFilter?.segments.map((s) => s.name) ?? [],
+     persona_ids: segmentFilter?.personaIds ?? [],
+     filter_summary: segmentFilter?.filterSummary ?? "",
+     target_count: segmentFilter?.totalMatched ?? 0,
    },
  });
 
@@ -500,8 +507,18 @@ export const SurveyChatPage: React.FC = () => {
  setPreviewOpen(true);
  };
 
+ const openQualityCheck = async () => {
+ if (!projectId) return;
+ const synced = await syncQuestions();
+ if (!synced) return;
+ const result = await geminiApi.checkSurveyQuality(projectId);
+ setQualityCheck(result);
+ setQualityCheckOpen(true);
+ };
+
  const confirmSurvey = async () => {
  if (!projectId || confirming) return;
+ setQualityCheckOpen(false);
  setConfirming(true);
  const synced = await syncQuestions();
  if (!synced) {
@@ -534,6 +551,12 @@ export const SurveyChatPage: React.FC = () => {
  }]);
  setSyncStatus("saved");
  setConfirming(false);
+ navigate("/live", {
+   state: {
+     projectId,
+     segmentFilter,
+   },
+ });
  };
 
  return (
@@ -549,6 +572,25 @@ export const SurveyChatPage: React.FC = () => {
  <p className="app-page-description">
  자연어로 대화하며 리서치 목적에 맞는 최적의 문항 구조를 실시간으로 구축합니다.
  </p>
+ {segmentFilter && (
+   <div className="mt-3 flex items-center gap-3 flex-wrap">
+     <div className="flex items-center gap-2 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-4 py-2">
+       <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+       <span className="text-[11px] font-bold text-primary uppercase tracking-wide">타겟 세그먼트</span>
+       <span className="text-[11px] font-semibold text-foreground">{segmentFilter.filterSummary}</span>
+       <span className="text-[11px] text-[var(--muted-foreground)]">|</span>
+       <span className="text-[12px] font-bold text-primary">{segmentFilter.totalMatched.toLocaleString()}명</span>
+     </div>
+     {segmentFilter.segments.slice(0, 3).map((s) => (
+       <span key={s.name} className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-1 text-[10px] font-bold text-[var(--secondary-foreground)]">
+         {s.name} {s.count}명
+       </span>
+     ))}
+     {segmentFilter.segments.length > 3 && (
+       <span className="text-[10px] font-bold text-[var(--subtle-foreground)]">외 {segmentFilter.segments.length - 3}개 세그먼트</span>
+     )}
+   </div>
+ )}
  </div>
 
  <div className="flex flex-1 overflow-hidden">
@@ -817,9 +859,9 @@ export const SurveyChatPage: React.FC = () => {
  미리보기
  </button>
  <button
- onClick={confirmSurvey}
+ onClick={openQualityCheck}
  disabled={!projectId || syncStatus ==="saving" || confirming}
- className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-[var(--shadow-sm)])] active:scale-95 text-[13px] disabled:cursor-not-allowed disabled:opacity-60"
+ className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-sm)] active:scale-95 text-[13px] disabled:cursor-not-allowed disabled:opacity-60"
  >
  {confirming ?"확정 중..." :"설문 저장 및 확정"}
  </button>
@@ -836,6 +878,88 @@ export const SurveyChatPage: React.FC = () => {
  confirming={confirming}
  />
  ) : null}
+ {qualityCheckOpen && (
+ <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
+ <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-[28px] bg-card shadow-2xl animate-in zoom-in-95 duration-300">
+ <div className="border-b border-[var(--border)] px-7 py-6">
+ <div className="flex items-center gap-3">
+ <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
+ <ShieldCheck size={20} />
+ </div>
+ <div>
+ <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">AI Quality Review</p>
+ <h2 className="text-[18px] font-black text-foreground">설문 품질 검토 결과</h2>
+ </div>
+ </div>
+ </div>
+ <div className="space-y-5 px-7 py-6">
+ {qualityCheck ? (
+ <>
+ <div className="flex items-center gap-4">
+ <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-primary bg-[var(--primary-light-bg)]">
+ <span className="text-[20px] font-black text-primary">{qualityCheck.score}</span>
+ </div>
+ <div>
+ <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">품질 점수</p>
+ <p className="text-[13px] font-bold text-foreground">
+ {qualityCheck.score >= 85 ? "우수한 설문 구성입니다." : qualityCheck.score >= 70 ? "양호한 설문 구성입니다." : "개선이 필요합니다."}
+ </p>
+ </div>
+ </div>
+ {qualityCheck.strengths.length > 0 && (
+ <div>
+ <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--muted-foreground)]">강점</p>
+ <ul className="space-y-1">
+ {qualityCheck.strengths.map((s) => (
+ <li key={s} className="flex items-start gap-2 text-[12px] font-medium text-[var(--secondary-foreground)]">
+ <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-green-500" />
+ {s}
+ </li>
+ ))}
+ </ul>
+ </div>
+ )}
+ {qualityCheck.issues.length > 0 && (
+ <div>
+ <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--muted-foreground)]">개선 필요</p>
+ <ul className="space-y-1">
+ {qualityCheck.issues.map((issue) => (
+ <li key={issue} className="flex items-start gap-2 text-[12px] font-medium text-[var(--secondary-foreground)]">
+ <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+ {issue}
+ </li>
+ ))}
+ </ul>
+ </div>
+ )}
+ {qualityCheck.suggestion && (
+ <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
+ <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">💡 {qualityCheck.suggestion}</p>
+ </div>
+ )}
+ </>
+ ) : (
+ <p className="text-[13px] font-medium text-[var(--muted-foreground)]">품질 검토 결과를 불러올 수 없습니다.</p>
+ )}
+ </div>
+ <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] px-7 py-4">
+ <button
+ onClick={() => setQualityCheckOpen(false)}
+ className="rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-semibold text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] transition-colors"
+ >
+ 문항 수정
+ </button>
+ <button
+ onClick={() => void confirmSurvey()}
+ disabled={confirming}
+ className="rounded-xl bg-primary px-6 py-2.5 text-[13px] font-semibold text-white hover:bg-primary-hover transition-colors disabled:opacity-60"
+ >
+ {confirming ? "확정 중..." : "그래도 확정"}
+ </button>
+ </div>
+ </div>
+ </div>
+ )}
  </div>
  </div>
  );

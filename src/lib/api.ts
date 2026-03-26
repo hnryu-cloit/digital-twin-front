@@ -803,6 +803,123 @@ export const reportApi = {
   },
 };
 
+/* ─── Assistant ─── */
+export interface AssistantChatResponse {
+  answer: string;
+  evidence: { label: string; value: string }[];
+  confidence: number;
+  session_id?: string;
+}
+
+export const assistantApi = {
+  chat: async (
+    message: string,
+    messages: { role: string; message: string }[],
+    projectId?: string | null,
+  ): Promise<AssistantChatResponse | null> => {
+    try {
+      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const { data } = await apiClient.post("/assistant/chat", {
+        message,
+        messages,
+        project_id: resolvedProjectId,
+      });
+      return data;
+    } catch (error) {
+      console.warn("assistantApi.chat failed.", error);
+      return null;
+    }
+  },
+};
+
+/* ─── Gemini Enhancements ─── */
+export interface SegmentNarrativeResponse {
+  narrative: string;
+}
+
+export interface SurveyQualityCheckResponse {
+  score: number;
+  issues: string[];
+  strengths: string[];
+  suggestion: string;
+}
+
+export interface CrossSegmentSummaryResponse {
+  summary: string;
+  segment_highlights: { segment: string; key_finding: string }[];
+  notable_pattern: string;
+}
+
+export const geminiApi = {
+  getSegmentNarrative: async (payload: {
+    project_id: string;
+    filter_summary: string;
+    segments: { name: string; count: number }[];
+    target_count: number;
+  }): Promise<SegmentNarrativeResponse | null> => {
+    try {
+      const { data } = await apiClient.post("/segments/narrative", payload);
+      return data;
+    } catch (error) {
+      console.warn("geminiApi.getSegmentNarrative failed.", error);
+      return null;
+    }
+  },
+  checkSurveyQuality: async (projectId: string): Promise<SurveyQualityCheckResponse | null> => {
+    try {
+      const { data } = await apiClient.post(`/surveys/${projectId}/quality-check`);
+      return data;
+    } catch (error) {
+      console.warn("geminiApi.checkSurveyQuality failed.", error);
+      return null;
+    }
+  },
+  getCrossSegmentSummary: async (projectId: string): Promise<CrossSegmentSummaryResponse | null> => {
+    try {
+      const { data } = await apiClient.get(`/simulations/cross-segment-summary?project_id=${projectId}`);
+      return data;
+    } catch (error) {
+      console.warn("geminiApi.getCrossSegmentSummary failed.", error);
+      return null;
+    }
+  },
+  recommendFilters: async (projectId: string): Promise<ResearchRecommendationResponse | null> => {
+    try {
+      const { data } = await apiClient.get(`/segments/recommend-filters?project_id=${projectId}`);
+      return data;
+    } catch (error) {
+      console.warn("geminiApi.recommendFilters failed.", error);
+      return null;
+    }
+  },
+  getMarketingActionPlan: async (reportId: string): Promise<ActionPlanResponse | null> => {
+    try {
+      const { data } = await apiClient.post(`/reports/${reportId}/action-plan`);
+      return data;
+    } catch (error) {
+      console.warn("geminiApi.getMarketingActionPlan failed.", error);
+      return null;
+    }
+  },
+};
+
+export interface ResearchRecommendationResponse {
+  recommendation: string;
+  suggested_filters: {
+    age_ranges?: string[];
+    regions?: string[];
+    keywords?: string[];
+  };
+  rationale: string;
+}
+
+export interface ActionPlanResponse {
+  period: string;
+  phases: { week: string; action: string; channel: string }[];
+  priority_segments: string[];
+  budget_allocation: string;
+}
+
 /* ─── Settings ─── */
 export interface PromptSettingsResponse {
   prompt_type: string;

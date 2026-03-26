@@ -1,16 +1,17 @@
 import type React from "react";
 import { useMemo, useState, useEffect } from "react";
-import { fetchIndividualPersonas, projectApi, resolveDefaultProjectId, segmentApi, type ProjectDetail, type SegmentFilterOptions } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
+import { fetchIndividualPersonas, geminiApi, projectApi, resolveDefaultProjectId, segmentApi, type ProjectDetail, type SegmentFilterOptions, type ResearchRecommendationResponse } from "@/lib/api";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   Users, Smartphone, RefreshCw,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, ChevronRight,
   MapPin, ShoppingBag,
   SlidersHorizontal, Clock, Briefcase, Globe, Tag,
   Search, X, Plus, Cpu, Layers,
-  Wallet, TrendingUp, Heart, Activity, Monitor, Store,
+  Wallet, TrendingUp, Heart, Activity, Monitor, Store, Sparkles,
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 
@@ -136,6 +137,7 @@ const CUSTOM_LABEL = ({ cx, cy, total }: { cx: number; cy: number; total: number
 
 /* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
   const [allPersonas, setAllPersonas] = useState<FilterPersona[]>([]);
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [filterOptions, setFilterOptions] = useState<SegmentFilterOptions | null>(null);
@@ -243,6 +245,77 @@ export const DashboardPage: React.FC = () => {
   const toggle = (key: keyof typeof openSections) =>
     setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
+  /* ── AI Narrative ── */
+  const [narrative, setNarrative] = useState<string | null>(null);
+  const [narrativeLoading, setNarrativeLoading] = useState(false);
+
+  /* ── Research Recommendation ── */
+  const [recommendation, setRecommendation] = useState<ResearchRecommendationResponse | null>(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [recommendationVisible, setRecommendationOpen] = useState(true);
+
+  useEffect(() => {
+    const loadRecommendation = async () => {
+      const projectId = await resolveDefaultProjectId();
+      if (!projectId) return;
+      setRecommendationLoading(true);
+      try {
+        const res = await geminiApi.recommendFilters(projectId);
+        if (res) setRecommendation(res);
+      } catch (error) {
+        console.error("Recommendation failed:", error);
+      } finally {
+        setRecommendationLoading(false);
+      }
+    };
+    loadRecommendation();
+  }, []);
+
+  const applyRecommendedFilters = () => {
+    if (!recommendation) return;
+    // 예: 연령대와 지역 필터 자동 설정
+    if (recommendation.suggested_filters.age_ranges) {
+      setSelectedAgeGroups(recommendation.suggested_filters.age_ranges);
+    }
+    if (recommendation.suggested_filters.regions) {
+      setSelectedRegions(recommendation.suggested_filters.regions);
+    }
+    setRecommendationOpen(false);
+  };
+
+  useEffect(() => {
+    if (!project?.id) return;
+    
+    const timer = setTimeout(async () => {
+      setNarrativeLoading(true);
+      try {
+        const filterSummaryParts: string[] = [];
+        if (selectedAgeGroups.length > 0) filterSummaryParts.push(selectedAgeGroups.join("·"));
+        if (!gender.male || !gender.female) filterSummaryParts.push(gender.male ? "남성" : "여성");
+        if (selectedOccupations.length > 0) filterSummaryParts.push(selectedOccupations.join("·"));
+        if (selectedRegions.length > 0) filterSummaryParts.push(selectedRegions.join("·"));
+        if (allKeywords.length > 0) filterSummaryParts.push(allKeywords.join("·"));
+        const filterSummary = filterSummaryParts.length > 0 ? filterSummaryParts.join(" · ") : "전체 모집단";
+
+        const res = await geminiApi.getSegmentNarrative({
+          project_id: project.id,
+          filter_summary: filterSummary,
+          segments: derivedSegments.map(s => ({ name: s.name, count: s.members.length })),
+          target_count: matchedPersonas.length
+        });
+        if (res) setNarrative(res.narrative);
+      } catch (error) {
+        console.error("Narrative fetch failed:", error);
+      } finally {
+        setNarrativeLoading(false);
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [project?.id, selectedAgeGroups, gender, selectedOccupations, selectedRegions, selectedHouseholds,
+      selectedSpending, selectedPurchaseIntent, selectedBuyChannels, selectedTechLevels, selectedSns,
+      selectedContentChannels, selectedBrandLoyalty, allKeywords, products, derivedSegments, matchedPersonas.length]);
+
   const productCount = Object.values(products).filter(Boolean).length;
 
   /* ── helpers ── */
@@ -329,7 +402,7 @@ export const DashboardPage: React.FC = () => {
   );
 
   const displayedPersonas = hasFilters ? matchedPersonas : allPersonas;
-  const totalPopulation = project?.target_responses ?? allPersonas.length;
+  const totalPopulation = allPersonas.length;
   const analyzedPopulation = displayedPersonas.length;
   const averageAge = analyzedPopulation > 0
     ? (displayedPersonas.reduce((sum, persona) => sum + persona.age, 0) / analyzedPopulation).toFixed(1)
@@ -732,24 +805,86 @@ export const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 매칭 결과 요약 + 적용 */}
+          {/* 매칭 결과 요약 + 다음 단계 */}
           <div className="p-4 border-t border-[var(--border)] bg-card shrink-0 space-y-3">
-            {hasFilters && (
-              <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${matchedPersonas.length > 0 ? "border-[var(--primary-light-border)] bg-[var(--primary-light-bg2)]" : "border-red-100 bg-red-50"}`}>
-                <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-[0.1em] ${matchedPersonas.length > 0 ? "text-primary" : "text-red-500"}`}>매칭된 페르소나</p>
-                  <p className={`text-[20px] font-bold leading-none mt-0.5 ${matchedPersonas.length > 0 ? "text-foreground" : "text-red-400"}`}>
-                    {matchedPersonas.length.toLocaleString()}<span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / {allPersonas.length.toLocaleString()}명</span>
+            {/* AI Narrative Card */}
+            {(narrative || narrativeLoading) && (
+              <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
+                <div className="flex items-center gap-2 mb-2">
+                  <Cpu size={12} className="text-primary animate-pulse" />
+                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.15em]">AI Segment Narrative</p>
+                </div>
+                {narrativeLoading ? (
+                  <div className="space-y-2">
+                    <div className="h-3 bg-primary/10 rounded animate-pulse w-full" />
+                    <div className="h-3 bg-primary/10 rounded animate-pulse w-[90%]" />
+                    <div className="h-3 bg-primary/10 rounded animate-pulse w-[70%]" />
+                  </div>
+                ) : (
+                  <p className="text-[11px] leading-relaxed font-bold text-[var(--secondary-foreground)]">
+                    {narrative}
                   </p>
-                </div>
-                <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${matchedPersonas.length > 0 ? "bg-primary/10 text-primary" : "bg-red-100 text-red-500"}`}>
-                  {matchedPersonas.length > 0 ? `${derivedSegments.length}개 그룹` : "해당 없음"}
-                </div>
+                )}
               </div>
             )}
-            <button className="w-full bg-primary text-white rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-[var(--shadow-sm)] hover:bg-[var(--primary-hover)] active:scale-[0.98] transition-all">
-              <RefreshCw size={14} />
-              <span className="text-[13px] font-bold uppercase tracking-tight">세그먼트 분석 실행</span>
+
+            <div className={`rounded-xl border px-4 py-3 flex items-center justify-between ${displayedPersonas.length > 0 ? "border-[var(--primary-light-border)] bg-[var(--primary-light-bg2)]" : "border-red-100 bg-red-50"}`}>
+              <div>
+                <p className={`text-[10px] font-bold uppercase tracking-[0.1em] ${displayedPersonas.length > 0 ? "text-primary" : "text-red-500"}`}>
+                  {hasFilters ? "매칭된 페르소나" : "전체 페르소나"}
+                </p>
+                <p className={`text-[20px] font-bold leading-none mt-0.5 ${displayedPersonas.length > 0 ? "text-foreground" : "text-red-400"}`}>
+                  {displayedPersonas.length.toLocaleString()}
+                  <span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">명 / {allPersonas.length.toLocaleString()}명</span>
+                </p>
+              </div>
+              <div className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${displayedPersonas.length > 0 ? "bg-primary/10 text-primary" : "bg-red-100 text-red-500"}`}>
+                {displayedPersonas.length > 0 ? `${derivedSegments.length}개 그룹` : "해당 없음"}
+              </div>
+            </div>
+            {/* AI 내러티브 카드 */}
+            {(narrative || narrativeLoading) && (
+              <div className="mb-3 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] p-3">
+                <p className="mb-1 text-[9px] font-black uppercase tracking-[0.18em] text-primary">AI Segment Narrative</p>
+                {narrativeLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0.2s]" />
+                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0.4s]" />
+                  </div>
+                ) : (
+                  <p className="text-[11px] font-medium leading-relaxed text-[var(--secondary-foreground)]">{narrative}</p>
+                )}
+              </div>
+            )}
+            <button
+              disabled={displayedPersonas.length === 0}
+              onClick={() => {
+                const filterSummaryParts: string[] = [];
+                if (selectedAgeGroups.length > 0) filterSummaryParts.push(selectedAgeGroups.join("·"));
+                if (!gender.male || !gender.female) filterSummaryParts.push(gender.male ? "남성" : "여성");
+                if (selectedOccupations.length > 0) filterSummaryParts.push(selectedOccupations.slice(0, 2).join("·") + (selectedOccupations.length > 2 ? ` 외 ${selectedOccupations.length - 2}` : ""));
+                if (selectedRegions.length > 0) filterSummaryParts.push(selectedRegions[0] + (selectedRegions.length > 1 ? ` 외 ${selectedRegions.length - 1}` : ""));
+                if (allKeywords.length > 0) filterSummaryParts.push(allKeywords.slice(0, 2).join("·"));
+
+                navigate("/survey", {
+                  state: {
+                    projectId: project?.id ?? null,
+                    segmentFilter: {
+                      totalMatched: displayedPersonas.length,
+                      totalPopulation: allPersonas.length,
+                      hasFilters,
+                      segments: derivedSegments.map((s) => ({ name: s.name, count: s.members.length })),
+                      personaIds: displayedPersonas.map((p) => p.id),
+                      filterSummary: filterSummaryParts.length > 0 ? filterSummaryParts.join(" · ") : "전체 모집단",
+                    },
+                  },
+                });
+              }}
+              className="w-full bg-primary text-white rounded-xl py-3.5 flex items-center justify-center gap-2 shadow-[var(--shadow-sm)] hover:bg-[var(--primary-hover)] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <span className="text-[13px] font-bold tracking-tight">설문 디자인으로</span>
+              <ChevronRight size={15} />
             </button>
           </div>
         </aside>
@@ -771,6 +906,54 @@ export const DashboardPage: React.FC = () => {
           </div>
 
           <main className="flex-1 overflow-y-auto px-10 pt-8 pb-4 hide-scrollbar space-y-8">
+
+            {/* ── AI Research Design Recommendation Banner ── */}
+            {recommendationVisible && (recommendation || recommendationLoading) && (
+              <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] to-card p-1 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
+                <div className="rounded-[22px] bg-white p-6 md:p-8 flex flex-col md:flex-row items-center gap-8">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-inner">
+                    <Sparkles size={32} />
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
+                      <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">AI Research Design Recommendation</p>
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                    </div>
+                    {recommendationLoading ? (
+                      <div className="space-y-3">
+                        <div className="h-6 bg-primary/5 rounded-lg animate-pulse w-3/4" />
+                        <div className="h-4 bg-primary/5 rounded-lg animate-pulse w-1/2" />
+                      </div>
+                    ) : (
+                      <>
+                        <h2 className="text-[20px] font-black text-foreground tracking-tight mb-2">
+                          {recommendation?.recommendation}
+                        </h2>
+                        <p className="text-[13px] font-medium text-[var(--muted-foreground)] leading-relaxed">
+                          {recommendation?.rationale}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => setRecommendationOpen(false)}
+                      className="px-6 py-3 rounded-xl border border-[var(--border)] text-[13px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] transition-all"
+                    >
+                      나중에 하기
+                    </button>
+                    <button
+                      onClick={applyRecommendedFilters}
+                      disabled={recommendationLoading}
+                      className="px-8 py-3 rounded-xl bg-primary text-white text-[13px] font-black shadow-lg hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-2"
+                    >
+                      추천 필터 적용하기
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* ── 전체 분포 요약 ── */}
             <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_0.6fr] gap-8">
