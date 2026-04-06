@@ -452,8 +452,8 @@ const SPEND_MAP: Record<string, string> = {
   "실용 중시 가족형": "10-20만원", "콘텐츠 크리에이터": "15-25만원",
 };
 
-function mapPersonaItems(items: any[]): Persona[] {
-  return (items || []).map((item: any, idx: number) => ({
+function mapPersonaItems(items: Record<string, unknown>[]): Persona[] {
+  return (items || []).map((item: Record<string, unknown>, idx: number) => ({
     id: item.id,
     projectId: item.project_id,
     name: item.name || "이름 없음",

@@ -5,7 +5,8 @@ import { Loader } from "lucide-react";
 import { projectApi } from "@/lib/api";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { ProjectCard } from "@/components/home/ProjectCard";
-import { WizardModal, SURVEY_TYPES, type SurveyType } from "@/components/home/WizardModal";
+import { WizardModal } from "@/components/home/WizardModal";
+import { SURVEY_TYPES, type SurveyType } from "@/components/home/wizardTypes";
 export function HomePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();

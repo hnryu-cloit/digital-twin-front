@@ -12,12 +12,16 @@ export default defineConfig([
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
-      reactHooks.configs.flat.recommended,
+      reactHooks.configs['recommended-latest'],
       reactRefresh.configs.vite,
     ],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+    },
+    rules: {
+      // shadcn/ui 컴포넌트는 cva() 패턴으로 상수와 컴포넌트를 함께 export하므로 허용
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
 ])
