@@ -31,21 +31,19 @@ import {
 import {
   aiJobApi,
   fetchIndividualPersonas,
-  projectApi,
   reportApi,
-  resolveDefaultProjectId,
   simulationApi,
   surveyApi,
   type KeywordTrendItem,
   type AIJob,
   type Persona,
   type ReportDownloadInfo,
-  type ProjectDetail,
   type ReportDetail,
   type ResponseDistributionItem,
   type ActionPlanResponse,
   geminiApi,
 } from "@/lib/api";
+import { useProject } from "@/hooks/useProject";
 
 const SECTIONS = [
   { id: "summary", label: "종합 분석 요약", icon: "01" },
@@ -148,38 +146,32 @@ function SectionHeader({ num, title, badge, onDetailClick }: { num: string; titl
 }
 
 export const ReportPage: React.FC = () => {
+  const { project, projectId } = useProject();
   const [activeSection, setSection] = useState<SectionId>("summary");
   const [downloadOpen, setDownloadOpen] = useState(false);
   const downloadRef = useRef<HTMLDivElement>(null);
   const [reportData, setReportData] = useState<ReportDetail | null>(null);
-  const [project, setProject] = useState<ProjectDetail | null>(null);
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [keywords, setKeywords] = useState<KeywordTrendItem[]>([]);
   const [questionDistributions, setQuestionDistributions] = useState<DistributionWithQuestion[]>([]);
   const [downloadInfo, setDownloadInfo] = useState<ReportDownloadInfo | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [activeReportJob, setActiveReportJob] = useState<AIJob | null>(null);
   const [actionPlan, setActionPlan] = useState<ActionPlanResponse | null>(null);
   const [actionPlanLoading, setActionPlanLoading] = useState(false);
 
   useEffect(() => {
+    if (!projectId) return;
     let cancelled = false;
 
     const loadData = async () => {
-      const resolvedProjectId = await resolveDefaultProjectId();
-      if (cancelled || !resolvedProjectId) return;
-      setProjectId(resolvedProjectId);
-
-      const [{ items }, projectDetail, personaItems, surveyQuestions, keywordItems] = await Promise.all([
-        reportApi.listReports(resolvedProjectId, 1, 1),
-        projectApi.getProject(resolvedProjectId),
-        fetchIndividualPersonas(resolvedProjectId),
-        surveyApi.getQuestions(resolvedProjectId),
-        simulationApi.getKeywords(resolvedProjectId),
+      const [{ items }, personaItems, surveyQuestions, keywordItems] = await Promise.all([
+        reportApi.listReports(projectId, 1, 1),
+        fetchIndividualPersonas(projectId),
+        surveyApi.getQuestions(projectId),
+        simulationApi.getKeywords(projectId),
       ]);
 
       if (cancelled) return;
-      setProject(projectDetail);
       setPersonas(personaItems);
       setKeywords(keywordItems);
 
@@ -196,7 +188,7 @@ export const ReportPage: React.FC = () => {
         surveyQuestions.map(async (question) => ({
           questionId: question.id,
           questionText: question.text,
-          distribution: await simulationApi.getDistribution(resolvedProjectId, question.id),
+          distribution: await simulationApi.getDistribution(projectId, question.id),
         })),
       );
 
@@ -205,12 +197,13 @@ export const ReportPage: React.FC = () => {
       }
     };
 
-    loadData();
+    void loadData();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   useEffect(() => {
     if (!activeReportJob) return;

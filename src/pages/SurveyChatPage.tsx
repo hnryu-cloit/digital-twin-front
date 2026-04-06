@@ -22,7 +22,8 @@ import { AppPagination } from"@/components/ui/AppPagination";
 import { buttonVariants } from"@/components/ui/button";
 import { cn } from"@/lib/utils";
 import favicon from"@/assets/favicon.svg";
-import { aiJobApi, geminiApi, resolveDefaultProjectId, surveyApi, type AIJob, type SurveyDraftPreview, type SurveyQualityCheckResponse, type SurveyTemplate } from"@/lib/api";
+import { aiJobApi, geminiApi, surveyApi, type AIJob, type SurveyDraftPreview, type SurveyQualityCheckResponse, type SurveyTemplate } from "@/lib/api";
+import { useProject } from "@/hooks/useProject";
 
 type QuestionType ="단일선택" |"복수선택" |"리커트척도" |"주관식";
 
@@ -273,7 +274,7 @@ export const SurveyChatPage: React.FC = () => {
  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
  const [input, setInput] = useState("");
- const [projectId, setProjectId] = useState<string | null>(null);
+ const { projectId } = useProject();
  const [activeJob, setActiveJob] = useState<AIJob | null>(null);
  const [openMenu, setOpenMenu] = useState<number | string | null>(null);
  const [editingId, setEditingId] = useState<number | string | null>(null);
@@ -300,17 +301,12 @@ export const SurveyChatPage: React.FC = () => {
  ? "Failed"
  : "Drafting";
 
- // 마운트 시 API에서 설문 문항 로드
+ // 마운트 시 API에서 설문 문항 로드 (projectId resolve 후 실행)
  useEffect(() => {
+   if (!projectId) return;
    const loadQuestions = async () => {
-     const requestedProjectId =
-       typeof (location.state as { projectId?: unknown } | null)?.projectId === "string"
-         ? ((location.state as { projectId?: string }).projectId ?? null)
-         : null;
-     const resolvedProjectId = requestedProjectId ?? await resolveDefaultProjectId();
-     setProjectId(resolvedProjectId);
      const [apiQuestions, apiTemplates] = await Promise.all([
-       surveyApi.getQuestions(resolvedProjectId ?? undefined),
+       surveyApi.getQuestions(projectId),
        surveyApi.getTemplates(),
      ]);
      setTemplates(apiTemplates);
@@ -319,20 +315,21 @@ export const SurveyChatPage: React.FC = () => {
          apiTemplates.some((item) => item.template_id === current) ? current : apiTemplates[0].template_id
        );
      }
-	     if (apiQuestions.length > 0) {
-	       setQuestions(
-	         apiQuestions.map((q) => ({
-	           id: q.id,
-	           text: q.text,
-	           type: q.type as QuestionType,
+     if (apiQuestions.length > 0) {
+       setQuestions(
+         apiQuestions.map((q) => ({
+           id: q.id,
+           text: q.text,
+           type: q.type as QuestionType,
            options: q.options ?? [],
            status: q.status,
-	         }))
-	       );
-	     }
+         }))
+       );
+     }
    };
-   loadQuestions();
- }, [location.state]);
+   void loadQuestions();
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [projectId]);
 
  useEffect(() => {
  chatEndRef.current?.scrollIntoView({ behavior:"smooth" });

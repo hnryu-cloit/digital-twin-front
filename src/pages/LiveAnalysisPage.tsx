@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import { useProject } from "@/hooks/useProject";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import {
   BarChart3,
   Pause,
@@ -28,13 +30,10 @@ import { useLocation } from "react-router-dom";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import {
   geminiApi,
-  projectApi,
-  resolveDefaultProjectId,
   simulationApi,
   surveyApi,
   type CrossSegmentSummaryResponse,
   type KeywordTrendItem,
-  type ProjectDetail,
   type ResponseDistributionItem,
   type SimulationFeedItem,
 } from "@/lib/api";
@@ -168,8 +167,7 @@ export const LiveAnalysisPage: React.FC = () => {
   const location = useLocation();
   const segmentFilter = (location.state as { segmentFilter?: { totalMatched: number; totalPopulation: number; segments: Array<{ name: string; count: number }>; filterSummary: string } } | null)?.segmentFilter ?? null;
 
-  const [project, setProject] = useState<ProjectDetail | null>(null);
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const { project, projectId } = useProject();
   const [activeQuestion, setActiveQuestion] = useState("");
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [chatFeed, setChatFeed] = useState<ChatResponse[]>([]);
@@ -194,27 +192,18 @@ export const LiveAnalysisPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (!projectId) return;
     let cancelled = false;
 
     const loadBaseData = async () => {
-      const resolvedProjectId = await resolveDefaultProjectId();
-      if (cancelled || !resolvedProjectId) return;
-
-      setProjectId(resolvedProjectId);
-
-      const [projectDetail, surveyQuestions] = await Promise.all([
-        projectApi.getProject(resolvedProjectId),
-        surveyApi.getQuestions(resolvedProjectId),
-      ]);
-
+      const surveyQuestions = await surveyApi.getQuestions(projectId);
       if (cancelled) return;
-      setProject(projectDetail);
 
       const results = await Promise.all(
         surveyQuestions.map(async (question) => ({
           id: question.id,
           text: question.text,
-          data: await simulationApi.getDistribution(resolvedProjectId, question.id),
+          data: await simulationApi.getDistribution(projectId, question.id),
         })),
       );
 
@@ -225,45 +214,36 @@ export const LiveAnalysisPage: React.FC = () => {
       }
     };
 
-    loadBaseData();
+    void loadBaseData();
 
     return () => {
       cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!projectId) return;
-    let cancelled = false;
-
-    const refreshLiveData = async () => {
-      const [progress, feedItems, keywordItems] = await Promise.all([
-        simulationApi.getProgress(projectId),
-        simulationApi.getFeed(projectId, 20),
-        simulationApi.getKeywords(projectId),
-      ]);
-
-      if (cancelled) return;
-
-      setKeywords(keywordItems);
-      setChatFeed(feedItems.map(mapFeedItem));
-
-      if (progress) {
-        setCompletionRate(Math.round(progress.progress));
-        setCompletedResponses(progress.completed_responses);
-        setTargetResponses(progress.target_responses);
-        setIsLive(progress.status === "running");
-      }
-    };
-
-    refreshLiveData();
-    const timer = window.setInterval(refreshLiveData, 10000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
     };
   }, [projectId]);
+
+  const refreshLiveData = async () => {
+    if (!projectId) return;
+    const [progress, feedItems, keywordItems] = await Promise.all([
+      simulationApi.getProgress(projectId),
+      simulationApi.getFeed(projectId, 20),
+      simulationApi.getKeywords(projectId),
+    ]);
+    setKeywords(keywordItems);
+    setChatFeed(feedItems.map(mapFeedItem));
+    if (progress) {
+      setCompletionRate(Math.round(progress.progress));
+      setCompletedResponses(progress.completed_responses);
+      setTargetResponses(progress.target_responses);
+      setIsLive(progress.status === "running");
+    }
+  };
+
+  // 최초 1회 로드
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (projectId) void refreshLiveData(); }, [projectId]);
+
+  // 10초 주기 폴링
+  useAutoRefresh(refreshLiveData, 10_000, !!projectId);
 
   useEffect(() => {
     if (!projectId || !activeQuestion) return;

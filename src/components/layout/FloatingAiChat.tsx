@@ -1,9 +1,10 @@
-import type React from"react";
-import { useRef, useState, useEffect } from"react";
-import { Send, User, X, RotateCcw } from"lucide-react";
-import { assistantApi, projectApi, resolveDefaultProjectId, type ProjectDetail } from"@/lib/api";
-import { cn } from"@/lib/utils";
-import favicon from"@/assets/favicon.svg";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { Send, User, X, RotateCcw } from "lucide-react";
+import { assistantApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import favicon from "@/assets/favicon.svg";
+import { useProject } from "@/hooks/useProject";
 
 type Message = {
  id: number;
@@ -23,34 +24,10 @@ const initialMessages: Message[] = [
  },
 ];
 
-const mockResponses: Record<string, Message> = {
- default: {
- id: 0,
- role:"assistant",
- content:"현재 분석 결과, 30대 Gamer 세그먼트의 구매 의향이 전주 대비 12% 상승했습니다. 특히 카메라의 AI 보정 기능이 주된 요인으로 분석됩니다.",
- evidence: [
- { label:"데이터 신뢰도", value:"94%" },
- { label:"분석 표본", value:"집계 중" },
- ],
- confidence: 94,
- timestamp:"",
- },
- 리포트: {
- id: 0,
- role:"assistant",
- content:"리포트 종합 요약에 따르면, 신규 컨셉에 대한 긍정 반응이 68%로 매우 높게 나타납니다. 가격 저항선이 높은 고연령층을 위한 별도 혜택 구성을 추천합니다.",
- evidence: [
- { label:"주요 인사이트", value:"가격 최적화 필요" },
- { label:"추천 액션", value:"보상판매 강화" },
- ],
- confidence: 91,
- timestamp:"",
- },
-};
 
 export const FloatingAiChat: React.FC = () => {
  const [isOpen, setIsOpen] = useState(false);
- const [project, setProject] = useState<ProjectDetail | null>(null);
+ const { projectId } = useProject();
  const [messages, setMessages] = useState<Message[]>(initialMessages);
  const [input, setInput] = useState("");
  const [loading, setLoading] = useState(false);
@@ -62,16 +39,6 @@ export const FloatingAiChat: React.FC = () => {
  setTimeout(() => bottomRef.current?.scrollIntoView({ behavior:"smooth" }), 100);
  }
  }, [isOpen, messages]);
-
- useEffect(() => {
- const loadProject = async () => {
- const projectId = await resolveDefaultProjectId();
- if (!projectId) return;
- const projectDetail = await projectApi.getProject(projectId);
- setProject(projectDetail);
- };
- loadProject();
- }, []);
 
   const send = async () => {
     const text = input.trim();
@@ -93,7 +60,7 @@ export const FloatingAiChat: React.FC = () => {
         message: m.content
       }));
       
-      const res = await assistantApi.chat(text, history, project?.id);
+      const res = await assistantApi.chat(text, history, projectId);
       
       if (res) {
         const aiMsg: Message = {

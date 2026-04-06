@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { dataApi, projectApi, type Project, type ProjectCreatePayload } from "@/lib/api";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
   ArrowRight,
   Check,
@@ -626,8 +627,8 @@ export function HomePage() {
       setWizardOpen(false);
       setWizardTemplate(undefined);
       setSubmitError(null);
-      sessionStorage.setItem("currentProjectName", project.name);
-      sessionStorage.setItem("currentProjectId", project.id);
+      sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.name);
+      sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
       navigate("/analytics", { state: { projectId: project.id } });
     },
     onError: () => {
@@ -713,7 +714,7 @@ export function HomePage() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onClick={() => { sessionStorage.setItem("currentProjectName", project.name); sessionStorage.setItem("currentProjectId", project.id); navigate("/analytics", { state: { projectId: project.id } }); }}
+                  onClick={() => { sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title); sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id); navigate("/analytics", { state: { projectId: project.id } }); }}
                 />
               ))
             )}

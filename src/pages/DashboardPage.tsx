@@ -1,12 +1,13 @@
 import type React from "react";
 import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchIndividualPersonas, geminiApi, projectApi, resolveDefaultProjectId, segmentApi, type ProjectDetail, type SegmentFilterOptions, type ResearchRecommendationResponse } from "@/lib/api";
+import { fetchIndividualPersonas, geminiApi, segmentApi, type SegmentFilterOptions, type ResearchRecommendationResponse } from "@/lib/api";
+import { useProject } from "@/hooks/useProject";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
-  Users, Smartphone, RefreshCw,
+  Users, Smartphone,
   ChevronDown, ChevronUp, ChevronRight,
   MapPin, ShoppingBag,
   SlidersHorizontal, Clock, Briefcase, Globe, Tag,
@@ -135,39 +136,42 @@ const CUSTOM_LABEL = ({ cx, cy, total }: { cx: number; cy: number; total: number
 );
 
 
+const SEGMENT_SPEND: Record<string, SpendingLevel> = {
+  "MZ 얼리어답터": "프리미엄형", "게이밍 성향군": "프리미엄형",
+  "프리미엄 구매자": "프리미엄형", "비즈니스 프로": "실용형",
+  "실용 중시 가족형": "실용형", "콘텐츠 크리에이터": "실용형",
+};
+
+const CHANNEL_MAP: Record<string, string> = {
+  "YouTube": "YouTube", "Instagram": "Instagram",
+  "TikTok": "TikTok", "LinkedIn": "뉴스/미디어",
+};
+
+const BUY_CHANNEL_MAP: Record<string, string> = {
+  "YouTube": "자급제",
+  "Instagram": "공식몰",
+  "TikTok": "통신사 대리점",
+  "LinkedIn": "오프라인 유통",
+};
+
 /* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { project, projectId } = useProject();
   const [allPersonas, setAllPersonas] = useState<FilterPersona[]>([]);
-  const [project, setProject] = useState<ProjectDetail | null>(null);
   const [filterOptions, setFilterOptions] = useState<SegmentFilterOptions | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (projectId === null) return; // useProject가 아직 resolve 중
     const loadData = async () => {
       try {
         setLoading(true);
-        const projectId = await resolveDefaultProjectId();
-        const [items, projectDetail, options] = await Promise.all([
+        const [items, options] = await Promise.all([
           fetchIndividualPersonas(projectId ?? undefined),
-          projectId ? projectApi.getProject(projectId) : Promise.resolve(null),
           segmentApi.getFilterOptions(),
         ]);
-        const SEGMENT_SPEND: Record<string, SpendingLevel> = {
-          "MZ 얼리어답터": "프리미엄형", "게이밍 성향군": "프리미엄형",
-          "프리미엄 구매자": "프리미엄형", "비즈니스 프로": "실용형",
-          "실용 중시 가족형": "실용형", "콘텐츠 크리에이터": "실용형",
-        };
-        const CHANNEL_MAP: Record<string, string> = {
-          "YouTube": "YouTube", "Instagram": "Instagram",
-          "TikTok": "TikTok", "LinkedIn": "뉴스/미디어",
-        };
-        const BUY_CHANNEL_MAP: Record<string, string> = {
-          "YouTube": "자급제",
-          "Instagram": "공식몰",
-          "TikTok": "통신사 대리점",
-          "LinkedIn": "오프라인 유통",
-        };
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mapped: FilterPersona[] = (items || []).map((item: any) => ({
           id: item.id,
           name: item.name || "이름 없음",
@@ -190,7 +194,6 @@ export const DashboardPage: React.FC = () => {
           buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",
         }));
         setAllPersonas(mapped);
-        setProject(projectDetail);
         setFilterOptions(options ?? null);
       } catch (error) {
         console.error("Dashboard data load failed:", error);
@@ -198,8 +201,9 @@ export const DashboardPage: React.FC = () => {
         setLoading(false);
       }
     };
-    loadData();
-  }, []);
+    void loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   /* ── State ── */
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
@@ -255,9 +259,8 @@ export const DashboardPage: React.FC = () => {
   const [recommendationVisible, setRecommendationOpen] = useState(true);
 
   useEffect(() => {
+    if (!projectId) return;
     const loadRecommendation = async () => {
-      const projectId = await resolveDefaultProjectId();
-      if (!projectId) return;
       setRecommendationLoading(true);
       try {
         const res = await geminiApi.recommendFilters(projectId);
@@ -268,8 +271,9 @@ export const DashboardPage: React.FC = () => {
         setRecommendationLoading(false);
       }
     };
-    loadRecommendation();
-  }, []);
+    void loadRecommendation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   const applyRecommendedFilters = () => {
     if (!recommendation) return;
@@ -282,6 +286,58 @@ export const DashboardPage: React.FC = () => {
     }
     setRecommendationOpen(false);
   };
+
+  /* ── 필터 파생값 (narrative useEffect deps보다 먼저 선언) ── */
+  const allKeywords = [...customKeywords];
+  const hasFilters =
+    selectedAgeGroups.length > 0 || (!gender.male || !gender.female) ||
+    selectedOccupations.length > 0 || selectedRegions.length > 0 || selectedHouseholds.length > 0 ||
+    selectedSpending.length > 0 || selectedPurchaseIntent.length > 0 || selectedBuyChannels.length > 0 ||
+    selectedTechLevels.length > 0 || selectedSns.length > 0 || selectedContentChannels.length > 0 || selectedBrandLoyalty.length > 0 ||
+    allKeywords.length > 0;
+
+  const matchedPersonas = useMemo(() => {
+    return allPersonas.filter((p) => {
+      if (selectedAgeGroups.length > 0) {
+        if (!AGE_GROUPS.filter((g) => selectedAgeGroups.includes(g.label)).some((g) => p.age >= g.min && p.age <= g.max)) return false;
+      }
+      if (p.gender === "남성" && !gender.male) return false;
+      if (p.gender === "여성" && !gender.female) return false;
+      if (selectedOccupations.length > 0 && !selectedOccupations.includes(p.occupationCat)) return false;
+      if (selectedRegions.length > 0 && !selectedRegions.includes(p.region)) return false;
+      if (selectedHouseholds.length > 0 && !selectedHouseholds.includes(p.householdType)) return false;
+      if (selectedSpending.length > 0 && !selectedSpending.includes(p.spendingLevel)) return false;
+      if (selectedPurchaseIntent.length > 0 && !selectedPurchaseIntent.includes(p.purchaseIntent)) return false;
+      if (selectedBuyChannels.length > 0 && !selectedBuyChannels.includes(p.buyChannel)) return false;
+      const selectedProducts = Object.entries(products)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key);
+      if (selectedProducts.length > 0 && !selectedProducts.includes(p.device)) return false;
+      if (selectedTechLevels.length > 0 && !selectedTechLevels.includes(p.techLevel)) return false;
+      if (selectedSns.length > 0 && !selectedSns.includes(p.snsActivity)) return false;
+      if (selectedContentChannels.length > 0 && !selectedContentChannels.some((ch) => p.contentChannels.includes(ch))) return false;
+      if (selectedBrandLoyalty.length > 0 && !selectedBrandLoyalty.includes(p.brandLoyalty)) return false;
+      if (allKeywords.length > 0) {
+        const hit = allKeywords.some((kw) => {
+          const q = kw.toLowerCase();
+          return (
+            p.interests.some((i) => i.toLowerCase().includes(q)) ||
+            p.keywords.some((k) => k.toLowerCase().includes(q)) ||
+            p.occupation.toLowerCase().includes(q)
+          );
+        });
+        if (!hit) return false;
+      }
+      return true;
+    });
+  }, [allPersonas, selectedAgeGroups, gender, selectedOccupations, selectedRegions, selectedHouseholds,
+      selectedSpending, selectedPurchaseIntent, selectedBuyChannels, selectedTechLevels, selectedSns,
+      selectedContentChannels, selectedBrandLoyalty, allKeywords, products]);
+
+  const derivedSegments = useMemo(
+    () => deriveSegments(hasFilters ? matchedPersonas : allPersonas),
+    [matchedPersonas, allPersonas, hasFilters]
+  );
 
   useEffect(() => {
     if (!project?.id) return;
@@ -341,65 +397,12 @@ export const DashboardPage: React.FC = () => {
   };
 
   /* ── active filter count ── */
-  const allKeywords = [...customKeywords];
-  const hasFilters =
-    selectedAgeGroups.length > 0 || (!gender.male || !gender.female) ||
-    selectedOccupations.length > 0 || selectedRegions.length > 0 || selectedHouseholds.length > 0 ||
-    selectedSpending.length > 0 || selectedPurchaseIntent.length > 0 || selectedBuyChannels.length > 0 ||
-    selectedTechLevels.length > 0 || selectedSns.length > 0 || selectedContentChannels.length > 0 || selectedBrandLoyalty.length > 0 ||
-    allKeywords.length > 0;
-
   const activeFilterCount = [
     selectedAgeGroups, selectedOccupations, selectedRegions, selectedHouseholds,
     selectedSpending, selectedPurchaseIntent, selectedBuyChannels,
     selectedTechLevels, selectedSns, selectedContentChannels, selectedBrandLoyalty,
     allKeywords,
   ].reduce((s, a) => s + a.length, 0) + (gender.male && gender.female ? 0 : 1);
-
-  /* ── matching ── */
-  const matchedPersonas = useMemo(() => {
-    return allPersonas.filter((p) => {
-      if (selectedAgeGroups.length > 0) {
-        if (!AGE_GROUPS.filter((g) => selectedAgeGroups.includes(g.label)).some((g) => p.age >= g.min && p.age <= g.max)) return false;
-      }
-      if (p.gender === "남성" && !gender.male) return false;
-      if (p.gender === "여성" && !gender.female) return false;
-      if (selectedOccupations.length > 0 && !selectedOccupations.includes(p.occupationCat)) return false;
-      if (selectedRegions.length > 0 && !selectedRegions.includes(p.region)) return false;
-      if (selectedHouseholds.length > 0 && !selectedHouseholds.includes(p.householdType)) return false;
-      if (selectedSpending.length > 0 && !selectedSpending.includes(p.spendingLevel)) return false;
-      if (selectedPurchaseIntent.length > 0 && !selectedPurchaseIntent.includes(p.purchaseIntent)) return false;
-      if (selectedBuyChannels.length > 0 && !selectedBuyChannels.includes(p.buyChannel)) return false;
-      const selectedProducts = Object.entries(products)
-        .filter(([, enabled]) => enabled)
-        .map(([key]) => key);
-      if (selectedProducts.length > 0 && !selectedProducts.includes(p.device)) return false;
-      if (selectedTechLevels.length > 0 && !selectedTechLevels.includes(p.techLevel)) return false;
-      if (selectedSns.length > 0 && !selectedSns.includes(p.snsActivity)) return false;
-      if (selectedContentChannels.length > 0 && !selectedContentChannels.some((ch) => p.contentChannels.includes(ch))) return false;
-      if (selectedBrandLoyalty.length > 0 && !selectedBrandLoyalty.includes(p.brandLoyalty)) return false;
-      if (allKeywords.length > 0) {
-        const hit = allKeywords.some((kw) => {
-          const q = kw.toLowerCase();
-          return (
-            p.interests.some((i) => i.toLowerCase().includes(q)) ||
-            p.keywords.some((k) => k.toLowerCase().includes(q)) ||
-            p.occupation.toLowerCase().includes(q)
-          );
-        });
-        if (!hit) return false;
-      }
-      return true;
-    });
-  }, [allPersonas, selectedAgeGroups, gender, selectedOccupations, selectedRegions, selectedHouseholds,
-      selectedSpending, selectedPurchaseIntent, selectedBuyChannels, selectedTechLevels, selectedSns,
-      selectedContentChannels, selectedBrandLoyalty, allKeywords, products]);
-
-  /* ── derive segments from matched personas ── */
-  const derivedSegments = useMemo(
-    () => deriveSegments(hasFilters ? matchedPersonas : allPersonas),
-    [matchedPersonas, allPersonas, hasFilters]
-  );
 
   const displayedPersonas = hasFilters ? matchedPersonas : allPersonas;
   const totalPopulation = allPersonas.length;

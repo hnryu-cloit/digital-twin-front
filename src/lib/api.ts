@@ -1,4 +1,5 @@
 import axios from "axios";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 
 // 백엔드 FastAPI 기본 URL (로컬 개발 환경 기준)
 export const apiClient = axios.create({
@@ -10,7 +11,7 @@ export const apiClient = axios.create({
 });
 
 // 토큰 캐시
-let _cachedToken: string | null = localStorage.getItem("dt_access_token");
+let _cachedToken: string | null = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
 let _defaultProjectIdPromise: Promise<string | null> | null = null;
 
 async function ensureToken(): Promise<string | null> {
@@ -21,7 +22,7 @@ async function ensureToken(): Promise<string | null> {
       password: "Admin1234!",
     });
     _cachedToken = res.data.access_token as string;
-    localStorage.setItem("dt_access_token", _cachedToken);
+    localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, _cachedToken);
     return _cachedToken;
   } catch {
     return null;
@@ -44,7 +45,7 @@ apiClient.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       _cachedToken = null;
-      localStorage.removeItem("dt_access_token");
+      localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       const token = await ensureToken();
       if (token && error.config) {
         error.config.headers["Authorization"] = `Bearer ${token}`;
@@ -680,7 +681,7 @@ export const simulationApi = {
     onError?: (err: unknown) => void,
   ): AbortController => {
     const controller = new AbortController();
-    const token = localStorage.getItem("access_token") ?? sessionStorage.getItem("access_token") ?? "";
+    const token = localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? "";
 
     (async () => {
       try {

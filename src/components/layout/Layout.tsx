@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import favicon from "@/assets/favicon.svg";
 import { FloatingAiChat } from "@/components/layout/FloatingAiChat";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
   Activity,
   BarChart2,
@@ -71,7 +72,7 @@ export const Layout: React.FC = () => {
   useEffect(() => {
     const stepIndex = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname);
     if (stepIndex >= 0) {
-      setProjectName(sessionStorage.getItem("currentProjectName") ?? "");
+      setProjectName(sessionStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_NAME) ?? "");
       const stored = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
       if (stepIndex > stored) {
         sessionStorage.setItem("workflowFurthestStep", String(stepIndex));
@@ -81,8 +82,8 @@ export const Layout: React.FC = () => {
       }
     } else if (location.pathname === "/") {
       sessionStorage.removeItem("workflowFurthestStep");
-      sessionStorage.removeItem("currentProjectName");
-      sessionStorage.removeItem("currentProjectId");
+      sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_NAME);
+      sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
       setFurthestStepIndex(-1);
       setProjectName("");
     }
@@ -210,7 +211,7 @@ export const Layout: React.FC = () => {
                       const handleClick = () => {
                         if (isLocked) return;
                         if (isWorkflowItem) {
-                          const pid = sessionStorage.getItem("currentProjectId");
+                          const pid = sessionStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
                           navigate(item.path, pid ? { state: { projectId: pid } } : undefined);
                         } else {
                           navigate(item.path);

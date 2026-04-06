@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AppPagination } from "@/components/ui/AppPagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aiJobApi, resolveDefaultProjectId, type AIJob } from "@/lib/api";
+import { aiJobApi, type AIJob } from "@/lib/api";
+import { useProject } from "@/hooks/useProject";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 
 const PAGE_SIZE = 10;
 
@@ -60,7 +62,7 @@ function resultSummary(job: AIJob): string {
 }
 
 export const AiJobCenterPage: React.FC = () => {
-  const [projectId, setProjectId] = useState<string | null>(null);
+  const { projectId } = useProject();
   const [jobs, setJobs] = useState<AIJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,16 +71,10 @@ export const AiJobCenterPage: React.FC = () => {
   const [page, setPage] = useState(1);
 
   const loadJobs = async (nextLoading = true) => {
+    if (!projectId) return;
     if (nextLoading) setLoading(true);
-    const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
-    setProjectId(resolvedProjectId);
-    if (!resolvedProjectId) {
-      setJobs([]);
-      if (nextLoading) setLoading(false);
-      return;
-    }
     const { items } = await aiJobApi.listJobs({
-      projectId: resolvedProjectId,
+      projectId,
       jobType: jobTypeFilter === "all" ? undefined : jobTypeFilter,
     });
     setJobs(items);
@@ -86,20 +82,17 @@ export const AiJobCenterPage: React.FC = () => {
   };
 
   useEffect(() => {
+    if (!projectId) return;
     void loadJobs();
-  }, [jobTypeFilter]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, jobTypeFilter]);
 
   useEffect(() => {
     setPage(1);
   }, [searchQuery, statusFilter, jobTypeFilter]);
 
-  useEffect(() => {
-    if (!jobs.some((job) => job.status === "queued" || job.status === "running")) return;
-    const timer = window.setInterval(() => {
-      void loadJobs(false);
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [jobs, projectId, jobTypeFilter]);
+  const hasActiveJobs = jobs.some((job) => job.status === "queued" || job.status === "running");
+  useAutoRefresh(() => loadJobs(false), 2000, !!projectId && hasActiveJobs);
 
   const filteredJobs = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();

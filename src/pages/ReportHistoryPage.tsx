@@ -7,7 +7,8 @@ import {
 } from "lucide-react";
 import { AppPagination } from "@/components/ui/AppPagination";
 import { cn } from "@/lib/utils";
-import { reportApi, resolveDefaultProjectId, type ReportSummary } from "@/lib/api";
+import { reportApi, type ReportSummary } from "@/lib/api";
+import { useProject } from "@/hooks/useProject";
 
 interface ReportItem {
   id: string;
@@ -52,19 +53,21 @@ function mapReportItem(r: ReportSummary): ReportItem {
 }
 
 export const ReportHistoryPage: React.FC = () => {
+  const { projectId } = useProject();
   const [downloadOpenId, setDownloadOpenId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [reportItems, setReportItems] = useState<ReportItem[]>([]);
   const downloadRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!projectId) return;
     const loadReports = async () => {
-      const projectId = await resolveDefaultProjectId();
-      const { items } = await reportApi.listReports(projectId ?? undefined, 1, 50);
+      const { items } = await reportApi.listReports(projectId, 1, 50);
       setReportItems(items.map(mapReportItem));
     };
-    loadReports();
-  }, []);
+    void loadReports();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
