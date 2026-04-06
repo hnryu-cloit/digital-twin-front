@@ -5,11 +5,7 @@ import { useEffect, useRef } from "react";
  * enabled가 false이면 인터벌을 설정하지 않는다.
  * fn은 ref로 관리하므로 최신 클로저를 항상 참조한다.
  */
-export function useAutoRefresh(
-  fn: () => void | Promise<void>,
-  intervalMs: number,
-  enabled = true,
-): void {
+export function useAutoRefresh(fn: () => void | Promise<void>, intervalMs: number, enabled = true): void {
   const fnRef = useRef(fn);
   fnRef.current = fn;
 

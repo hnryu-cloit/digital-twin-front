@@ -1,17 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import {
-  ArrowRight,
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Database,
-  Loader,
-  Plus,
-  Search,
-  Upload,
-  X,
-} from "lucide-react";
+import { ArrowRight, Check, ChevronLeft, ChevronRight, Database, Loader, Plus, Search, Upload, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { dataApi, type ProjectCreatePayload } from "@/lib/api";
 import {
@@ -63,7 +52,11 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
   const [typePage, setTypePage] = useState(0);
   const [dataSearch, setDataSearch] = useState("");
   const [dataPage, setDataPage] = useState(0);
-  const { data: tables, isLoading: tablesLoading, isError: tablesError } = useQuery({
+  const {
+    data: tables,
+    isLoading: tablesLoading,
+    isError: tablesError,
+  } = useQuery({
     queryKey: ["data-tables"],
     queryFn: () => dataApi.listTables(),
     retry: false,
@@ -73,12 +66,15 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
   const categories = ["전체", ...Array.from(new Set(SURVEY_TYPES.map((item) => item.category)))];
   const availableDataSources: (DataSourceCardMeta & { id: string })[] = Object.entries(tables ?? {})
     .filter(([, meta]) => meta.available)
-    .map(([id]) => ({ id, ...(DATA_SOURCE_CARD_META[id] ?? {
-      title: id,
-      desc: "연결 가능한 데이터 소스",
-      category: "기타",
-      icon: Database,
-    }) }));
+    .map(([id]) => ({
+      id,
+      ...(DATA_SOURCE_CARD_META[id] ?? {
+        title: id,
+        desc: "연결 가능한 데이터 소스",
+        category: "기타",
+        icon: Database,
+      }),
+    }));
   const filteredTypes = SURVEY_TYPES.filter((item) => {
     const categoryMatch = typeCategory === "전체" || item.category === typeCategory;
     const search = typeSearch.trim();
@@ -123,7 +119,10 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
 
   const handleAttachmentChange = (files: FileList | null) => {
     if (!files) return;
-    updateField("attachmentNames", Array.from(files).map((file) => file.name));
+    updateField(
+      "attachmentNames",
+      Array.from(files).map((file) => file.name)
+    );
   };
 
   const handleNext = () => {
@@ -150,14 +149,20 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
     event.preventDefault();
     const combinedDataSources = [
       ...form.data_sources,
-      ...form.custom_data_sources.split(",").map((item) => item.trim()).filter(Boolean),
+      ...form.custom_data_sources
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
     ];
     await onSubmit({
       name: form.name.trim(),
       type: form.type.trim(),
       purpose: form.purpose.trim(),
       description: form.description.trim() || undefined,
-      tags: form.tags.split(",").map((item) => item.trim()).filter(Boolean),
+      tags: form.tags
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
       data_sources: Array.from(new Set(combinedDataSources)),
     });
   };
@@ -169,11 +174,13 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
           <div>
             <h2 className="text-2xl font-black">새 프로젝트 생성</h2>
             <p className="mt-2 text-[13px] font-medium text-muted-foreground">
-              {[
-                "리서치 목적과 프로젝트 이름을 입력하세요.",
-                "조사 유형 템플릿을 선택하세요.",
-                "연결할 데이터 소스를 선택한 뒤 프로젝트를 시작하세요.",
-              ][step]}
+              {
+                [
+                  "리서치 목적과 프로젝트 이름을 입력하세요.",
+                  "조사 유형 템플릿을 선택하세요.",
+                  "연결할 데이터 소스를 선택한 뒤 프로젝트를 시작하세요.",
+                ][step]
+              }
             </p>
           </div>
           <button
@@ -189,16 +196,22 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
           {steps.map((label, index) => (
             <div key={label} className="flex flex-1 items-center last:flex-none">
               <div className="flex items-center gap-3">
-                <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-black transition-all ${
-                  index <= step ? "bg-primary text-white shadow-[var(--shadow-lg)]" : "bg-muted text-muted-foreground"
-                }`}>
+                <div
+                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-black transition-all ${
+                    index <= step ? "bg-primary text-white shadow-[var(--shadow-lg)]" : "bg-muted text-muted-foreground"
+                  }`}
+                >
                   {index < step ? <Check size={14} strokeWidth={3} /> : index + 1}
                 </div>
-                <span className={`text-[12px] font-black uppercase tracking-tight ${index === step ? "text-foreground" : "text-[var(--subtle-foreground)]"}`}>
+                <span
+                  className={`text-[12px] font-black uppercase tracking-tight ${index === step ? "text-foreground" : "text-[var(--subtle-foreground)]"}`}
+                >
                   {label}
                 </span>
               </div>
-              {index < steps.length - 1 && <div className={`mx-6 h-px flex-1 ${index < step ? "bg-primary/30" : "bg-border"}`} />}
+              {index < steps.length - 1 && (
+                <div className={`mx-6 h-px flex-1 ${index < step ? "bg-primary/30" : "bg-border"}`} />
+              )}
             </div>
           ))}
         </div>
@@ -208,7 +221,9 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="grid gap-5 md:grid-cols-2">
                 <label className="space-y-2">
-                  <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">프로젝트명</span>
+                  <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                    프로젝트명
+                  </span>
                   <input
                     value={form.name}
                     onChange={(event) => updateField("name", event.target.value)}
@@ -220,7 +235,9 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
               </div>
 
               <label className="space-y-2">
-                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">조사 목적</span>
+                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                  조사 목적
+                </span>
                 <textarea
                   value={form.purpose}
                   onChange={(event) => updateField("purpose", event.target.value)}
@@ -231,7 +248,9 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
               </label>
 
               <label className="space-y-2">
-                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">설명</span>
+                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                  설명
+                </span>
                 <textarea
                   value={form.description}
                   onChange={(event) => updateField("description", event.target.value)}
@@ -241,9 +260,17 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
               </label>
 
               <div>
-                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">참고자료</span>
+                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                  참고자료
+                </span>
                 <label className="mt-2 flex items-center gap-4 w-full px-5 py-4 rounded-[14px] border border-dashed border-[var(--primary-light-border)] bg-card hover:bg-[var(--primary-light-bg)] hover:border-[var(--primary-active-border)] transition-all cursor-pointer group shadow-[var(--shadow-sm)]">
-                  <input type="file" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.csv" className="hidden" onChange={(event) => handleAttachmentChange(event.target.files)} />
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xlsx,.csv"
+                    className="hidden"
+                    onChange={(event) => handleAttachmentChange(event.target.files)}
+                  />
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-light-bg)] border border-[var(--primary-light-border)] text-primary group-hover:bg-white transition-colors">
                     <Upload size={16} />
                   </div>
@@ -266,7 +293,10 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
           {step === 1 ? (
             <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="relative">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtle-foreground)]" />
+                <Search
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtle-foreground)]"
+                />
                 <input
                   className="w-full rounded-2xl border border-border bg-background pl-10 pr-4 py-3 text-[13px] font-semibold outline-none transition-colors focus:border-primary"
                   placeholder="템플릿 검색..."
@@ -311,16 +341,27 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                     }`}
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] shadow-[var(--shadow-sm)]">
-                      <item.icon className={`h-5 w-5 ${selectedType?.id === item.id ? "text-primary" : "text-muted-foreground"}`} />
+                      <item.icon
+                        className={`h-5 w-5 ${selectedType?.id === item.id ? "text-primary" : "text-muted-foreground"}`}
+                      />
                     </div>
                     <div>
-                      <p className={`text-[13px] font-bold ${selectedType?.id === item.id ? "text-primary" : "text-foreground"}`}>{item.title}</p>
-                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground line-clamp-2">{item.desc}</p>
+                      <p
+                        className={`text-[13px] font-bold ${selectedType?.id === item.id ? "text-primary" : "text-foreground"}`}
+                      >
+                        {item.title}
+                      </p>
+                      <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground line-clamp-2">
+                        {item.desc}
+                      </p>
                     </div>
                     {item.tags.length > 0 ? (
                       <div className="flex flex-wrap gap-1.5">
                         {item.tags.slice(0, 2).map((tag) => (
-                          <span key={tag} className="rounded-md border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--secondary-foreground)]">
+                          <span
+                            key={tag}
+                            className="rounded-md border border-[var(--border)] bg-[var(--panel-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--secondary-foreground)]"
+                          >
                             #{tag}
                           </span>
                         ))}
@@ -357,7 +398,10 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
               </div>
 
               <div className="relative">
-                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtle-foreground)]" />
+                <Search
+                  size={15}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--subtle-foreground)]"
+                />
                 <input
                   className="w-full rounded-2xl border border-border bg-background pl-10 pr-4 py-3 text-[13px] font-semibold outline-none transition-colors focus:border-primary"
                   placeholder="데이터 소스 검색..."
@@ -394,17 +438,27 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                           }`}
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
-                              selected ? "bg-primary border-primary text-white shadow-[var(--shadow-sm)]" : "bg-[var(--panel-soft)] border-[var(--border)] text-muted-foreground"
-                            }`}>
+                            <div
+                              className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-colors ${
+                                selected
+                                  ? "bg-primary border-primary text-white shadow-[var(--shadow-sm)]"
+                                  : "bg-[var(--panel-soft)] border-[var(--border)] text-muted-foreground"
+                              }`}
+                            >
                               <item.icon className="h-5 w-5" />
                             </div>
                             {selected ? <Check size={16} className="text-primary" /> : null}
                           </div>
                           <div className="mt-3">
-                            <p className={`text-[13px] font-bold ${selected ? "text-primary" : "text-foreground"}`}>{item.title}</p>
-                            <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground">{item.desc}</p>
-                            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">{item.category}</p>
+                            <p className={`text-[13px] font-bold ${selected ? "text-primary" : "text-foreground"}`}>
+                              {item.title}
+                            </p>
+                            <p className="mt-1 text-[11px] font-medium leading-relaxed text-muted-foreground">
+                              {item.desc}
+                            </p>
+                            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                              {item.category}
+                            </p>
                           </div>
                         </button>
                       );
@@ -427,7 +481,9 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
               )}
 
               <label className="space-y-2">
-                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">추가 데이터 소스</span>
+                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                  추가 데이터 소스
+                </span>
                 <input
                   value={form.custom_data_sources}
                   onChange={(event) => updateField("custom_data_sources", event.target.value)}
@@ -440,16 +496,18 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
 
           {step === 0 ? (
             <div className="grid gap-5 md:grid-cols-3">
-            <label className="space-y-2 md:col-span-3">
-              <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">태그</span>
-              <input
-                value={form.tags}
-                onChange={(event) => updateField("tags", event.target.value)}
-                placeholder="쉼표로 구분해 입력"
-                className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
-              />
-            </label>
-          </div>
+              <label className="space-y-2 md:col-span-3">
+                <span className="text-[12px] font-black uppercase tracking-wider text-[var(--subtle-foreground)]">
+                  태그
+                </span>
+                <input
+                  value={form.tags}
+                  onChange={(event) => updateField("tags", event.target.value)}
+                  placeholder="쉼표로 구분해 입력"
+                  className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[14px] font-semibold outline-none transition-colors focus:border-primary"
+                />
+              </label>
+            </div>
           ) : null}
 
           {submitError ? (

@@ -49,9 +49,9 @@ const CONTENT_FULL = "lg:pl-56";
 
 const WORKFLOW_STEPS = [
   { path: "/analytics", label: "세그먼트 분석" },
-  { path: "/survey",    label: "설문 디자인" },
-  { path: "/live",      label: "실시간 응답 분석" },
-  { path: "/report",   label: "분석 결과 리포트" },
+  { path: "/survey", label: "설문 디자인" },
+  { path: "/live", label: "실시간 응답 분석" },
+  { path: "/report", label: "분석 결과 리포트" },
 ] as const;
 
 const WORKFLOW_PATHS = WORKFLOW_STEPS.map((s) => s.path) as string[];
@@ -89,8 +89,10 @@ export const Layout: React.FC = () => {
     }
   }, [location.pathname]);
 
-  const currentItem = [...NAV_ITEMS, { path: "/settings", label: "설정", section: "운영", icon: null }]
-    .find((item) => item.path === location.pathname) ?? NAV_ITEMS[0];
+  const currentItem =
+    [...NAV_ITEMS, { path: "/settings", label: "설정", section: "운영", icon: null }].find(
+      (item) => item.path === location.pathname
+    ) ?? NAV_ITEMS[0];
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -147,18 +149,18 @@ export const Layout: React.FC = () => {
                     const isDone = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname) > i;
                     return (
                       <span key={step.path} className="flex shrink-0 items-center gap-1">
-                        <span className={
-                          isActive
-                            ? "font-black text-primary"
-                            : isDone
-                            ? "font-semibold text-[var(--muted-foreground)]"
-                            : "font-medium text-[var(--border)]"
-                        }>
+                        <span
+                          className={
+                            isActive
+                              ? "font-black text-primary"
+                              : isDone
+                                ? "font-semibold text-[var(--muted-foreground)]"
+                                : "font-medium text-[var(--border)]"
+                          }
+                        >
                           {step.label}
                         </span>
-                        {i < WORKFLOW_STEPS.length - 1 && (
-                          <ChevronRight size={11} className="shrink-0 opacity-30" />
-                        )}
+                        {i < WORKFLOW_STEPS.length - 1 && <ChevronRight size={11} className="shrink-0 opacity-30" />}
                       </span>
                     );
                   })}
@@ -173,7 +175,10 @@ export const Layout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-[var(--surface-hover)]" aria-label="알림">
+              <button
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-colors hover:bg-[var(--surface-hover)]"
+                aria-label="알림"
+              >
                 <Bell size={18} className="text-[var(--muted-foreground)]" />
                 <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-bold text-white ring-2 ring-card">
                   2
@@ -226,25 +231,25 @@ export const Layout: React.FC = () => {
                             title={collapsed ? item.label : undefined}
                             className={`group relative flex w-full items-center rounded-xl py-2.5 transition-all ${
                               collapsed ? "justify-center" : "gap-3 px-3 text-left"
-                            } ${
-                              isLocked
-                                ? "cursor-not-allowed opacity-40"
-                                : "active:scale-[0.97]"
-                            } ${
+                            } ${isLocked ? "cursor-not-allowed opacity-40" : "active:scale-[0.97]"} ${
                               isActive
                                 ? "bg-[var(--primary-light-bg)] text-primary shadow-sm"
                                 : isLocked
-                                ? "text-[var(--secondary-foreground)]"
-                                : "text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] hover:text-primary"
+                                  ? "text-[var(--secondary-foreground)]"
+                                  : "text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] hover:text-primary"
                             }`}
                           >
-                            <span className={`flex shrink-0 items-center justify-center transition-colors ${
-                              isActive ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"
-                            }`}>
+                            <span
+                              className={`flex shrink-0 items-center justify-center transition-colors ${
+                                isActive ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"
+                              }`}
+                            >
                               {item.icon}
                             </span>
                             {!collapsed && (
-                              <span className={`flex-1 truncate text-[13px] tracking-tight ${isActive ? "font-bold" : "font-semibold"}`}>
+                              <span
+                                className={`flex-1 truncate text-[13px] tracking-tight ${isActive ? "font-bold" : "font-semibold"}`}
+                              >
                                 {item.label}
                               </span>
                             )}
@@ -277,7 +282,10 @@ export const Layout: React.FC = () => {
           {userMenuOpen && (
             <div className="absolute bottom-[76px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-[var(--border)] bg-card p-1.5 shadow-[var(--shadow-lg)] animate-in fade-in slide-in-from-bottom-2 duration-200">
               <button
-                onClick={() => { navigate("/settings"); setUserMenuOpen(false); }}
+                onClick={() => {
+                  navigate("/settings");
+                  setUserMenuOpen(false);
+                }}
                 className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--surface-hover)] hover:text-primary"
               >
                 <Settings size={16} /> 설정

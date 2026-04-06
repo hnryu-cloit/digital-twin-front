@@ -66,8 +66,12 @@ export const AiJobCenterPage: React.FC = () => {
   const [jobs, setJobs] = useState<AIJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [jobTypeFilter, setJobTypeFilter] = useState<"all" | "survey_generate" | "persona_generate" | "report_generate">("all");
-  const [statusFilter, setStatusFilter] = useState<"all" | "queued" | "running" | "completed" | "failed" | "cancelled">("all");
+  const [jobTypeFilter, setJobTypeFilter] = useState<
+    "all" | "survey_generate" | "persona_generate" | "report_generate"
+  >("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "queued" | "running" | "completed" | "failed" | "cancelled">(
+    "all"
+  );
   const [page, setPage] = useState(1);
 
   const loadJobs = async (nextLoading = true) => {
@@ -84,7 +88,7 @@ export const AiJobCenterPage: React.FC = () => {
   useEffect(() => {
     if (!projectId) return;
     void loadJobs();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, jobTypeFilter]);
 
   useEffect(() => {
@@ -143,7 +147,10 @@ export const AiJobCenterPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-3 pb-1">
           <div className="flex items-center gap-2.5 bg-card border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-[var(--shadow-sm)] focus-within:border-primary transition-all group">
-            <Search size={15} className="text-[var(--subtle-foreground)] group-focus-within:text-primary transition-colors" />
+            <Search
+              size={15}
+              className="text-[var(--subtle-foreground)] group-focus-within:text-primary transition-colors"
+            />
             <input
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
@@ -218,13 +225,27 @@ export const AiJobCenterPage: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-[var(--panel-soft)] hover:bg-[var(--panel-soft)] border-b border-[var(--border)]">
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">작업</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">유형</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">상태</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)] text-center">진행률</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">결과</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">생성 시각</TableHead>
-                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)] text-right pr-8">제어</TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                  작업
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                  유형
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                  상태
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)] text-center">
+                  진행률
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                  결과
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)]">
+                  생성 시각
+                </TableHead>
+                <TableHead className="px-6 py-4 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--subtle-foreground)] text-right pr-8">
+                  제어
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -242,7 +263,10 @@ export const AiJobCenterPage: React.FC = () => {
                   const statusMeta = STATUS_META[job.status] ?? STATUS_META.queued;
                   const canCancel = job.status === "queued" || job.status === "running";
                   return (
-                    <TableRow key={job.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]">
+                    <TableRow
+                      key={job.id}
+                      className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-hover)]"
+                    >
                       <TableCell className="px-6 py-4">
                         <div>
                           <p className="text-[13px] font-bold text-foreground">{job.id}</p>
@@ -250,7 +274,10 @@ export const AiJobCenterPage: React.FC = () => {
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4">
-                        <Badge variant="outline" className="border-[var(--border)] bg-card text-[var(--secondary-foreground)]">
+                        <Badge
+                          variant="outline"
+                          className="border-[var(--border)] bg-card text-[var(--secondary-foreground)]"
+                        >
                           {JOB_TYPE_LABEL[job.job_type] ?? job.job_type}
                         </Badge>
                       </TableCell>
@@ -266,20 +293,31 @@ export const AiJobCenterPage: React.FC = () => {
                             <span>{job.progress}%</span>
                           </div>
                           <div className="h-2 overflow-hidden rounded-full bg-[var(--border)]">
-                            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${job.progress}%` }} />
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${job.progress}%` }}
+                            />
                           </div>
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4">
-                        <p className="text-[12px] font-semibold text-[var(--secondary-foreground)]">{resultSummary(job)}</p>
+                        <p className="text-[12px] font-semibold text-[var(--secondary-foreground)]">
+                          {resultSummary(job)}
+                        </p>
                         {job.error_message && (
-                          <p className="mt-1 max-w-xs truncate text-[11px] font-medium text-[var(--destructive)]">{job.error_message}</p>
+                          <p className="mt-1 max-w-xs truncate text-[11px] font-medium text-[var(--destructive)]">
+                            {job.error_message}
+                          </p>
                         )}
                       </TableCell>
                       <TableCell className="px-6 py-4">
                         <div>
-                          <p className="text-[12px] font-semibold text-[var(--secondary-foreground)]">{formatDateTime(job.created_at)}</p>
-                          <p className="text-[11px] font-medium text-[var(--muted-foreground)]">완료: {formatDateTime(job.completed_at)}</p>
+                          <p className="text-[12px] font-semibold text-[var(--secondary-foreground)]">
+                            {formatDateTime(job.created_at)}
+                          </p>
+                          <p className="text-[11px] font-medium text-[var(--muted-foreground)]">
+                            완료: {formatDateTime(job.completed_at)}
+                          </p>
                         </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right pr-8">

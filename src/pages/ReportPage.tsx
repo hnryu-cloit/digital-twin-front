@@ -98,7 +98,21 @@ function topEntry(values: string[]): string {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "데이터 없음";
 }
 
-function KpiCard({ icon, label, value, sub, delta, reliability }: { icon: React.ReactNode; label: string; value: string; sub: string; delta?: string; reliability: string }) {
+function KpiCard({
+  icon,
+  label,
+  value,
+  sub,
+  delta,
+  reliability,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  delta?: string;
+  reliability: string;
+}) {
   return (
     <div className="app-card group relative flex flex-col gap-5 overflow-hidden p-7 transition-all duration-500 hover:shadow-[var(--shadow-lg)]">
       <div className="absolute -right-12 -top-12 h-24 w-24 rounded-full bg-primary/5 transition-transform group-hover:scale-150" />
@@ -112,11 +126,15 @@ function KpiCard({ icon, label, value, sub, delta, reliability }: { icon: React.
               <TrendingUp size={10} /> {delta}
             </span>
           )}
-          <span className="mt-2 text-[9px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">{reliability} Confidence</span>
+          <span className="mt-2 text-[9px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+            {reliability} Confidence
+          </span>
         </div>
       </div>
       <div className="relative z-10">
-        <p className="mb-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[var(--subtle-foreground)]">{label}</p>
+        <p className="mb-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[var(--subtle-foreground)]">
+          {label}
+        </p>
         <p className="mb-2 text-[28px] font-black leading-none tracking-tighter text-foreground">{value}</p>
         <p className="text-[12px] font-bold text-[var(--muted-foreground)] opacity-80">{sub}</p>
       </div>
@@ -124,14 +142,30 @@ function KpiCard({ icon, label, value, sub, delta, reliability }: { icon: React.
   );
 }
 
-function SectionHeader({ num, title, badge, onDetailClick }: { num: string; title: string; badge?: string; onDetailClick?: () => void }) {
+function SectionHeader({
+  num,
+  title,
+  badge,
+  onDetailClick,
+}: {
+  num: string;
+  title: string;
+  badge?: string;
+  onDetailClick?: () => void;
+}) {
   return (
     <div className="mb-10 flex items-center justify-between border-b border-[var(--border)] pb-8">
       <div className="flex items-center gap-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-[13px] font-black text-white shadow-[var(--shadow-lg)]">{num}</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-[13px] font-black text-white shadow-[var(--shadow-lg)]">
+          {num}
+        </div>
         <div>
           <h2 className="text-[22px] font-black tracking-tight text-foreground">{title}</h2>
-          {badge && <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.2em] text-primary opacity-60">{badge}</span>}
+          {badge && (
+            <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.2em] text-primary opacity-60">
+              {badge}
+            </span>
+          )}
         </div>
       </div>
       <button
@@ -139,7 +173,9 @@ function SectionHeader({ num, title, badge, onDetailClick }: { num: string; titl
         className="group/btn flex items-center gap-1.5 rounded-xl border border-[var(--border)] bg-card px-4 py-2 text-[12px] font-black text-[var(--secondary-foreground)] shadow-[var(--shadow-sm)] transition-all hover:border-primary/30 hover:bg-[var(--panel-soft)] hover:text-primary active:scale-95"
       >
         더보기
-        <span className="text-[11px] text-[var(--subtle-foreground)] transition-transform group-hover/btn:translate-x-0.5">&gt;</span>
+        <span className="text-[11px] text-[var(--subtle-foreground)] transition-transform group-hover/btn:translate-x-0.5">
+          &gt;
+        </span>
       </button>
     </div>
   );
@@ -189,7 +225,7 @@ export const ReportPage: React.FC = () => {
           questionId: question.id,
           questionText: question.text,
           distribution: await simulationApi.getDistribution(projectId, question.id),
-        })),
+        }))
       );
 
       if (!cancelled) {
@@ -202,7 +238,7 @@ export const ReportPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   useEffect(() => {
@@ -265,16 +301,21 @@ export const ReportPage: React.FC = () => {
   }, [questionDistributions]);
 
   const insightCards = useMemo<FindingCardData[]>(() => {
-    const reportSections = (reportData?.sections ?? []).filter((section) => section.id === "findings").map((section, index) => ({
-      id: section.id,
-      tag: index === 0 ? "Report Section" : "Analysis Note",
-      label: section.title,
-      value: section.title,
-      desc: section.content,
-      evidence: section.evidence ?? reportData?.kpis?.slice(0, 3).map((kpi) => ({ label: kpi.label, value: kpi.value })) ?? [],
-      action: section.action ?? section.content,
-      tone: "primary" as const,
-    }));
+    const reportSections = (reportData?.sections ?? [])
+      .filter((section) => section.id === "findings")
+      .map((section, index) => ({
+        id: section.id,
+        tag: index === 0 ? "Report Section" : "Analysis Note",
+        label: section.title,
+        value: section.title,
+        desc: section.content,
+        evidence:
+          section.evidence ??
+          reportData?.kpis?.slice(0, 3).map((kpi) => ({ label: kpi.label, value: kpi.value })) ??
+          [],
+        action: section.action ?? section.content,
+        tone: "primary" as const,
+      }));
 
     const keywordCard = keywords[0]
       ? {
@@ -339,12 +380,26 @@ export const ReportPage: React.FC = () => {
   }, [personas, totalCount]);
 
   const dominantQuestion = questionDistributions[0];
-  const executiveSummary = reportData?.sections?.find((section) => section.id === "summary")?.content ?? "리포트 본문 데이터가 아직 없습니다.";
-  const radarData = (reportData?.charts?.find((chart) => chart.id === "keyword-radar")?.data as typeof fallbackRadarData | undefined) ?? fallbackRadarData;
-  const trendData = (reportData?.charts?.find((chart) => chart.id === "question-strength")?.data as typeof fallbackTrendData | undefined) ?? fallbackTrendData;
-  const ageOpportunityData = (reportData?.charts?.find((chart) => chart.id === "age-distribution")?.data as typeof fallbackAgeOpportunityData | undefined) ?? fallbackAgeOpportunityData;
-  const segmentCards = (reportData?.charts?.find((chart) => chart.id === "segment-cards")?.data as SegmentCardData[] | undefined) ?? fallbackSegmentCards;
-  const reportDistributionData = (reportData?.charts?.find((chart) => chart.id === "question-distribution")?.data as Array<{ question_id: string; question_text: string; distribution: ResponseDistributionItem[] }> | undefined) ?? [];
+  const executiveSummary =
+    reportData?.sections?.find((section) => section.id === "summary")?.content ?? "리포트 본문 데이터가 아직 없습니다.";
+  const radarData =
+    (reportData?.charts?.find((chart) => chart.id === "keyword-radar")?.data as typeof fallbackRadarData | undefined) ??
+    fallbackRadarData;
+  const trendData =
+    (reportData?.charts?.find((chart) => chart.id === "question-strength")?.data as
+      | typeof fallbackTrendData
+      | undefined) ?? fallbackTrendData;
+  const ageOpportunityData =
+    (reportData?.charts?.find((chart) => chart.id === "age-distribution")?.data as
+      | typeof fallbackAgeOpportunityData
+      | undefined) ?? fallbackAgeOpportunityData;
+  const segmentCards =
+    (reportData?.charts?.find((chart) => chart.id === "segment-cards")?.data as SegmentCardData[] | undefined) ??
+    fallbackSegmentCards;
+  const reportDistributionData =
+    (reportData?.charts?.find((chart) => chart.id === "question-distribution")?.data as
+      | Array<{ question_id: string; question_text: string; distribution: ResponseDistributionItem[] }>
+      | undefined) ?? [];
   const reportDominantQuestion = reportDistributionData[0];
 
   const scrollToSection = (id: SectionId) => {
@@ -364,7 +419,7 @@ export const ReportPage: React.FC = () => {
           }
         });
       },
-      { rootMargin: "-150px 0px -70% 0px", threshold: 0 },
+      { rootMargin: "-150px 0px -70% 0px", threshold: 0 }
     );
 
     Object.values(sectionRefs).forEach((ref) => {
@@ -423,7 +478,9 @@ export const ReportPage: React.FC = () => {
             className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-black text-[var(--secondary-foreground)] shadow-[var(--shadow-sm)] transition-all hover:bg-[var(--panel-soft)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <RotateCcw size={16} />
-            {activeReportJob?.status === "queued" || activeReportJob?.status === "running" ? "리포트 생성 중" : "재분석 실행"}
+            {activeReportJob?.status === "queued" || activeReportJob?.status === "running"
+              ? "리포트 생성 중"
+              : "재분석 실행"}
           </button>
           <div className="relative" ref={downloadRef}>
             <button
@@ -444,8 +501,12 @@ export const ReportPage: React.FC = () => {
                 >
                   PDF (High Quality) 다운로드
                 </a>
-                <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">DOCX (Editable) 다운로드</button>
-                <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">PPTX (Presentation) 다운로드</button>
+                <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">
+                  DOCX (Editable) 다운로드
+                </button>
+                <button className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-bold text-[var(--secondary-foreground)] transition-all hover:bg-[var(--panel-soft)] hover:text-primary">
+                  PPTX (Presentation) 다운로드
+                </button>
               </div>
             )}
           </div>
@@ -455,16 +516,44 @@ export const ReportPage: React.FC = () => {
       <div className="hide-scrollbar flex-1 overflow-y-auto px-10 pb-10 scroll-smooth">
         <div className="mx-auto max-w-[1600px] space-y-8 pb-24 pt-2">
           <section className="grid grid-cols-4 gap-6">
-            <KpiCard icon={<Users size={22} />} label="분석 총 표본수" value={reportData?.kpis?.[2]?.value ?? project?.target_responses?.toLocaleString() ?? "0"} sub={`${personas.length.toLocaleString()}명 페르소나 데이터 반영`} delta={reportData?.kpis?.[0]?.value} reliability="99.2%" />
-            <KpiCard icon={<Target size={22} />} label="리포트 핵심 KPI" value={reportData?.kpis?.[0]?.value ?? "데이터 없음"} sub={reportData?.kpis?.[0]?.label ?? "핵심 KPI 미생성"} reliability="95.0%" />
-            <KpiCard icon={<ShieldCheck size={22} />} label="총 시뮬레이션 응답" value={reportData?.kpis?.[3]?.value ?? "데이터 없음"} sub={reportData?.kpis?.[3]?.label ?? "응답 지표 미생성"} reliability="99.9%" />
-            <KpiCard icon={<Zap size={22} />} label="전략 액션 수" value={String(insightCards.length).padStart(2, "0")} sub="리포트 인사이트 기반 권장 액션" delta={keywords[0] ? `${keywords[0].frequency}회` : undefined} reliability="High" />
+            <KpiCard
+              icon={<Users size={22} />}
+              label="분석 총 표본수"
+              value={reportData?.kpis?.[2]?.value ?? project?.target_responses?.toLocaleString() ?? "0"}
+              sub={`${personas.length.toLocaleString()}명 페르소나 데이터 반영`}
+              delta={reportData?.kpis?.[0]?.value}
+              reliability="99.2%"
+            />
+            <KpiCard
+              icon={<Target size={22} />}
+              label="리포트 핵심 KPI"
+              value={reportData?.kpis?.[0]?.value ?? "데이터 없음"}
+              sub={reportData?.kpis?.[0]?.label ?? "핵심 KPI 미생성"}
+              reliability="95.0%"
+            />
+            <KpiCard
+              icon={<ShieldCheck size={22} />}
+              label="총 시뮬레이션 응답"
+              value={reportData?.kpis?.[3]?.value ?? "데이터 없음"}
+              sub={reportData?.kpis?.[3]?.label ?? "응답 지표 미생성"}
+              reliability="99.9%"
+            />
+            <KpiCard
+              icon={<Zap size={22} />}
+              label="전략 액션 수"
+              value={String(insightCards.length).padStart(2, "0")}
+              sub="리포트 인사이트 기반 권장 액션"
+              delta={keywords[0] ? `${keywords[0].frequency}회` : undefined}
+              reliability="High"
+            />
           </section>
 
           <div className="grid grid-cols-[280px_1fr] items-start gap-8">
             <aside className="sticky top-0 z-20 space-y-1.5 rounded-[28px] border border-[var(--border)] bg-white/80 p-4 backdrop-blur-md shadow-[var(--shadow-md)]">
               <div className="mb-2 border-b border-[var(--border)] px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted-foreground)]">Table of Contents</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--muted-foreground)]">
+                  Table of Contents
+                </p>
               </div>
               {SECTIONS.map((section) => (
                 <button
@@ -508,9 +597,27 @@ export const ReportPage: React.FC = () => {
                       <ResponsiveContainer width="100%" height="100%">
                         <RadarChart data={radarData}>
                           <PolarGrid stroke="var(--border)" />
-                          <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11, fontWeight: 800, fill: "var(--secondary-foreground)" }} />
-                          <Radar name="현재 데이터" dataKey="dominant" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.15} strokeWidth={4} />
-                          <Radar name="기준선" dataKey="baseline" stroke="var(--subtle-foreground)" fill="var(--subtle-foreground)" fillOpacity={0.05} strokeWidth={2} strokeDasharray="4 4" />
+                          <PolarAngleAxis
+                            dataKey="subject"
+                            tick={{ fontSize: 11, fontWeight: 800, fill: "var(--secondary-foreground)" }}
+                          />
+                          <Radar
+                            name="현재 데이터"
+                            dataKey="dominant"
+                            stroke="var(--chart-1)"
+                            fill="var(--chart-1)"
+                            fillOpacity={0.15}
+                            strokeWidth={4}
+                          />
+                          <Radar
+                            name="기준선"
+                            dataKey="baseline"
+                            stroke="var(--subtle-foreground)"
+                            fill="var(--subtle-foreground)"
+                            fillOpacity={0.05}
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                          />
                           <Tooltip contentStyle={{ borderRadius: 16, border: "none", boxShadow: "var(--shadow-lg)" }} />
                         </RadarChart>
                       </ResponsiveContainer>
@@ -523,7 +630,9 @@ export const ReportPage: React.FC = () => {
                         <Activity size={16} className="text-primary" />
                         문항별 우세 응답 강도
                       </p>
-                      <span className="text-[11px] font-black text-[var(--muted-foreground)]">Response Distribution</span>
+                      <span className="text-[11px] font-black text-[var(--muted-foreground)]">
+                        Response Distribution
+                      </span>
                     </div>
                     <div className="app-soft h-[280px] rounded-3xl border-[var(--border)] bg-[var(--panel-soft)] p-6 shadow-inner">
                       <ResponsiveContainer width="100%" height="100%">
@@ -537,7 +646,14 @@ export const ReportPage: React.FC = () => {
                           <CartesianGrid stroke="var(--border)" vertical={false} strokeDasharray="3 3" />
                           <XAxis dataKey="label" hide />
                           <Tooltip contentStyle={{ borderRadius: 16, border: "none", boxShadow: "var(--shadow-lg)" }} />
-                          <Area type="monotone" dataKey="value" stroke="var(--chart-1)" strokeWidth={4} fillOpacity={1} fill="url(#reportTrendArea)" />
+                          <Area
+                            type="monotone"
+                            dataKey="value"
+                            stroke="var(--chart-1)"
+                            strokeWidth={4}
+                            fillOpacity={1}
+                            fill="url(#reportTrendArea)"
+                          />
                         </AreaChart>
                       </ResponsiveContainer>
                     </div>
@@ -548,18 +664,26 @@ export const ReportPage: React.FC = () => {
                   <div className="mx-auto max-w-4xl">
                     <div className="mb-10 flex items-baseline justify-between border-b border-[var(--border)] pb-6">
                       <div>
-                        <h2 className="mb-1 text-[24px] font-bold tracking-tight text-foreground">Strategic Intelligence Report</h2>
-                        <p className="text-[14px] font-medium text-[var(--muted-foreground)]">AI 기반 종합 전략 분석 요약</p>
+                        <h2 className="mb-1 text-[24px] font-bold tracking-tight text-foreground">
+                          Strategic Intelligence Report
+                        </h2>
+                        <p className="text-[14px] font-medium text-[var(--muted-foreground)]">
+                          AI 기반 종합 전략 분석 요약
+                        </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--subtle-foreground)]">Confidence Index</p>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--subtle-foreground)]">
+                          Confidence Index
+                        </p>
                         <p className="text-[18px] font-bold text-primary">{reportData?.kpis?.[3]?.value ?? "N/A"}</p>
                       </div>
                     </div>
 
                     <div className="relative">
                       <div className="absolute -left-6 bottom-0 top-0 w-1 rounded-full bg-primary/20" />
-                      <p className="text-justify text-[20px] font-medium leading-[1.8] tracking-tight text-foreground">{executiveSummary}</p>
+                      <p className="text-justify text-[20px] font-medium leading-[1.8] tracking-tight text-foreground">
+                        {executiveSummary}
+                      </p>
                     </div>
 
                     <div className="mt-12 flex items-center gap-8 border-t border-[var(--border)] pt-6 text-[12px] font-medium text-[var(--subtle-foreground)]">
@@ -584,41 +708,69 @@ export const ReportPage: React.FC = () => {
                     insightCards.map((card, index) => {
                       const isNeutral = card.tone === "neutral";
                       return (
-                        <div key={card.id} className={`group overflow-hidden rounded-3xl border transition-all duration-300 ${isNeutral ? "border-[var(--border)] bg-[var(--panel-soft)]/40 hover:border-primary/30" : "border-[var(--border)] bg-card hover:border-primary/30"}`}>
+                        <div
+                          key={card.id}
+                          className={`group overflow-hidden rounded-3xl border transition-all duration-300 ${isNeutral ? "border-[var(--border)] bg-[var(--panel-soft)]/40 hover:border-primary/30" : "border-[var(--border)] bg-card hover:border-primary/30"}`}
+                        >
                           <div className="flex items-center gap-6 border-b border-[var(--border)] bg-card px-10 py-6">
-                            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[18px] font-black shadow-[var(--shadow-sm)] transition-all duration-300 group-hover:scale-110 ${isNeutral ? "bg-[var(--panel-soft)] text-primary" : "border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary"}`}>
+                            <div
+                              className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-[18px] font-black shadow-[var(--shadow-sm)] transition-all duration-300 group-hover:scale-110 ${isNeutral ? "bg-[var(--panel-soft)] text-primary" : "border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary"}`}
+                            >
                               #{index + 1}
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="mb-1 flex items-center gap-2">
-                                <span className="rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">{card.tag}</span>
-                                <span className="text-[11px] font-black uppercase tracking-widest text-[var(--subtle-foreground)]">{card.label}</span>
+                                <span className="rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-primary">
+                                  {card.tag}
+                                </span>
+                                <span className="text-[11px] font-black uppercase tracking-widest text-[var(--subtle-foreground)]">
+                                  {card.label}
+                                </span>
                               </div>
-                              <h4 className="truncate text-[20px] font-black tracking-tight text-foreground">{card.value}</h4>
+                              <h4 className="truncate text-[20px] font-black tracking-tight text-foreground">
+                                {card.value}
+                              </h4>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-[1fr_320px] divide-x divide-[var(--border)]">
                             <div className="space-y-6 p-8">
-                              <p className="text-[14px] font-semibold leading-relaxed text-[var(--secondary-foreground)]">{card.desc}</p>
+                              <p className="text-[14px] font-semibold leading-relaxed text-[var(--secondary-foreground)]">
+                                {card.desc}
+                              </p>
                               <div className="space-y-3">
-                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">근거 데이터</p>
+                                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--muted-foreground)]">
+                                  근거 데이터
+                                </p>
                                 {card.evidence.length > 0 ? (
                                   card.evidence.map((evidence) => (
-                                    <div key={`${card.id}-${evidence.label}`} className="flex items-center justify-between border-b border-[var(--border)]/50 py-2.5 last:border-0">
-                                      <span className="text-[13px] font-semibold text-[var(--secondary-foreground)]">{evidence.label}</span>
-                                      <span className="text-[14px] font-black tabular-nums text-primary">{evidence.value}</span>
+                                    <div
+                                      key={`${card.id}-${evidence.label}`}
+                                      className="flex items-center justify-between border-b border-[var(--border)]/50 py-2.5 last:border-0"
+                                    >
+                                      <span className="text-[13px] font-semibold text-[var(--secondary-foreground)]">
+                                        {evidence.label}
+                                      </span>
+                                      <span className="text-[14px] font-black tabular-nums text-primary">
+                                        {evidence.value}
+                                      </span>
                                     </div>
                                   ))
                                 ) : (
-                                  <div className="text-[13px] font-semibold text-[var(--muted-foreground)]">근거 데이터가 없습니다.</div>
+                                  <div className="text-[13px] font-semibold text-[var(--muted-foreground)]">
+                                    근거 데이터가 없습니다.
+                                  </div>
                                 )}
                               </div>
                             </div>
 
                             <div className="flex flex-col gap-4 bg-[var(--primary-light-bg)]/20 p-8">
-                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">전략적 권장 액션</p>
-                              <p className="flex-1 text-[14px] font-bold leading-[1.75] text-foreground">{card.action}</p>
+                              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                                전략적 권장 액션
+                              </p>
+                              <p className="flex-1 text-[14px] font-bold leading-[1.75] text-foreground">
+                                {card.action}
+                              </p>
                               <div className="flex items-center gap-2 text-[12px] font-black text-primary">
                                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
                                 즉시 실행 권장
@@ -650,7 +802,12 @@ export const ReportPage: React.FC = () => {
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={ageOpportunityData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 800 }} />
+                          <XAxis
+                            dataKey="name"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 12, fontWeight: 800 }}
+                          />
                           <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                           <Tooltip contentStyle={{ borderRadius: 16, border: "none", boxShadow: "var(--shadow-lg)" }} />
                           <Bar dataKey="value" fill="var(--chart-1)" radius={[6, 6, 0, 0]} barSize={32} />
@@ -663,14 +820,25 @@ export const ReportPage: React.FC = () => {
                   <div className="relative flex flex-col justify-center overflow-hidden border-none bg-primary p-10 text-white shadow-[var(--shadow-lg)]">
                     <div className="absolute -right-24 -top-24 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
                     <div className="relative z-10">
-                      <p className="mb-6 text-[11px] font-black uppercase tracking-[0.3em] text-white/80 opacity-60">Opportunity Matrix</p>
+                      <p className="mb-6 text-[11px] font-black uppercase tracking-[0.3em] text-white/80 opacity-60">
+                        Opportunity Matrix
+                      </p>
                       <h4 className="mb-6 text-[24px] font-black leading-tight">
-                        {(reportDominantQuestion?.question_id ?? dominantQuestion?.questionId) ?? "Q-00"} 기준
+                        {reportDominantQuestion?.question_id ?? dominantQuestion?.questionId ?? "Q-00"} 기준
                         <br />
-                        최우세 응답 {Math.max(...((reportDominantQuestion?.distribution ?? dominantQuestion?.distribution ?? []).map((item) => item.value)), 0)}%
+                        최우세 응답{" "}
+                        {Math.max(
+                          ...(reportDominantQuestion?.distribution ?? dominantQuestion?.distribution ?? []).map(
+                            (item) => item.value
+                          ),
+                          0
+                        )}
+                        %
                       </h4>
                       <p className="mb-8 text-[14px] font-medium italic leading-relaxed text-white/80">
-                        {reportDominantQuestion?.question_text ?? dominantQuestion?.questionText ?? "분석 가능한 문항 데이터가 아직 없습니다."}
+                        {reportDominantQuestion?.question_text ??
+                          dominantQuestion?.questionText ??
+                          "분석 가능한 문항 데이터가 아직 없습니다."}
                       </p>
                       <button className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-6 py-3 text-[13px] font-black text-white transition-all hover:bg-white/20">
                         세부 시뮬레이션 결과 보기 <ExternalLink size={14} />
@@ -686,12 +854,17 @@ export const ReportPage: React.FC = () => {
                 <div className="grid grid-cols-1 gap-6">
                   {segmentCards.length > 0 ? (
                     segmentCards.map((item) => (
-                      <div key={item.segment} className="group relative overflow-hidden rounded-3xl border border-[var(--border)] bg-card transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)]">
+                      <div
+                        key={item.segment}
+                        className="group relative overflow-hidden rounded-3xl border border-[var(--border)] bg-card transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)]"
+                      >
                         <div className="flex flex-col md:flex-row">
                           <div className="w-full border-r border-[var(--border)] bg-[var(--panel-soft)] p-8 md:w-72">
                             <div className="mb-4 flex items-center gap-2">
                               <div className="h-2 w-2 rounded-full bg-primary" />
-                              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">Live Segment</span>
+                              <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                                Live Segment
+                              </span>
                             </div>
                             <h5 className="mb-2 text-[20px] font-bold text-foreground">{item.segment}</h5>
                             <p className="text-[16px] font-bold text-primary">{formatPercent(item.share)} 비중</p>
@@ -699,13 +872,17 @@ export const ReportPage: React.FC = () => {
 
                           <div className="grid flex-1 grid-cols-1 gap-8 p-8 lg:grid-cols-2">
                             <div>
-                              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--subtle-foreground)]">핵심 응답 데이터 분석</p>
+                              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--subtle-foreground)]">
+                                핵심 응답 데이터 분석
+                              </p>
                               <p className="text-[14px] font-semibold leading-relaxed text-[var(--secondary-foreground)]">
                                 {`${item.count.toLocaleString()}명의 페르소나가 이 세그먼트에 속하며, 주 구매 채널은 ${item.buyChannel}, 주요 제품군은 ${item.productGroup}, 대표 지역은 ${item.region}입니다.`}
                               </p>
                             </div>
                             <div className="rounded-2xl border border-[var(--primary-light-border)]/50 bg-[var(--primary-light-bg)]/30 p-6">
-                              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-primary">전략적 권장 액션</p>
+                              <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.15em] text-primary">
+                                전략적 권장 액션
+                              </p>
                               <p className="text-[14px] font-bold leading-relaxed text-foreground">
                                 {`${item.segment} 세그먼트에는 ${item.buyChannel} 중심 유입 경로와 ${item.productGroup} 메시지를 결합한 지역 맞춤형 캠페인을 우선 배치합니다.`}
                               </p>
@@ -725,7 +902,7 @@ export const ReportPage: React.FC = () => {
               <section id="actionPlan" ref={sectionRefs.actionPlan} className="app-card p-12 overflow-hidden relative">
                 <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/5 blur-2xl" />
                 <SectionHeader num="05" title="마케팅 액션 플랜 (90일)" badge="90-Day Execution Roadmap" />
-                
+
                 {!actionPlan && !actionPlanLoading ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center bg-[var(--panel-soft)]/30 rounded-3xl border border-dashed border-[var(--border)]">
                     <div className="w-16 h-16 rounded-2xl bg-white border border-[var(--border)] flex items-center justify-center mb-5 shadow-sm text-primary">
@@ -752,7 +929,9 @@ export const ReportPage: React.FC = () => {
                       </div>
                     </div>
                     <p className="text-[15px] font-bold text-foreground">최적의 마케팅 믹스를 계산 중입니다...</p>
-                    <p className="text-[12px] text-[var(--muted-foreground)] mt-2">리포트의 핵심 인사이트를 실행 과제로 전환하고 있습니다.</p>
+                    <p className="text-[12px] text-[var(--muted-foreground)] mt-2">
+                      리포트의 핵심 인사이트를 실행 과제로 전환하고 있습니다.
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -766,17 +945,27 @@ export const ReportPage: React.FC = () => {
                           <table className="w-full text-left text-[13px] border-collapse">
                             <thead>
                               <tr className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
-                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Period</th>
-                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Core Action</th>
-                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">Main Channel</th>
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">
+                                  Period
+                                </th>
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">
+                                  Core Action
+                                </th>
+                                <th className="px-6 py-4 font-black text-[var(--subtle-foreground)] uppercase tracking-wider">
+                                  Main Channel
+                                </th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-[var(--border)] bg-card">
                               {actionPlan?.phases.map((phase, i) => (
                                 <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
                                   <td className="px-6 py-4 font-black text-primary whitespace-nowrap">{phase.week}</td>
-                                  <td className="px-6 py-4 font-bold text-[var(--secondary-foreground)] leading-relaxed">{phase.action}</td>
-                                  <td className="px-6 py-4 font-semibold text-[var(--muted-foreground)]">{phase.channel}</td>
+                                  <td className="px-6 py-4 font-bold text-[var(--secondary-foreground)] leading-relaxed">
+                                    {phase.action}
+                                  </td>
+                                  <td className="px-6 py-4 font-semibold text-[var(--muted-foreground)]">
+                                    {phase.channel}
+                                  </td>
                                 </tr>
                               ))}
                             </tbody>
@@ -792,8 +981,13 @@ export const ReportPage: React.FC = () => {
                           </h4>
                           <div className="space-y-3">
                             {actionPlan?.priority_segments.map((seg, i) => (
-                              <div key={i} className="flex items-center gap-3 bg-white border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm">
-                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-black">{i+1}</div>
+                              <div
+                                key={i}
+                                className="flex items-center gap-3 bg-white border border-[var(--border)] rounded-xl px-4 py-3 shadow-sm"
+                              >
+                                <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center text-[11px] font-black">
+                                  {i + 1}
+                                </div>
                                 <span className="text-[13px] font-bold text-foreground">{seg}</span>
                               </div>
                             ))}

@@ -21,9 +21,7 @@ export function useProject(initialProjectId?: string | null): UseProjectResult {
 
     const load = async () => {
       try {
-        const pid = initialProjectId !== undefined
-          ? initialProjectId
-          : await resolveDefaultProjectId();
+        const pid = initialProjectId !== undefined ? initialProjectId : await resolveDefaultProjectId();
         if (cancelled) return;
         setProjectId(pid);
         if (!pid) return;
@@ -39,7 +37,7 @@ export function useProject(initialProjectId?: string | null): UseProjectResult {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { project, projectId, loading };

@@ -16,16 +16,7 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-import {
-  Bar,
-  BarChart,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  LabelList,
-} from "recharts";
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelList } from "recharts";
 import { useLocation } from "react-router-dom";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import {
@@ -89,10 +80,15 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
             </div>
             <div>
               <h2 className="text-[20px] font-black tracking-tight text-foreground">응답 일관성 상세 분석</h2>
-              <p className="mt-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-primary opacity-70">Response Integrity Logic</p>
+              <p className="mt-0.5 text-[11px] font-black uppercase tracking-[0.15em] text-primary opacity-70">
+                Response Integrity Logic
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-card text-muted-foreground transition-all hover:bg-[var(--surface-hover)]">
+          <button
+            onClick={onClose}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-card text-muted-foreground transition-all hover:bg-[var(--surface-hover)]"
+          >
             <X size={18} />
           </button>
         </div>
@@ -101,14 +97,22 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
           <div className="space-y-3">
             <div className="app-soft border-border/30 bg-[var(--panel-soft)]/50 px-5 py-3">
               <div className="mb-1.5 flex items-center gap-2">
-                <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter text-white">{chat.questionId}</span>
+                <span className="rounded bg-primary px-2 py-0.5 text-[10px] font-black uppercase tracking-tighter text-white">
+                  {chat.questionId}
+                </span>
               </div>
               <p className="text-[13px] font-bold leading-snug text-muted-foreground">{chat.questionText}</p>
             </div>
             <div className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/8 px-5 py-4">
               <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary shadow-[var(--shadow-sm)]">
                 <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                  <path d="M1 4L4 7L9 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                  <path
+                    d="M1 4L4 7L9 1"
+                    stroke="white"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
                 </svg>
               </div>
               <p className="text-[16px] font-black leading-tight text-primary">{chat.selectedOption}</p>
@@ -116,7 +120,9 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
           </div>
 
           <div className="space-y-4">
-            <h3 className="pl-1 text-[11px] font-black uppercase tracking-widest text-muted-foreground">사고 과정 추적 (Reasoning)</h3>
+            <h3 className="pl-1 text-[11px] font-black uppercase tracking-widest text-muted-foreground">
+              사고 과정 추적 (Reasoning)
+            </h3>
             <div className="space-y-3">
               {chat.cot.map((step, index) => (
                 <div key={`${chat.id}-${index}`} className="group flex gap-4">
@@ -136,9 +142,14 @@ function CotModal({ chat, onClose }: { chat: ChatResponse; onClose: () => void }
         <div className="app-modal-footer bg-[var(--panel-soft)]/50">
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} className="text-success" />
-            <span className="text-[12px] font-bold uppercase text-muted-foreground">검증된 일관성 지수: {chat.integrityScore}%</span>
+            <span className="text-[12px] font-bold uppercase text-muted-foreground">
+              검증된 일관성 지수: {chat.integrityScore}%
+            </span>
           </div>
-          <button onClick={onClose} className="rounded-xl bg-primary px-8 py-2.5 text-[13px] font-black text-white transition-all hover:bg-primary-hover active:scale-95">
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-primary px-8 py-2.5 text-[13px] font-black text-white transition-all hover:bg-primary-hover active:scale-95"
+          >
             확인
           </button>
         </div>
@@ -165,7 +176,17 @@ function mapFeedItem(item: SimulationFeedItem): ChatResponse {
 
 export const LiveAnalysisPage: React.FC = () => {
   const location = useLocation();
-  const segmentFilter = (location.state as { segmentFilter?: { totalMatched: number; totalPopulation: number; segments: Array<{ name: string; count: number }>; filterSummary: string } } | null)?.segmentFilter ?? null;
+  const segmentFilter =
+    (
+      location.state as {
+        segmentFilter?: {
+          totalMatched: number;
+          totalPopulation: number;
+          segments: Array<{ name: string; count: number }>;
+          filterSummary: string;
+        };
+      } | null
+    )?.segmentFilter ?? null;
 
   const { project, projectId } = useProject();
   const [activeQuestion, setActiveQuestion] = useState("");
@@ -188,7 +209,9 @@ export const LiveAnalysisPage: React.FC = () => {
   // 컴포넌트 언마운트 시 스트림 중단
   // biome-ignore lint/correctness/useExhaustiveDependencies: cleanup only
   React.useEffect(() => {
-    return () => { streamAbortRef.current?.abort(); };
+    return () => {
+      streamAbortRef.current?.abort();
+    };
   }, []);
 
   useEffect(() => {
@@ -204,7 +227,7 @@ export const LiveAnalysisPage: React.FC = () => {
           id: question.id,
           text: question.text,
           data: await simulationApi.getDistribution(projectId, question.id),
-        })),
+        }))
       );
 
       if (cancelled) return;
@@ -240,7 +263,9 @@ export const LiveAnalysisPage: React.FC = () => {
 
   // 최초 1회 로드
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (projectId) void refreshLiveData(); }, [projectId]);
+  useEffect(() => {
+    if (projectId) void refreshLiveData();
+  }, [projectId]);
 
   // 10초 주기 폴링
   useAutoRefresh(refreshLiveData, 10_000, !!projectId);
@@ -293,12 +318,12 @@ export const LiveAnalysisPage: React.FC = () => {
               id: `resp-${Date.now()}-${Math.random()}`,
               personaName,
               segment,
-              questionId: answer.question_id as string ?? "",
-              questionText: answer.question_text as string ?? "",
-              selectedOption: answer.selected_option as string ?? "",
-              rationale: answer.rationale as string ?? "",
-              integrityScore: answer.integrity_score as number ?? 85,
-              consistencyStatus: ((answer.integrity_score as number ?? 85) >= 90 ? "Good" : "Warn"),
+              questionId: (answer.question_id as string) ?? "",
+              questionText: (answer.question_text as string) ?? "",
+              selectedOption: (answer.selected_option as string) ?? "",
+              rationale: (answer.rationale as string) ?? "",
+              integrityScore: (answer.integrity_score as number) ?? 85,
+              consistencyStatus: ((answer.integrity_score as number) ?? 85) >= 90 ? "Good" : "Warn",
               timestamp: formatTimestamp(new Date().toISOString()),
               cot: (answer.cot as string[]) ?? [],
             };
@@ -308,8 +333,8 @@ export const LiveAnalysisPage: React.FC = () => {
         }
 
         if (type === "progress") {
-          const done = evt.done as number ?? 0;
-          const total = evt.total as number ?? 1;
+          const done = (evt.done as number) ?? 0;
+          const total = (evt.total as number) ?? 1;
           setCompletionRate(Math.round((done / total) * 100));
         }
 
@@ -332,13 +357,13 @@ export const LiveAnalysisPage: React.FC = () => {
             // 분포 갱신
             setQuestionResults((prev) =>
               prev.map((q) => {
-                simulationApi.getDistribution(projectId, q.id).then((data) =>
-                  setQuestionResults((prev2) =>
-                    prev2.map((q2) => (q2.id === q.id ? { ...q2, data } : q2)),
-                  ),
-                );
+                simulationApi
+                  .getDistribution(projectId, q.id)
+                  .then((data) =>
+                    setQuestionResults((prev2) => prev2.map((q2) => (q2.id === q.id ? { ...q2, data } : q2)))
+                  );
                 return q;
-              }),
+              })
             );
           }
         }
@@ -349,7 +374,7 @@ export const LiveAnalysisPage: React.FC = () => {
       (err) => {
         console.error("Simulation stream error:", err);
         setIsLive(false);
-      },
+      }
     );
     streamAbortRef.current = ctrl;
   };
@@ -369,10 +394,15 @@ export const LiveAnalysisPage: React.FC = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 <span className="text-[11px] font-bold text-primary">응답 대상</span>
                 <span className="text-[11px] font-semibold text-foreground">{segmentFilter.filterSummary}</span>
-                <span className="text-[11px] font-bold text-primary">{segmentFilter.totalMatched.toLocaleString()}명</span>
+                <span className="text-[11px] font-bold text-primary">
+                  {segmentFilter.totalMatched.toLocaleString()}명
+                </span>
               </div>
               {segmentFilter.segments.slice(0, 4).map((s) => (
-                <span key={s.name} className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--secondary-foreground)]">
+                <span
+                  key={s.name}
+                  className="rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[10px] font-bold text-[var(--secondary-foreground)]"
+                >
                   {s.name} {s.count}명
                 </span>
               ))}
@@ -402,13 +432,19 @@ export const LiveAnalysisPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-[15px] font-bold leading-tight text-foreground">실시간 시뮬레이션 분석 진행률</h3>
-                  <p className="mt-0.5 text-[11px] font-medium text-[var(--muted-foreground)]">선택된 세그먼트 타겟 대상 디지털 트윈 응답 수집 현황입니다.</p>
+                  <p className="mt-0.5 text-[11px] font-medium text-[var(--muted-foreground)]">
+                    선택된 세그먼트 타겟 대상 디지털 트윈 응답 수집 현황입니다.
+                  </p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="mb-0.5 flex items-baseline justify-end gap-1.5">
-                  <span className="text-[24px] font-bold leading-none tracking-tight text-primary">{completionRate}%</span>
-                  <span className="text-[12px] font-bold uppercase tracking-tighter text-[var(--subtle-foreground)]">진행률</span>
+                  <span className="text-[24px] font-bold leading-none tracking-tight text-primary">
+                    {completionRate}%
+                  </span>
+                  <span className="text-[12px] font-bold uppercase tracking-tighter text-[var(--subtle-foreground)]">
+                    진행률
+                  </span>
                 </div>
                 <p className="text-[11px] font-bold text-[var(--muted-foreground)]">
                   <span className="text-foreground">{completedResponses.toLocaleString()}</span>
@@ -423,7 +459,10 @@ export const LiveAnalysisPage: React.FC = () => {
 
             <div className="relative">
               <div className="h-3 w-full overflow-hidden rounded-full border border-[var(--border)]/30 bg-[var(--panel-soft)] shadow-inner">
-                <div className="relative h-full bg-primary transition-all duration-700 ease-out" style={{ width: `${completionRate}%` }}>
+                <div
+                  className="relative h-full bg-primary transition-all duration-700 ease-out"
+                  style={{ width: `${completionRate}%` }}
+                >
                   <div className="absolute inset-0 bg-white/20" />
                 </div>
               </div>
@@ -463,19 +502,51 @@ export const LiveAnalysisPage: React.FC = () => {
                 <span className="shrink-0 rounded border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2 py-0.5 text-[10px] font-bold text-primary">
                   {activeResult?.id ?? "-"}
                 </span>
-                <p className="text-[14px] font-bold leading-tight text-foreground">{activeResult?.text ?? "문항 데이터가 없습니다."}</p>
+                <p className="text-[14px] font-bold leading-tight text-foreground">
+                  {activeResult?.text ?? "문항 데이터가 없습니다."}
+                </p>
               </div>
               <div className="h-[180px] rounded-2xl border border-[var(--border)]/50 bg-[var(--panel-soft)]/30 p-4">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={activeResult?.data ?? []} layout="vertical" margin={{ top: 5, right: 45, bottom: 5, left: 10 }} barSize={14}>
+                  <BarChart
+                    data={activeResult?.data ?? []}
+                    layout="vertical"
+                    margin={{ top: 5, right: 45, bottom: 5, left: 10 }}
+                    barSize={14}
+                  >
                     <XAxis type="number" hide />
-                    <YAxis dataKey="label" type="category" width={100} tick={{ fontSize: 11, fontWeight: 600, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: "var(--panel-soft)" }} contentStyle={{ borderRadius: 12, border: "none", fontSize: 11, fontWeight: 700, boxShadow: "var(--shadow-lg)" }} />
+                    <YAxis
+                      dataKey="label"
+                      type="category"
+                      width={100}
+                      tick={{ fontSize: 11, fontWeight: 600, fill: "var(--muted-foreground)" }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip
+                      cursor={{ fill: "var(--panel-soft)" }}
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "none",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        boxShadow: "var(--shadow-lg)",
+                      }}
+                    />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                       {(activeResult?.data ?? []).map((_, index) => (
-                        <Cell key={`${activeResult?.id ?? "result"}-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+                        <Cell
+                          key={`${activeResult?.id ?? "result"}-${index}`}
+                          fill={BAR_COLORS[index % BAR_COLORS.length]}
+                        />
                       ))}
-                      <LabelList dataKey="value" position="right" formatter={(value: number) => `${value}%`} style={{ fontSize: 11, fontWeight: 800, fill: "var(--secondary-foreground)" }} offset={10} />
+                      <LabelList
+                        dataKey="value"
+                        position="right"
+                        formatter={(value: number) => `${value}%`}
+                        style={{ fontSize: 11, fontWeight: 800, fill: "var(--secondary-foreground)" }}
+                        offset={10}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -490,7 +561,8 @@ export const LiveAnalysisPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 text-[10px] font-bold uppercase text-[var(--subtle-foreground)]">
                   <span>
-                    추론 신뢰도 <span className="text-primary">{Math.min(99, 80 + (activeResult?.data?.length ?? 0) * 3)}%</span>
+                    추론 신뢰도{" "}
+                    <span className="text-primary">{Math.min(99, 80 + (activeResult?.data?.length ?? 0) * 3)}%</span>
                   </span>
                   <div className="h-2.5 w-px bg-[var(--border)]" />
                   <span>표본 규모 N={completedResponses.toLocaleString()}</span>
@@ -501,7 +573,9 @@ export const LiveAnalysisPage: React.FC = () => {
                 <div className="app-card border-[var(--border)] bg-[var(--panel-soft)]/40 p-5">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="h-2.5 w-1 rounded-full bg-primary" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">시장 인지도 진단</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                      시장 인지도 진단
+                    </span>
                   </div>
                   <h5 className="mb-2 text-[14px] font-bold text-foreground">실시간 인사이트 요약</h5>
                   <p className="text-[13px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
@@ -512,7 +586,9 @@ export const LiveAnalysisPage: React.FC = () => {
                 <div className="app-card border-primary/10 p-5 shadow-sm">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="h-2.5 w-1 rounded-full bg-primary" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">전략적 핵심 과제</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                      전략적 핵심 과제
+                    </span>
                   </div>
                   <h5 className="mb-2 text-[14px] font-bold text-foreground">권장 액션</h5>
                   <ul className="space-y-3">
@@ -522,12 +598,16 @@ export const LiveAnalysisPage: React.FC = () => {
                           <div className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-primary" />
                           <div>
                             <p className="mb-1 text-[11px] font-bold leading-none text-foreground">{`전략 ${index + 1}`}</p>
-                            <p className="text-[12px] font-medium leading-tight text-[var(--muted-foreground)]">{item}</p>
+                            <p className="text-[12px] font-medium leading-tight text-[var(--muted-foreground)]">
+                              {item}
+                            </p>
                           </div>
                         </li>
                       ))
                     ) : (
-                      <li className="text-[12px] font-medium text-[var(--muted-foreground)]">권장 액션 데이터가 아직 없습니다.</li>
+                      <li className="text-[12px] font-medium text-[var(--muted-foreground)]">
+                        권장 액션 데이터가 아직 없습니다.
+                      </li>
                     )}
                   </ul>
                 </div>
@@ -543,7 +623,9 @@ export const LiveAnalysisPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-[16px] font-black tracking-tight text-foreground">텍스트 마이닝 실시간 키워드</h3>
-                  <p className="mt-0.5 text-[11px] font-bold text-[var(--muted-foreground)]">응답 근거 데이터 내 고빈도 핵심 어휘 추출</p>
+                  <p className="mt-0.5 text-[11px] font-bold text-[var(--muted-foreground)]">
+                    응답 근거 데이터 내 고빈도 핵심 어휘 추출
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-3 py-1.5">
@@ -598,30 +680,48 @@ export const LiveAnalysisPage: React.FC = () => {
           <div className="hide-scrollbar flex-1 space-y-3 overflow-y-auto p-4">
             {chatFeed.length > 0 ? (
               chatFeed.map((chat) => (
-                <div key={chat.id} onClick={() => setSelectedChat(chat)} className="app-card group cursor-pointer overflow-hidden border-border/50 transition-all duration-300 hover:border-primary/40 hover:shadow-[var(--shadow-md)]">
+                <div
+                  key={chat.id}
+                  onClick={() => setSelectedChat(chat)}
+                  className="app-card group cursor-pointer overflow-hidden border-border/50 transition-all duration-300 hover:border-primary/40 hover:shadow-[var(--shadow-md)]"
+                >
                   <div className="flex items-center justify-between border-b border-border/30 px-4 pb-3 pt-4">
                     <div className="min-w-0 flex items-center gap-2.5">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] text-primary shadow-[var(--shadow-sm)] transition-colors group-hover:bg-[var(--primary-light-bg)]">
                         <UserCircle2 size={16} />
                       </div>
                       <div className="min-w-0">
-                        <span className="block truncate text-[12px] font-black leading-tight text-foreground">{chat.personaName}</span>
-                        <span className="mt-0.5 block truncate text-[9px] font-bold leading-none tracking-wide text-muted-foreground">{chat.segment}</span>
+                        <span className="block truncate text-[12px] font-black leading-tight text-foreground">
+                          {chat.personaName}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[9px] font-bold leading-none tracking-wide text-muted-foreground">
+                          {chat.segment}
+                        </span>
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="rounded border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2 py-0.5 text-[9px] font-black text-primary">{chat.questionId}</span>
+                      <span className="rounded border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2 py-0.5 text-[9px] font-black text-primary">
+                        {chat.questionId}
+                      </span>
                       <span className="text-[9px] font-bold text-muted-foreground">{chat.timestamp}</span>
                     </div>
                   </div>
                   <div className="px-4 pb-2 pt-3">
-                    <p className="line-clamp-1 text-[10px] font-bold leading-snug text-muted-foreground">{chat.questionText}</p>
+                    <p className="line-clamp-1 text-[10px] font-bold leading-snug text-muted-foreground">
+                      {chat.questionText}
+                    </p>
                   </div>
                   <div className="px-4 pb-3">
                     <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/8 px-3 py-2.5 transition-colors group-hover:bg-primary/12">
                       <div className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary shadow-[var(--shadow-sm)]">
                         <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-                          <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path
+                            d="M1 3L3 5L7 1"
+                            stroke="white"
+                            strokeWidth="1.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
                         </svg>
                       </div>
                       <span className="text-[13px] font-black leading-tight text-primary">{chat.selectedOption}</span>
@@ -632,15 +732,21 @@ export const LiveAnalysisPage: React.FC = () => {
                       <div className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border border-[var(--border)] bg-[var(--panel-soft)]">
                         <Lightbulb size={8} className="text-muted-foreground" />
                       </div>
-                      <p className="line-clamp-2 text-[11px] font-bold leading-relaxed text-secondary-foreground">{chat.rationale}</p>
+                      <p className="line-clamp-2 text-[11px] font-bold leading-relaxed text-secondary-foreground">
+                        {chat.rationale}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between px-4 pb-3.5">
                     <div className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-[var(--panel-soft)] px-2 py-1">
                       <ShieldCheck size={9} className="text-success" />
-                      <span className="text-[9px] font-black uppercase tracking-wide text-muted-foreground">응답 검증 {chat.integrityScore.toFixed(1)}%</span>
+                      <span className="text-[9px] font-black uppercase tracking-wide text-muted-foreground">
+                        응답 검증 {chat.integrityScore.toFixed(1)}%
+                      </span>
                     </div>
-                    <span className="text-[9px] font-bold text-primary/60 transition-colors group-hover:text-primary">AI 사고 보기 →</span>
+                    <span className="text-[9px] font-bold text-primary/60 transition-colors group-hover:text-primary">
+                      AI 사고 보기 →
+                    </span>
                   </div>
                 </div>
               ))
@@ -668,7 +774,9 @@ export const LiveAnalysisPage: React.FC = () => {
                 <Sparkles size={18} />
               </div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">AI Cross-Segment Analysis</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">
+                  AI Cross-Segment Analysis
+                </p>
                 <h3 className="text-[15px] font-black text-foreground">세그먼트 간 비교 요약</h3>
               </div>
             </div>
@@ -680,7 +788,9 @@ export const LiveAnalysisPage: React.FC = () => {
                 {crossSegmentSummary.segment_highlights.map((highlight) => (
                   <div key={highlight.segment} className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
                     <p className="text-[10px] font-black uppercase tracking-wider text-primary">{highlight.segment}</p>
-                    <p className="mt-1 text-[12px] font-bold text-[var(--secondary-foreground)]">{highlight.key_finding}</p>
+                    <p className="mt-1 text-[12px] font-bold text-[var(--secondary-foreground)]">
+                      {highlight.key_finding}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -688,7 +798,9 @@ export const LiveAnalysisPage: React.FC = () => {
             {crossSegmentSummary.notable_pattern && (
               <div className="flex items-start gap-2 rounded-xl border border-[var(--border)]/50 bg-[var(--panel-soft)] px-4 py-3">
                 <Lightbulb size={14} className="mt-0.5 shrink-0 text-primary" />
-                <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">{crossSegmentSummary.notable_pattern}</p>
+                <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">
+                  {crossSegmentSummary.notable_pattern}
+                </p>
               </div>
             )}
           </div>

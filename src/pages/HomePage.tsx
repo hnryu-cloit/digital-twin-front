@@ -54,11 +54,22 @@ export function HomePage() {
         {/* Welcome Section */}
         <section className="app-card p-7 border relative overflow-hidden group">
           <div className="relative z-10">
-            <h1 className="text-2xl font-black">안녕하세요, <span className="text-primary">관리자</span>님.</h1>
-            <p className="mt-3 text-[13px] font-medium text-muted-foreground">가상 페르소나 리서치 허브에 오신 것을 환영합니다.</p>
+            <h1 className="text-2xl font-black">
+              안녕하세요, <span className="text-primary">관리자</span>님.
+            </h1>
+            <p className="mt-3 text-[13px] font-medium text-muted-foreground">
+              가상 페르소나 리서치 허브에 오신 것을 환영합니다.
+            </p>
             <div className="mt-6 flex gap-3">
-              <button onClick={() => openWizard()} className="bg-primary text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:scale-105 transition-transform active:scale-95">새 프로젝트 시작</button>
-              <button className="bg-card border border-border px-6 py-2.5 rounded-xl font-black hover:bg-muted transition-colors">데이터 불러오기</button>
+              <button
+                onClick={() => openWizard()}
+                className="bg-primary text-white px-6 py-2.5 rounded-xl font-black shadow-lg hover:scale-105 transition-transform active:scale-95"
+              >
+                새 프로젝트 시작
+              </button>
+              <button className="bg-card border border-border px-6 py-2.5 rounded-xl font-black hover:bg-muted transition-colors">
+                데이터 불러오기
+              </button>
             </div>
           </div>
         </section>
@@ -68,7 +79,11 @@ export function HomePage() {
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <h2 className="text-base font-black">최근 프로젝트</h2>
-              {isError && <span className="text-[9px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">OFFLINE</span>}
+              {isError && (
+                <span className="text-[9px] font-bold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  OFFLINE
+                </span>
+              )}
             </div>
             {isError && (
               <button
@@ -82,7 +97,9 @@ export function HomePage() {
           </div>
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
             {isLoading && !data ? (
-              <div className="col-span-full py-20 flex justify-center"><Loader className="animate-spin text-primary opacity-20" /></div>
+              <div className="col-span-full py-20 flex justify-center">
+                <Loader className="animate-spin text-primary opacity-20" />
+              </div>
             ) : isError ? (
               <div className="col-span-full rounded-[28px] border border-amber-200 bg-amber-50/70 px-6 py-10 text-center">
                 <p className="text-[15px] font-black text-amber-700">프로젝트 목록을 불러오지 못했습니다.</p>
@@ -118,7 +135,11 @@ export function HomePage() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onClick={() => { sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title); sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id); navigate("/analytics", { state: { projectId: project.id } }); }}
+                  onClick={() => {
+                    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title);
+                    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
+                    navigate("/analytics", { state: { projectId: project.id } });
+                  }}
                 />
               ))
             )}
@@ -131,8 +152,12 @@ export function HomePage() {
             <h2 className="text-base font-black">템플릿 라이브러리</h2>
           </div>
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {SURVEY_TYPES.map(t => (
-              <div key={t.id} onClick={() => openWizard(t)} className="app-card p-7 cursor-pointer hover:border-primary/40 transition-all group">
+            {SURVEY_TYPES.map((t) => (
+              <div
+                key={t.id}
+                onClick={() => openWizard(t)}
+                className="app-card p-7 cursor-pointer hover:border-primary/40 transition-all group"
+              >
                 <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-colors">
                   <t.icon size={20} />
                 </div>

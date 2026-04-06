@@ -1,9 +1,16 @@
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Calendar, Download, FileText, MoreHorizontal,
-  Search, Filter, ChevronRight, Clock,
-  FilePieChart, Presentation
+  Calendar,
+  Download,
+  FileText,
+  MoreHorizontal,
+  Search,
+  Filter,
+  ChevronRight,
+  Clock,
+  FilePieChart,
+  Presentation,
 } from "lucide-react";
 import { AppPagination } from "@/components/ui/AppPagination";
 import { cn } from "@/lib/utils";
@@ -29,11 +36,11 @@ const FORMAT_ICONS = {
 };
 
 const TYPE_STYLE: Record<string, { color: string; bg: string; label: string }> = {
-  strategy:     { color: "#3B82F6", bg: "#EFF6FF", label: "전략 리포트" },
+  strategy: { color: "#3B82F6", bg: "#EFF6FF", label: "전략 리포트" },
   concept_test: { color: "#3B82F6", bg: "#EFF6FF", label: "컨셉 테스트" },
-  usage:        { color: "#6366F1", bg: "#EEF2FF", label: "Usage 조사" },
-  brand:        { color: "#8B5CF6", bg: "#F5F3FF", label: "브랜드 인식" },
-  ux:           { color: "#10B981", bg: "#ECFDF5", label: "UX 테스트" },
+  usage: { color: "#6366F1", bg: "#EEF2FF", label: "Usage 조사" },
+  brand: { color: "#8B5CF6", bg: "#F5F3FF", label: "브랜드 인식" },
+  ux: { color: "#10B981", bg: "#ECFDF5", label: "UX 테스트" },
 };
 
 function mapReportItem(r: ReportSummary): ReportItem {
@@ -66,7 +73,6 @@ export const ReportHistoryPage: React.FC = () => {
       setReportItems(items.map(mapReportItem));
     };
     void loadReports();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   useEffect(() => {
@@ -82,14 +88,11 @@ export const ReportHistoryPage: React.FC = () => {
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return reportItems;
     const q = searchQuery.toLowerCase();
-    return reportItems.filter(
-      (item) => item.title.toLowerCase().includes(q) || item.project.toLowerCase().includes(q)
-    );
+    return reportItems.filter((item) => item.title.toLowerCase().includes(q) || item.project.toLowerCase().includes(q));
   }, [reportItems, searchQuery]);
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden bg-background">
-
       {/* ── 페이지 헤더 ── */}
       <div className="app-page-header shrink-0 flex items-end justify-between gap-8">
         <div>
@@ -105,7 +108,10 @@ export const ReportHistoryPage: React.FC = () => {
         {/* 헤더 우측 컨트롤 */}
         <div className="flex items-center gap-3 shrink-0 pb-1">
           <div className="flex items-center gap-2.5 bg-card border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-[var(--shadow-sm)] focus-within:border-primary transition-all group">
-            <Search size={15} className="text-[var(--subtle-foreground)] group-focus-within:text-primary transition-colors" />
+            <Search
+              size={15}
+              className="text-[var(--subtle-foreground)] group-focus-within:text-primary transition-colors"
+            />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -142,16 +148,21 @@ export const ReportHistoryPage: React.FC = () => {
               )}
             >
               {/* Format Icon */}
-              <div className={cn(
-                "w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 shadow-sm",
-                "bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border-[var(--border)] group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20"
-              )}>
+              <div
+                className={cn(
+                  "w-14 h-14 shrink-0 rounded-2xl flex items-center justify-center border transition-all duration-300 shadow-sm",
+                  "bg-[var(--panel-soft)] text-[var(--subtle-foreground)] border-[var(--border)] group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20"
+                )}
+              >
                 {FORMAT_ICONS[item.format]}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5 mb-2">
-                  <span className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border" style={{ backgroundColor: item.typeBg, color: item.typeColor, borderColor: `${item.typeColor}30` }}>
+                  <span
+                    className="px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border"
+                    style={{ backgroundColor: item.typeBg, color: item.typeColor, borderColor: `${item.typeColor}30` }}
+                  >
                     {item.type}
                   </span>
                   <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-tight">
@@ -183,14 +194,17 @@ export const ReportHistoryPage: React.FC = () => {
                   </button>
                   {downloadOpenId === item.id && (
                     <div className="absolute right-0 top-full mt-2 z-50 w-44 bg-card border border-[var(--border)] rounded-xl shadow-[var(--shadow-lg)] p-1.5 animate-in fade-in slide-in-from-top-1">
-                      {["PDF", "DOCX", "PPTX"].map(ext => (
+                      {["PDF", "DOCX", "PPTX"].map((ext) => (
                         <button
                           key={ext}
                           onClick={() => setDownloadOpenId(null)}
                           className="w-full text-left px-3.5 py-2.5 rounded-lg text-[12px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] hover:text-primary transition-colors flex items-center justify-between group/ext"
                         >
                           <span>{ext} 파일 받기</span>
-                          <ChevronRight size={14} className="opacity-0 group-hover/ext:opacity-100 transition-all -translate-x-2 group-hover/ext:translate-x-0" />
+                          <ChevronRight
+                            size={14}
+                            className="opacity-0 group-hover/ext:opacity-100 transition-all -translate-x-2 group-hover/ext:translate-x-0"
+                          />
                         </button>
                       ))}
                     </div>
@@ -204,11 +218,10 @@ export const ReportHistoryPage: React.FC = () => {
           ))}
 
           <div className="flex justify-center pt-10">
-            <AppPagination current={1} total={3} onChange={() => { }} />
+            <AppPagination current={1} total={3} onChange={() => {}} />
           </div>
         </div>
       </div>
-
     </div>
   );
 };

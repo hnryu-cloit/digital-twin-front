@@ -223,10 +223,10 @@ export const fetchIndividualPersonas = async (projectId?: string | null): Promis
 
 // 백엔드 status → 프론트엔드 한국어 status 매핑
 const STATUS_MAP: Record<string, Project["status"]> = {
-  "진행중": "진행중",
-  "완료": "완료",
-  "초안": "초안",
-  "분석중": "분석중",
+  진행중: "진행중",
+  완료: "완료",
+  초안: "초안",
+  분석중: "분석중",
   in_progress: "진행중",
   completed: "완료",
   draft: "초안",
@@ -305,7 +305,12 @@ export const projectApi = {
 };
 
 export const personaApi = {
-  getPersonas: async (projectId: string | undefined, page = 1, size = 12, search = ""): Promise<PersonaListResponse> => {
+  getPersonas: async (
+    projectId: string | undefined,
+    page = 1,
+    size = 12,
+    search = ""
+  ): Promise<PersonaListResponse> => {
     try {
       const query = new URLSearchParams({ page: String(page), size: String(size) });
       if (projectId) query.set("project_id", projectId);
@@ -357,7 +362,7 @@ export const personaApi = {
 export const segmentApi = {
   getFilterOptions: async (projectId?: string): Promise<SegmentFilterOptions | null> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const query = resolvedProjectId ? `?project_id=${resolvedProjectId}` : "";
       const { data } = await apiClient.get(`/segments/filter-options${query}`);
       return data;
@@ -457,7 +462,7 @@ export const surveyApi = {
   },
   getQuestions: async (projectId?: string): Promise<SurveyQuestion[]> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
       const { data } = await apiClient.get(`/surveys/${resolvedProjectId}/questions`);
       return data.questions ?? [];
@@ -468,7 +473,7 @@ export const surveyApi = {
   },
   getPreview: async (projectId?: string): Promise<SurveyDraftPreview | null> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
       const { data } = await apiClient.get(`/surveys/${resolvedProjectId}/preview`);
       return data;
@@ -482,7 +487,7 @@ export const surveyApi = {
     questions: Array<{ text: string; type: string; options?: string[] }>
   ): Promise<SurveyQuestion[]> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
       const { data } = await apiClient.put(`/surveys/${resolvedProjectId}/questions`, { questions });
       return data.questions ?? [];
@@ -493,7 +498,7 @@ export const surveyApi = {
   },
   confirm: async (projectId?: string): Promise<boolean> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return false;
       await apiClient.post("/surveys/confirm", { project_id: resolvedProjectId });
       return true;
@@ -521,13 +526,10 @@ export const surveyApi = {
 };
 
 export const aiJobApi = {
-  listJobs: async (params?: {
-    projectId?: string;
-    jobType?: string;
-  }): Promise<{ items: AIJob[]; total: number }> => {
+  listJobs: async (params?: { projectId?: string; jobType?: string }): Promise<{ items: AIJob[]; total: number }> => {
     try {
       const query = new URLSearchParams();
-      const resolvedProjectId = params?.projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = params?.projectId ?? (await resolveDefaultProjectId());
       if (resolvedProjectId) {
         query.set("project_id", resolvedProjectId);
       }
@@ -606,7 +608,7 @@ export interface KeywordTrendItem {
 export const simulationApi = {
   getProgress: async (projectId?: string): Promise<SimulationProgress | null> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
       const { data } = await apiClient.get(`/simulations/progress?project_id=${resolvedProjectId}`);
       return data;
@@ -617,7 +619,7 @@ export const simulationApi = {
   },
   getFeed: async (projectId?: string, limit = 20): Promise<SimulationFeedItem[]> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
       const { data } = await apiClient.get(`/simulations/feed?project_id=${resolvedProjectId}&limit=${limit}`);
       return data;
@@ -628,9 +630,11 @@ export const simulationApi = {
   },
   getDistribution: async (projectId: string | undefined, questionId: string): Promise<ResponseDistributionItem[]> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
-      const { data } = await apiClient.get(`/simulations/distribution?project_id=${resolvedProjectId}&question_id=${questionId}`);
+      const { data } = await apiClient.get(
+        `/simulations/distribution?project_id=${resolvedProjectId}&question_id=${questionId}`
+      );
       return data ?? [];
     } catch (error) {
       console.warn("simulationApi.getDistribution failed.", error);
@@ -639,9 +643,11 @@ export const simulationApi = {
   },
   getInsight: async (projectId: string | undefined, questionId: string): Promise<InsightResponse | null> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
-      const { data } = await apiClient.get(`/simulations/insight?project_id=${resolvedProjectId}&question_id=${questionId}`);
+      const { data } = await apiClient.get(
+        `/simulations/insight?project_id=${resolvedProjectId}&question_id=${questionId}`
+      );
       return data;
     } catch (error) {
       console.warn("simulationApi.getInsight failed.", error);
@@ -650,7 +656,7 @@ export const simulationApi = {
   },
   getKeywords: async (projectId?: string): Promise<KeywordTrendItem[]> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
       const { data } = await apiClient.get(`/simulations/keywords?project_id=${resolvedProjectId}`);
       return data ?? [];
@@ -661,7 +667,7 @@ export const simulationApi = {
   },
   control: async (projectId: string | undefined, action: "start" | "stop"): Promise<void> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return;
       await apiClient.post("/simulations/control", { project_id: resolvedProjectId, action });
     } catch (error) {
@@ -678,10 +684,11 @@ export const simulationApi = {
     batchSize = 5,
     onEvent: (event: Record<string, unknown>) => void,
     onDone: () => void,
-    onError?: (err: unknown) => void,
+    onError?: (err: unknown) => void
   ): AbortController => {
     const controller = new AbortController();
-    const token = localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? "";
+    const token =
+      localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? "";
 
     (async () => {
       try {
@@ -690,7 +697,7 @@ export const simulationApi = {
           {
             headers: { Authorization: `Bearer ${token}` },
             signal: controller.signal,
-          },
+          }
         );
         if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 
@@ -711,8 +718,13 @@ export const simulationApi = {
             try {
               const evt = JSON.parse(raw) as Record<string, unknown>;
               onEvent(evt);
-              if (evt.type === "done") { onDone(); return; }
-            } catch { /* ignore malformed */ }
+              if (evt.type === "done") {
+                onDone();
+                return;
+              }
+            } catch {
+              /* ignore malformed */
+            }
           }
         }
         onDone();
@@ -737,7 +749,13 @@ export interface ReportSummary {
 }
 
 export interface ReportDetail extends ReportSummary {
-  sections: { id: string; title: string; content: string; evidence?: { label: string; value: string }[]; action?: string }[];
+  sections: {
+    id: string;
+    title: string;
+    content: string;
+    evidence?: { label: string; value: string }[];
+    action?: string;
+  }[];
   kpis: { label: string; value: string }[];
   charts: { id: string; type: string; title: string; data?: Record<string, unknown>[] }[];
 }
@@ -750,10 +768,7 @@ export interface ReportDownloadInfo {
 }
 
 export const reportApi = {
-  generateJob: async (payload: {
-    project_id: string;
-    report_type?: string;
-  }): Promise<AIJob | null> => {
+  generateJob: async (payload: { project_id: string; report_type?: string }): Promise<AIJob | null> => {
     try {
       const { data } = await apiClient.post("/reports/generate-job", payload);
       return data;
@@ -775,10 +790,10 @@ export const reportApi = {
     projectId?: string,
     page = 1,
     size = 10,
-    search?: string,
+    search?: string
   ): Promise<{ items: ReportSummary[]; total: number }> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return { items: [], total: 0 };
       const params = new URLSearchParams({
         project_id: resolvedProjectId,
@@ -816,10 +831,10 @@ export const assistantApi = {
   chat: async (
     message: string,
     messages: { role: string; message: string }[],
-    projectId?: string | null,
+    projectId?: string | null
   ): Promise<AssistantChatResponse | null> => {
     try {
-      const resolvedProjectId = projectId ?? await resolveDefaultProjectId();
+      const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const { data } = await apiClient.post("/assistant/chat", {
         message,
         messages,
@@ -1048,7 +1063,9 @@ export const settingsApi = {
     }
   },
   getSeoSettings: async (): Promise<SeoSettings | null> => settingsApi.getJsonSetting<SeoSettings>("seo_policy"),
-  saveSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> => settingsApi.saveJsonSetting("seo_policy", value),
+  saveSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> =>
+    settingsApi.saveJsonSetting("seo_policy", value),
   getGeoSettings: async (): Promise<GeoSettings | null> => settingsApi.getJsonSetting<GeoSettings>("geo_policy"),
-  saveGeoSettings: async (value: GeoSettings): Promise<GeoSettings | null> => settingsApi.saveJsonSetting("geo_policy", value),
+  saveGeoSettings: async (value: GeoSettings): Promise<GeoSettings | null> =>
+    settingsApi.saveJsonSetting("geo_policy", value),
 };
