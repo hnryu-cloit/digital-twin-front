@@ -12,6 +12,9 @@ import {
   ShieldCheck,
   ExternalLink,
   Layers,
+  Database,
+  X,
+  ChevronRight,
 } from "lucide-react";
 import {
   Area,
@@ -40,6 +43,8 @@ import {
   type ReportDownloadInfo,
   type ReportDetail,
   type ResponseDistributionItem,
+  type ResponseListItem,
+  type QuestionStat,
   type ActionPlanResponse,
   geminiApi,
 } from "@/lib/api";
@@ -194,6 +199,15 @@ export const ReportPage: React.FC = () => {
   const [activeReportJob, setActiveReportJob] = useState<AIJob | null>(null);
   const [actionPlan, setActionPlan] = useState<ActionPlanResponse | null>(null);
   const [actionPlanLoading, setActionPlanLoading] = useState(false);
+  const [sourceDrawer, setSourceDrawer] = useState<{
+    open: boolean;
+    questionId: string | null;
+    stat: QuestionStat | null;
+    responses: ResponseListItem[];
+    loading: boolean;
+    page: number;
+    total: number;
+  }>({ open: false, questionId: null, stat: null, responses: [], loading: false, page: 1, total: 0 });
 
   useEffect(() => {
     if (!projectId) return;
@@ -401,6 +415,30 @@ export const ReportPage: React.FC = () => {
       | Array<{ question_id: string; question_text: string; distribution: ResponseDistributionItem[] }>
       | undefined) ?? [];
   const reportDominantQuestion = reportDistributionData[0];
+
+  const openSourceDrawer = async (questionId: string) => {
+    if (!projectId) return;
+    const stat = reportData?.question_stats?.find((s) => s.question_id === questionId) ?? null;
+    setSourceDrawer({ open: true, questionId, stat, responses: [], loading: true, page: 1, total: 0 });
+    const result = await simulationApi.getResponses(projectId, questionId, undefined, 1, 20);
+    setSourceDrawer((prev) => ({
+      ...prev,
+      responses: result.items,
+      total: result.total,
+      loading: false,
+    }));
+  };
+
+  const loadMoreResponses = async () => {
+    if (!projectId || !sourceDrawer.questionId) return;
+    const nextPage = sourceDrawer.page + 1;
+    const result = await simulationApi.getResponses(projectId, sourceDrawer.questionId, undefined, nextPage, 20);
+    setSourceDrawer((prev) => ({
+      ...prev,
+      responses: [...prev.responses, ...result.items],
+      page: nextPage,
+    }));
+  };
 
   const scrollToSection = (id: SectionId) => {
     setSection(id);
@@ -751,9 +789,21 @@ export const ReportPage: React.FC = () => {
                                       <span className="text-[13px] font-semibold text-[var(--secondary-foreground)]">
                                         {evidence.label}
                                       </span>
-                                      <span className="text-[14px] font-black tabular-nums text-primary">
-                                        {evidence.value}
-                                      </span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[14px] font-black tabular-nums text-primary">
+                                          {evidence.value}
+                                        </span>
+                                        {evidence.source_question_id && (
+                                          <button
+                                            type="button"
+                                            title="원본 데이터 보기"
+                                            onClick={() => void openSourceDrawer(evidence.source_question_id!)}
+                                            className="flex h-5 w-5 items-center justify-center rounded-md border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary opacity-60 transition-opacity hover:opacity-100"
+                                          >
+                                            <Database size={10} />
+                                          </button>
+                                        )}
+                                      </div>
                                     </div>
                                   ))
                                 ) : (
@@ -1016,6 +1066,137 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 원본 데이터 드로어 */}
+      {sourceDrawer.open && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setSourceDrawer((prev) => ({ ...prev, open: false }))}
+          />
+          <div className="relative z-10 flex h-full w-[520px] flex-col overflow-hidden bg-card shadow-2xl">
+            {/* 헤더 */}
+            <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[var(--primary-light-bg)] text-primary">
+                  <Database size={14} />
+                </div>
+                <div>
+                  <p className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                    데이터 출처
+                  </p>
+                  <p className="text-[14px] font-black text-foreground">
+                    {sourceDrawer.stat?.question_text ?? sourceDrawer.questionId}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSourceDrawer((prev) => ({ ...prev, open: false }))}
+                className="rounded-lg p-1.5 hover:bg-[var(--panel-soft)] text-[var(--muted-foreground)]"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* 문항 통계 요약 */}
+            {sourceDrawer.stat && (
+              <div className="border-b border-[var(--border)] bg-[var(--panel-soft)]/50 px-6 py-4 space-y-3">
+                <div className="flex flex-wrap gap-2 text-[11px] font-black">
+                  <span className="rounded-lg border border-[var(--border)] bg-card px-2.5 py-1 text-[var(--secondary-foreground)]">
+                    {sourceDrawer.stat.question_type}
+                  </span>
+                  <span className="rounded-lg border border-[var(--border)] bg-card px-2.5 py-1 text-[var(--secondary-foreground)]">
+                    응답 {sourceDrawer.stat.response_count.toLocaleString()}건
+                  </span>
+                  {sourceDrawer.stat.mean !== undefined && (
+                    <span className="rounded-lg border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-2.5 py-1 text-primary">
+                      평균 {sourceDrawer.stat.mean}점 / {sourceDrawer.stat.max_score}점 · σ {sourceDrawer.stat.std_dev}
+                    </span>
+                  )}
+                </div>
+                {/* 분포 바 */}
+                <div className="space-y-1.5">
+                  {sourceDrawer.stat.distribution.slice(0, 5).map((d) => (
+                    <div key={d.label} className="flex items-center gap-2">
+                      <span className="w-28 shrink-0 truncate text-[11px] font-semibold text-[var(--secondary-foreground)]">
+                        {d.label}
+                      </span>
+                      <div className="flex-1 rounded-full bg-[var(--border)] h-2 overflow-hidden">
+                        <div className="h-full rounded-full bg-primary/70" style={{ width: `${d.value}%` }} />
+                      </div>
+                      <span className="w-12 text-right text-[11px] font-black tabular-nums text-primary">
+                        {d.value}%
+                        {d.count ? (
+                          <span className="text-[var(--muted-foreground)] font-semibold"> ({d.count})</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 원본 응답 목록 */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                원본 응답 ({sourceDrawer.total.toLocaleString()}건)
+              </p>
+              {sourceDrawer.loading ? (
+                <div className="flex items-center justify-center py-10 text-[var(--muted-foreground)] text-[13px]">
+                  불러오는 중...
+                </div>
+              ) : sourceDrawer.responses.length === 0 ? (
+                <div className="flex items-center justify-center py-10 text-[var(--muted-foreground)] text-[13px]">
+                  응답 데이터가 없습니다.
+                </div>
+              ) : (
+                <>
+                  {sourceDrawer.responses.map((resp) => (
+                    <div
+                      key={resp.id}
+                      className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)]/40 p-4 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-black text-foreground">{resp.persona_name}</span>
+                          <span className="text-[10px] font-semibold text-[var(--muted-foreground)] border border-[var(--border)] rounded-md px-1.5 py-0.5">
+                            {resp.segment}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                            resp.consistency_status === "Good"
+                              ? "bg-green-50 text-green-600 border border-green-200"
+                              : resp.consistency_status === "Warn"
+                                ? "bg-amber-50 text-amber-600 border border-amber-200"
+                                : "bg-red-50 text-red-600 border border-red-200"
+                          }`}
+                        >
+                          {resp.integrity_score.toFixed(0)}
+                        </span>
+                      </div>
+                      <p className="text-[12px] font-black text-primary">{resp.selected_option}</p>
+                      <p className="text-[12px] font-semibold leading-relaxed text-[var(--secondary-foreground)]">
+                        {resp.rationale}
+                      </p>
+                    </div>
+                  ))}
+                  {sourceDrawer.responses.length < sourceDrawer.total && (
+                    <button
+                      type="button"
+                      onClick={() => void loadMoreResponses()}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-[var(--border)] py-2.5 text-[12px] font-black text-[var(--secondary-foreground)] hover:bg-[var(--panel-soft)] transition-colors"
+                    >
+                      더 보기 <ChevronRight size={12} />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -591,6 +591,38 @@ export interface SimulationFeedItem {
 export interface ResponseDistributionItem {
   label: string;
   value: number;
+  count?: number;
+}
+
+export interface ResponseListItem {
+  id: string;
+  persona_name: string;
+  segment: string;
+  question_id: string;
+  question_text: string;
+  selected_option: string;
+  rationale: string;
+  integrity_score: number;
+  timestamp: string;
+  consistency_status: "Good" | "Warn" | "Error";
+}
+
+export interface ResponseListResponse {
+  items: ResponseListItem[];
+  page: number;
+  size: number;
+  total: number;
+}
+
+export interface QuestionStat {
+  question_id: string;
+  question_text: string;
+  question_type: string;
+  response_count: number;
+  distribution: ResponseDistributionItem[];
+  mean?: number;
+  std_dev?: number;
+  max_score?: number;
 }
 
 export interface InsightResponse {
@@ -663,6 +695,24 @@ export const simulationApi = {
     } catch (error) {
       console.warn("simulationApi.getKeywords failed.", error);
       return [];
+    }
+  },
+  getResponses: async (
+    projectId: string,
+    questionId?: string,
+    segment?: string,
+    page = 1,
+    size = 20
+  ): Promise<ResponseListResponse> => {
+    try {
+      const params = new URLSearchParams({ project_id: projectId, page: String(page), size: String(size) });
+      if (questionId) params.set("question_id", questionId);
+      if (segment) params.set("segment", segment);
+      const { data } = await apiClient.get(`/simulations/responses?${params}`);
+      return data;
+    } catch (error) {
+      console.warn("simulationApi.getResponses failed.", error);
+      return { items: [], page, size, total: 0 };
     }
   },
   control: async (projectId: string | undefined, action: "start" | "stop"): Promise<void> => {
@@ -753,11 +803,12 @@ export interface ReportDetail extends ReportSummary {
     id: string;
     title: string;
     content: string;
-    evidence?: { label: string; value: string }[];
+    evidence?: { label: string; value: string; source_question_id?: string | null }[];
     action?: string;
   }[];
   kpis: { label: string; value: string }[];
   charts: { id: string; type: string; title: string; data?: Record<string, unknown>[] }[];
+  question_stats?: QuestionStat[];
 }
 
 export interface ReportDownloadInfo {
