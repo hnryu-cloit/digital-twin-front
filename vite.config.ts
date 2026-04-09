@@ -6,10 +6,8 @@ import react from '@vitejs/plugin-react'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
-const isDemoMode = process.env.VITE_MOCK_MODE === 'true'
-
 export default defineConfig({
-  base: isDemoMode ? '/digital-twin-front/' : '/',
+  base: '/digital-twin-front/',
   plugins: [
     react(),
     tailwindcss(),
