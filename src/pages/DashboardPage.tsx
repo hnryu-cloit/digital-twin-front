@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   fetchIndividualPersonas,
   geminiApi,
+  projectApi,
   segmentApi,
   type SegmentFilterOptions,
   type ResearchRecommendationResponse,
@@ -255,9 +256,11 @@ export const DashboardPage: React.FC = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [items, options] = await Promise.all([
-          fetchIndividualPersonas(projectId ?? undefined),
+        // 항상 데이터마트 전체(1000명) 로드 — project_id 미지정
+        const [items, options, savedFilter] = await Promise.all([
+          fetchIndividualPersonas(undefined),
           segmentApi.getFilterOptions(),
+          projectId ? projectApi.getSegmentFilter(projectId) : Promise.resolve(null),
         ]);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mapped: FilterPersona[] = (items || []).map((item: any) => ({
@@ -299,6 +302,32 @@ export const DashboardPage: React.FC = () => {
         }));
         setAllPersonas(mapped);
         setFilterOptions(options ?? null);
+
+        // 저장된 필터 복원
+        if (savedFilter?.persona_filter) {
+          const f = savedFilter.persona_filter as Record<string, unknown>;
+          if (Array.isArray(f.ageGroups)) setSelectedAgeGroups(f.ageGroups as string[]);
+          if (f.gender && typeof f.gender === "object") {
+            const g = f.gender as { male?: boolean; female?: boolean };
+            setGender({ male: g.male ?? true, female: g.female ?? true });
+          }
+          if (Array.isArray(f.occupations)) setSelectedOccupations(f.occupations as string[]);
+          if (Array.isArray(f.regions)) setSelectedRegions(f.regions as string[]);
+          if (Array.isArray(f.households)) setSelectedHouseholds(f.households as string[]);
+          if (Array.isArray(f.spending)) setSelectedSpending(f.spending as SpendingLevel[]);
+          if (Array.isArray(f.purchaseIntent)) setSelectedPurchaseIntent(f.purchaseIntent as PurchaseIntent[]);
+          if (Array.isArray(f.buyChannels)) setSelectedBuyChannels(f.buyChannels as string[]);
+          if (f.products && typeof f.products === "object") setProducts(f.products as Record<string, boolean>);
+          if (Array.isArray(f.techLevels)) setSelectedTechLevels(f.techLevels as string[]);
+          if (Array.isArray(f.sns)) setSelectedSns(f.sns as SnsActivity[]);
+          if (Array.isArray(f.contentChannels)) setSelectedContentChannels(f.contentChannels as string[]);
+          if (Array.isArray(f.brandLoyalty)) setSelectedBrandLoyalty(f.brandLoyalty as BrandLoyalty[]);
+          if (Array.isArray(f.keywords)) setCustomKeywords(f.keywords as string[]);
+          if (Array.isArray(f.customCountries)) setCustomCountries(f.customCountries as string[]);
+          if (Array.isArray(f.customOccupations)) setCustomOccupations(f.customOccupations as string[]);
+          if (Array.isArray(f.customHouseholds)) setCustomHouseholds(f.customHouseholds as string[]);
+          if (Array.isArray(f.customContentChannels)) setCustomContentChannels(f.customContentChannels as string[]);
+        }
       } catch (error) {
         console.error("Dashboard data load failed:", error);
       } finally {
@@ -1366,7 +1395,7 @@ export const DashboardPage: React.FC = () => {
             )}
             <button
               disabled={displayedPersonas.length === 0}
-              onClick={() => {
+              onClick={async () => {
                 const filterSummaryParts: string[] = [];
                 if (selectedAgeGroups.length > 0) filterSummaryParts.push(selectedAgeGroups.join("·"));
                 if (!gender.male || !gender.female) filterSummaryParts.push(gender.male ? "남성" : "여성");
@@ -1380,6 +1409,35 @@ export const DashboardPage: React.FC = () => {
                     selectedRegions[0] + (selectedRegions.length > 1 ? ` 외 ${selectedRegions.length - 1}` : "")
                   );
                 if (allKeywords.length > 0) filterSummaryParts.push(allKeywords.slice(0, 2).join("·"));
+
+                // 필터 조건 및 선택된 페르소나 ID 저장
+                if (projectId) {
+                  const personaFilter = {
+                    ageGroups: selectedAgeGroups,
+                    gender,
+                    occupations: selectedOccupations,
+                    regions: selectedRegions,
+                    households: selectedHouseholds,
+                    spending: selectedSpending,
+                    purchaseIntent: selectedPurchaseIntent,
+                    buyChannels: selectedBuyChannels,
+                    products,
+                    techLevels: selectedTechLevels,
+                    sns: selectedSns,
+                    contentChannels: selectedContentChannels,
+                    brandLoyalty: selectedBrandLoyalty,
+                    keywords: customKeywords,
+                    customCountries,
+                    customOccupations,
+                    customHouseholds,
+                    customContentChannels,
+                  };
+                  await projectApi.saveSegmentFilter(
+                    projectId,
+                    personaFilter,
+                    displayedPersonas.map((p) => p.id)
+                  );
+                }
 
                 navigate("/survey", {
                   state: {

@@ -302,6 +302,37 @@ export const projectApi = {
       return [];
     }
   },
+  saveSegmentFilter: async (
+    projectId: string,
+    personaFilter: Record<string, unknown>,
+    selectedPersonaIds: string[]
+  ): Promise<{ project_id: string; selected_count: number } | null> => {
+    try {
+      const { data } = await apiClient.post(`/projects/${projectId}/segment-filter`, {
+        persona_filter: personaFilter,
+        selected_persona_ids: selectedPersonaIds,
+      });
+      return data;
+    } catch (error) {
+      console.warn("projectApi.saveSegmentFilter failed.", error);
+      return null;
+    }
+  },
+  getSegmentFilter: async (
+    projectId: string
+  ): Promise<{
+    persona_filter: Record<string, unknown> | null;
+    selected_persona_ids: string[];
+    selected_count: number;
+  } | null> => {
+    try {
+      const { data } = await apiClient.get(`/projects/${projectId}/segment-filter`);
+      return data;
+    } catch (error) {
+      console.warn("projectApi.getSegmentFilter failed.", error);
+      return null;
+    }
+  },
 };
 
 export const personaApi = {
