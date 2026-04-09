@@ -107,10 +107,8 @@ export const MOCK_PROJECT_OPTIONS: ProjectOption[] = MOCK_PROJECTS.map((p) => ({
 }));
 
 /* ─── 페르소나 ─── */
-const SEGMENTS = ["테크 얼리어답터", "실용주의 소비자", "가성비 추구형", "브랜드 충성고객", "신중한 비교구매자"];
 const OCCUPATIONS = ["IT개발자", "디자이너", "마케터", "교사", "자영업자", "대학생", "회사원", "공무원"];
 const REGIONS = ["서울", "경기", "인천", "부산", "대구", "광주", "대전"];
-const CHANNELS = ["온라인", "오프라인", "모바일앱"];
 
 const SEGMENT_PROFILES = [
   {
@@ -212,7 +210,7 @@ function makePersona(i: number): Persona {
       "배하늘",
     ][i % 20],
     segment: seg,
-    keywords: profile.keywords,
+    keywords: [...profile.keywords],
     age,
     gender,
     occupation: occ,

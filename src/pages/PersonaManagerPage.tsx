@@ -5,6 +5,8 @@ import {
   personaApi,
   projectApi,
   type AIJob,
+  type Persona as ApiPersona,
+  type PersonaDetail as ApiPersonaDetail,
   type PersonaIndividualStory,
   type ProjectDetail,
   type ProjectOption,
@@ -668,11 +670,24 @@ const SPEND_MAP: Record<string, string> = {
   "콘텐츠 크리에이터": "15-25만원",
 };
 
-function mapPersonaItems(items: Record<string, unknown>[]): Persona[] {
-  return (items || []).map((item: Record<string, unknown>, idx: number) => {
+function mapPersonaItems(items: Array<ApiPersona | ApiPersonaDetail>): Persona[] {
+  return items.map((item, idx) => {
     const primarySegment = (item.segment || "MZ 얼리어답터") as Segment;
     const palette = SEGMENT_COLORS[primarySegment] ?? DEFAULT_SEGMENT_COLOR;
-    const iconMeta = ICON_META[idx % ICON_META.length];
+    const detailItem = item as Partial<ApiPersonaDetail>;
+    const purchaseHistory = Array.isArray(detailItem.purchase_history)
+      ? detailItem.purchase_history
+      : [item.product_group || "Galaxy S24"];
+    const interests = Array.isArray((detailItem as { interests?: string[] }).interests)
+      ? ((detailItem as { interests?: string[] }).interests ?? [])
+      : ["스마트폰", "테크"];
+    const activityLogs = Array.isArray(detailItem.activity_logs) ? detailItem.activity_logs : ["앱 사용 기록 없음"];
+    const cotSteps = Array.isArray(detailItem.cot) ? detailItem.cot : [];
+    const individualStories = Array.isArray(detailItem.individual_stories) ? detailItem.individual_stories : [];
+    const purchaseIntent = typeof detailItem.purchase_intent === "number" ? detailItem.purchase_intent : 70;
+    const marketingAcceptance = typeof detailItem.marketing_acceptance === "number" ? detailItem.marketing_acceptance : 80;
+    const brandAttitude = typeof detailItem.brand_attitude === "number" ? detailItem.brand_attitude : 80;
+    const futureValue = typeof detailItem.score?.future_value === "number" ? detailItem.score.future_value : 85;
 
     return {
       id: item.id,
@@ -681,25 +696,25 @@ function mapPersonaItems(items: Record<string, unknown>[]): Persona[] {
       age: item.age || 0,
       gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
       occupation: item.occupation || "직업 미상",
-      device: item.purchase_history?.[0] || item.product_group || "Galaxy S24",
+      device: purchaseHistory[0] || item.product_group || "Galaxy S24",
       segments: [primarySegment] as Segment[],
       keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
-      purchaseIntent: item.purchase_intent ?? 70,
+      purchaseIntent,
       color: palette.text,
       iconBg: palette.bg,
       iconKey: idx % ICON_META.length,
-      description: item.profile || "디지털 트윈 페르소나입니다.",
+      description: detailItem.profile || "디지털 트윈 페르소나입니다.",
       techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
       monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
-      interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
-      competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
-      marketingAcceptance: item.marketing_acceptance ?? 80,
-      futureValue: item.future_value ?? 85,
-      purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
-      individualStories: item.individual_stories?.length ? item.individual_stories : [],
-      userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
-      cotSteps: item.cot?.length ? (item.cot as string[]) : [],
-      brandAttitude: item.brand_attitude ?? 80,
+      interests: interests.length > 0 ? interests : ["스마트폰", "테크"],
+      competitorPerception: cotSteps.join(", ") || "브랜드 경험 정보가 없습니다.",
+      marketingAcceptance,
+      futureValue,
+      purchaseHistory,
+      individualStories,
+      userLogs: activityLogs.length > 0 ? activityLogs : ["앱 사용 기록 없음"],
+      cotSteps,
+      brandAttitude,
     };
   });
 }
