@@ -386,10 +386,6 @@ export const DashboardPage: React.FC = () => {
   });
   const toggle = (key: keyof typeof openSections) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  /* ── AI Narrative ── */
-  const [narrative, setNarrative] = useState<string | null>(null);
-  const [narrativeLoading, setNarrativeLoading] = useState(false);
-
   /* ── Research Recommendation ── */
   const [recommendation, setRecommendation] = useState<ResearchRecommendationResponse | null>(null);
   const [recommendationLoading, setRecommendationLoading] = useState(false);
@@ -502,55 +498,6 @@ export const DashboardPage: React.FC = () => {
     () => deriveSegments(hasFilters ? matchedPersonas : allPersonas),
     [matchedPersonas, allPersonas, hasFilters]
   );
-
-  useEffect(() => {
-    if (!project?.id) return;
-
-    const timer = setTimeout(async () => {
-      setNarrativeLoading(true);
-      try {
-        const filterSummaryParts: string[] = [];
-        if (selectedAgeGroups.length > 0) filterSummaryParts.push(selectedAgeGroups.join("·"));
-        if (!gender.male || !gender.female) filterSummaryParts.push(gender.male ? "남성" : "여성");
-        if (selectedOccupations.length > 0) filterSummaryParts.push(selectedOccupations.join("·"));
-        if (selectedRegions.length > 0) filterSummaryParts.push(selectedRegions.join("·"));
-        if (allKeywords.length > 0) filterSummaryParts.push(allKeywords.join("·"));
-        const filterSummary = filterSummaryParts.length > 0 ? filterSummaryParts.join(" · ") : "전체 모집단";
-
-        const res = await geminiApi.getSegmentNarrative({
-          project_id: project.id,
-          filter_summary: filterSummary,
-          segments: derivedSegments.map((s) => ({ name: s.name, count: s.members.length })),
-          target_count: matchedPersonas.length,
-        });
-        if (res) setNarrative(res.narrative);
-      } catch (error) {
-        console.error("Narrative fetch failed:", error);
-      } finally {
-        setNarrativeLoading(false);
-      }
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, [
-    project?.id,
-    selectedAgeGroups,
-    gender,
-    selectedOccupations,
-    selectedRegions,
-    selectedHouseholds,
-    selectedSpending,
-    selectedPurchaseIntent,
-    selectedBuyChannels,
-    selectedTechLevels,
-    selectedSns,
-    selectedContentChannels,
-    selectedBrandLoyalty,
-    allKeywords,
-    products,
-    derivedSegments,
-    matchedPersonas.length,
-  ]);
 
   const productCount = Object.values(products).filter(Boolean).length;
 
@@ -1322,29 +1269,6 @@ export const DashboardPage: React.FC = () => {
 
           {/* 매칭 결과 요약 + 다음 단계 */}
           <div className="p-4 border-t border-[var(--border)] bg-card shrink-0 space-y-3">
-            {/* AI Narrative Card */}
-            {(narrative || narrativeLoading) && (
-              <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <Cpu size={12} className="text-primary animate-pulse" />
-                  <p className="text-[10px] font-black text-primary uppercase tracking-[0.15em]">
-                    AI Segment Narrative
-                  </p>
-                </div>
-                {narrativeLoading ? (
-                  <div className="space-y-2">
-                    <div className="h-3 bg-primary/10 rounded animate-pulse w-full" />
-                    <div className="h-3 bg-primary/10 rounded animate-pulse w-[90%]" />
-                    <div className="h-3 bg-primary/10 rounded animate-pulse w-[70%]" />
-                  </div>
-                ) : (
-                  <p className="text-[11px] leading-relaxed font-bold text-[var(--secondary-foreground)]">
-                    {narrative}
-                  </p>
-                )}
-              </div>
-            )}
-
             <div
               className={`rounded-xl border px-4 py-3 flex items-center justify-between ${displayedPersonas.length > 0 ? "border-[var(--primary-light-border)] bg-[var(--primary-light-bg2)]" : "border-red-100 bg-red-50"}`}
             >
@@ -1369,25 +1293,6 @@ export const DashboardPage: React.FC = () => {
                 {displayedPersonas.length > 0 ? `${derivedSegments.length}개 그룹` : "해당 없음"}
               </div>
             </div>
-            {/* AI 내러티브 카드 */}
-            {(narrative || narrativeLoading) && (
-              <div className="mb-3 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] p-3">
-                <p className="mb-1 text-[9px] font-black uppercase tracking-[0.18em] text-primary">
-                  AI Segment Narrative
-                </p>
-                {narrativeLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0.2s]" />
-                    <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:0.4s]" />
-                  </div>
-                ) : (
-                  <p className="text-[11px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                    {narrative}
-                  </p>
-                )}
-              </div>
-            )}
             <button
               disabled={displayedPersonas.length === 0}
               onClick={async () => {

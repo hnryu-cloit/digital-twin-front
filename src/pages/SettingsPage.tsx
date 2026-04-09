@@ -1486,7 +1486,6 @@ function PromptSettingsSection() {
   );
 }
 
-
 /* ─── 기간 선택 피커 ─── */
 type Preset = "week" | "month" | "lastMonth" | "custom";
 
@@ -3203,7 +3202,7 @@ export const SettingsPage: React.FC = () => {
       {/* Sidebar Nav */}
       <nav className="flex w-[240px] shrink-0 flex-col border-r border-[var(--border)] bg-card shadow-[var(--shadow-sm)]">
         {/* 상단: 뒤로가기 */}
-        <div className="shrink-0 border-b border-[var(--border)] px-4 py-4">
+        <div className="shrink-0 border-b border-[var(--border)] px-4 py-4 min-h-[112px] flex flex-col justify-center">
           <button
             type="button"
             onClick={() => navigate("/")}
