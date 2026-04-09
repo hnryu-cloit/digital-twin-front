@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename={import.meta.env.VITE_MOCK_MODE === "true" ? "/digital-twin-front" : "/"}>
+      <BrowserRouter basename={import.meta.env.BASE_URL === "/" ? undefined : import.meta.env.BASE_URL}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

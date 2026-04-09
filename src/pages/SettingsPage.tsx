@@ -2056,22 +2056,27 @@ function ProjectPickerDialog({
         if (!isOpen) onClose();
       }}
     >
-      <DialogContent className="max-w-3xl overflow-hidden rounded-[32px] border-[var(--border)] bg-card p-0 gap-0 shadow-2xl">
-        <DialogHeader className="border-b border-[var(--border)] bg-card px-8 py-6">
-          <DialogTitle className="text-2xl font-black text-foreground tracking-tight">리서치 프로젝트 선택</DialogTitle>
-          <p className="mt-2 text-[13px] font-medium leading-relaxed text-[var(--muted-foreground)]">
-            접근 가능한 프로젝트만 표시됩니다. 체크 후 확인을 누르면 해당 프로젝트의 검증 로그를 필터합니다
-          </p>
+      <DialogContent className="flex h-[92vh] w-[96vw] min-h-[640px] min-w-[960px] max-h-[92vh] max-w-[1440px] resize flex-col overflow-hidden rounded-[28px] border border-[var(--border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(248,250,252,0.98))] p-0 gap-0 shadow-[0_28px_90px_rgba(15,23,42,0.18)]">
+        <DialogHeader className="border-b border-[var(--border)] bg-[linear-gradient(135deg,var(--panel-soft),rgba(255,255,255,0.92))] px-9 py-7">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/80">Validation Scope</p>
+            <DialogTitle className="mt-2 text-[28px] font-black text-foreground tracking-tight">
+              리서치 프로젝트 선택
+            </DialogTitle>
+            <p className="mt-2 text-[13px] font-medium leading-relaxed text-[var(--muted-foreground)]">
+              접근 가능한 프로젝트만 표시됩니다. 체크 후 확인을 누르면 해당 프로젝트의 검증 로그를 필터합니다
+            </p>
+          </div>
         </DialogHeader>
 
         {/* 검색 */}
-        <div className="border-b border-[var(--border)] bg-background px-8 py-5">
-          <div className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-card px-4 py-3 shadow-[var(--shadow-sm)] transition-all focus-within:border-primary">
-            <Search size={13} className="text-[var(--subtle-foreground)] shrink-0" />
+        <div className="border-b border-[var(--border)] bg-white/70 px-9 py-5 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-[20px] border border-[var(--border)] bg-white px-4 py-3.5 shadow-[0_10px_30px_rgba(15,23,42,0.05)] transition-all focus-within:border-primary focus-within:shadow-[0_12px_34px_rgba(47,102,255,0.10)]">
+            <Search size={14} className="shrink-0 text-[var(--subtle-foreground)]" />
             <input
               value={pickerSearch}
               onChange={(e) => setPickerSearch(e.target.value)}
-              className="bg-transparent outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
+              className="w-full bg-transparent text-[14px] font-bold text-foreground outline-none placeholder:font-medium placeholder:text-[var(--subtle-foreground)]"
               placeholder="프로젝트명, 담당자 검색..."
               autoFocus
             />
@@ -2079,7 +2084,7 @@ function ProjectPickerDialog({
               <button
                 type="button"
                 onClick={() => setPickerSearch("")}
-                className="text-[var(--subtle-foreground)] hover:text-foreground"
+                className="rounded-full p-1 text-[var(--subtle-foreground)] transition-colors hover:bg-[var(--panel-soft)] hover:text-foreground"
               >
                 <Plus size={13} className="rotate-45" />
               </button>
@@ -2088,48 +2093,49 @@ function ProjectPickerDialog({
         </div>
 
         {/* 프로젝트 목록 */}
-        <div className="max-h-[420px] overflow-y-auto bg-card">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-white/60 px-5 py-5">
+          <div className="overflow-hidden rounded-[32px] border border-[var(--border)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
           <table className="w-full text-left text-[12px]">
-            <thead className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--panel-soft)]/95 backdrop-blur-sm">
+            <thead className="sticky top-0 z-10 overflow-hidden border-b border-[var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] shadow-[inset_0_1px_0_rgba(226,232,240,1)] backdrop-blur-sm">
               <tr>
-                <th className="w-10 px-6 py-3.5" />
-                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="w-10 rounded-tl-[32px] border-t border-l border-[var(--border)] px-6 py-3" />
+                <th className="min-w-[360px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   프로젝트명
                 </th>
-                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="min-w-[96px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   담당자
                 </th>
-                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="min-w-[108px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   생성일
                 </th>
-                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="min-w-[84px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   상태
                 </th>
-                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="min-w-[72px] rounded-tr-[32px] border-t border-r border-[var(--border)] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
                   접근
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)] bg-card">
+            <tbody className="divide-y divide-[var(--border)] bg-white">
               {filtered.map((p) => (
                 <tr
                   key={p.id}
                   onClick={() => p.accessible && toggle(p.id)}
                   className={cn(
-                    "transition-colors",
+                    "transition-all",
                     p.accessible
-                      ? "cursor-pointer hover:bg-[var(--surface-hover)]"
-                      : "cursor-not-allowed bg-[var(--panel-soft)] opacity-40",
-                    temp.has(p.id) && "bg-[var(--primary-light-bg2)]"
+                      ? "cursor-pointer hover:bg-[rgba(248,250,252,0.95)]"
+                      : "cursor-not-allowed bg-[var(--panel-soft)]/60 opacity-50",
+                    temp.has(p.id) && "bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,255,255,0.98))]"
                   )}
                 >
-                  <td className="px-6 py-4">
+                  <td className={cn("px-6 py-3.5", filtered[filtered.length - 1]?.id === p.id && "rounded-bl-[32px]")}>
                     <div
                       className={cn(
-                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all",
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all",
                         temp.has(p.id)
-                          ? "bg-primary border-primary shadow-[0_2px_6px_rgba(47,102,255,0.25)]"
-                          : "border-[var(--border)] bg-card"
+                          ? "border-primary bg-primary shadow-[0_8px_18px_rgba(47,102,255,0.24)]"
+                          : "border-[var(--border)] bg-white"
                       )}
                     >
                       {temp.has(p.id) && (
@@ -2145,21 +2151,38 @@ function ProjectPickerDialog({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-4 font-black text-foreground">{p.name}</td>
-                  <td className="px-4 py-4 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
-                  <td className="px-4 py-4 font-bold text-[var(--muted-foreground)]">{p.created}</td>
-                  <td className="px-4 py-4">
-                    <span className={cn("px-2 py-0.5 rounded-md text-[10px] font-black border", statusCls(p.status))}>
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          p.accessible ? "bg-primary shadow-[0_0_0_4px_rgba(47,102,255,0.10)]" : "bg-[var(--border-strong)]"
+                        )}
+                      />
+                      <span className="font-black text-foreground">{p.name}</span>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
+                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--muted-foreground)]">{p.created}</td>
+                  <td className="whitespace-nowrap px-4 py-3.5">
+                    <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-black border", statusCls(p.status))}>
                       {p.status}
                     </span>
                   </td>
-                  <td className="px-4 py-4">
+                  <td
+                    className={cn(
+                      "whitespace-nowrap px-4 py-3.5",
+                      filtered[filtered.length - 1]?.id === p.id && "rounded-br-[32px]"
+                    )}
+                  >
                     {p.accessible ? (
-                      <span className="text-[var(--success)] text-[11px] font-bold flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--success)]/20 bg-[var(--success-light)] px-2.5 py-1 text-[11px] font-bold text-[var(--success)]">
                         <CheckCircle2 size={11} /> 허용
                       </span>
                     ) : (
-                      <span className="text-[var(--muted-foreground)] text-[11px] font-bold">제한</span>
+                      <span className="inline-flex whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--muted-foreground)]">
+                        제한
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -2176,22 +2199,23 @@ function ProjectPickerDialog({
               )}
             </tbody>
           </table>
+          </div>
         </div>
 
-        <DialogFooter className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--panel-soft)] px-8 py-5">
+        <DialogFooter className="flex items-center justify-between border-t border-[var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.86),rgba(255,255,255,0.96))] px-9 py-5">
           <span className="text-[12px] font-bold text-[var(--muted-foreground)]">
-            {temp.size > 0 ? `${temp.size}개 선택됨` : "선택 없음 (전체 표시)"}
+            {temp.size > 0 ? `${temp.size}개 프로젝트 선택됨` : "선택 없음 · 전체 프로젝트 표시"}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setTemp(new Set())}>
+            <Button variant="outline" size="sm" className="rounded-xl border-[var(--border)] bg-white px-4" onClick={() => setTemp(new Set())}>
               선택 초기화
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={onClose}>
+            <Button variant="outline" size="sm" className="rounded-xl border-[var(--border)] bg-white px-4" onClick={onClose}>
               취소
             </Button>
             <Button
               size="sm"
-              className="rounded-xl px-4"
+              className="rounded-xl px-5 shadow-[0_10px_24px_rgba(47,102,255,0.24)]"
               onClick={() => {
                 onConfirm(temp);
                 onClose();
@@ -2201,6 +2225,11 @@ function ProjectPickerDialog({
             </Button>
           </div>
         </DialogFooter>
+        <div className="pointer-events-none absolute right-4 bottom-4 h-4 w-4 opacity-60">
+          <div className="absolute right-0 bottom-0 h-px w-4 rotate-45 bg-[var(--border-strong)]" />
+          <div className="absolute right-[2px] bottom-[4px] h-px w-3 rotate-45 bg-[var(--border-strong)]" />
+          <div className="absolute right-[4px] bottom-[8px] h-px w-2 rotate-45 bg-[var(--border-strong)]" />
+        </div>
       </DialogContent>
     </Dialog>
   );
