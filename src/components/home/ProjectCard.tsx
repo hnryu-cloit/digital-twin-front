@@ -1,4 +1,3 @@
-import type React from "react";
 import { ChevronRight, Clock } from "lucide-react";
 import type { Project } from "@/lib/api";
 

@@ -23,9 +23,9 @@ export const App: React.FC = () => {
         <Route path="/persona" element={<PersonaManagerPage />} />
         <Route path="/jobs" element={<AiJobCenterPage />} />
         <Route path="/reports" element={<ReportHistoryPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/settings/:tab" element={<SettingsPage />} />
       </Route>
+      <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/settings/:tab" element={<SettingsPage />} />
     </Routes>
   );
 };

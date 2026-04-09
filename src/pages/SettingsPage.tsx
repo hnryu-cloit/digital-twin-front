@@ -5,7 +5,6 @@ import {
   Shield,
   Database,
   FileText,
-  LayoutGrid,
   Users,
   Sparkles,
   Save,
@@ -17,7 +16,6 @@ import {
   Eye,
   Package,
   TrendingUp,
-  MapPin,
   Clock,
   Activity,
   AlertTriangle,
@@ -32,14 +30,10 @@ import {
   Key,
   Plus,
   Calendar,
-  Send,
-  Layers,
   UserCheck,
   ChevronRight,
-  Mail,
   Award,
   BarChart,
-  PieChart,
   Cpu,
   FlaskConical,
   ChevronDown,
@@ -48,11 +42,14 @@ import {
   RefreshCw,
   Plug,
   Info,
+  ArrowLeft,
+  UserCircle,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { settingsApi, type GeoSettings, type SeoSettings } from "@/lib/api";
+import { settingsApi } from "@/lib/api";
 
 /* ─── 네비게이션 구조 ─── */
 interface NavSection {
@@ -75,20 +72,6 @@ const NAV: NavSection[] = [
       { key: "prompt", label: "시스템 프롬프트 설정", icon: Terminal },
       { key: "logs", label: "AI 대화 감사 로그", icon: MessageSquare },
       { key: "validation", label: "페르소나 검증 (CoT) 아카이브", icon: History },
-    ],
-  },
-  {
-    label: "서비스 운영",
-    items: [
-      { key: "report", label: "리포트 배포 정책", icon: FileText },
-      { key: "menu", label: "화면 위젯 구성", icon: LayoutGrid },
-    ],
-  },
-  {
-    label: "검색 및 지역화",
-    items: [
-      { key: "seo", label: "SEO 최적화 설정", icon: TrendingUp },
-      { key: "geo", label: "GEO 지역 타겟팅", icon: MapPin },
     ],
   },
 ];
@@ -117,86 +100,37 @@ function SettingGroup({ title, children }: { title?: string; children: React.Rea
 }
 
 const PROMPT_PRESETS = [
-  { id: "survey", label: "설문 생성", icon: Target },
-  { id: "simulation", label: "시뮬레이션", icon: BarChart2 },
-  { id: "assistant", label: "어시스턴트", icon: Sparkles },
+  { id: "tpl_concept_test", label: "컨셉 테스트", icon: FlaskConical, group: "survey" },
+  { id: "tpl_ad_message", label: "광고 메시지 테스트", icon: Target, group: "survey" },
+  { id: "tpl_usage_probe", label: "사용 습관 탐색", icon: Eye, group: "survey" },
+  { id: "tpl_brand_awareness", label: "브랜드 인식 조사", icon: Award, group: "survey" },
+  { id: "tpl_price_sensitivity", label: "가격 민감도 조사", icon: BarChart, group: "survey" },
+  { id: "tpl_csat", label: "고객 만족도 (CSAT)", icon: UserCheck, group: "survey" },
+  { id: "tpl_competitor", label: "경쟁사 비교 조사", icon: BarChart2, group: "survey" },
+  { id: "simulation", label: "시뮬레이션", icon: Zap, group: "pipeline" },
+  { id: "assistant", label: "어시스턴트", icon: Sparkles, group: "pipeline" },
 ] as const;
 
 const DEFAULT_PROMPT_TEXT: Record<string, string> = {
-  survey: "Generate concise and structured survey questions.",
-  simulation: "Respond as a market research digital twin.",
-  assistant: "Answer with evidence and confidence.",
+  tpl_concept_test:
+    "신제품 또는 기능 컨셉에 대한 첫 반응, 매력도, 구매 의향을 정량·정성으로 측정하는 설문을 생성하세요. awareness → appeal → purchase_intent → concern → open_feedback 블록 순서를 준수하세요.",
+  tpl_ad_message:
+    "광고 메시지의 전달력, 기억도, 구매 의향 변화를 측정하는 설문을 생성하세요. message_clarity → memorability → intent_shift → improvement_area 블록을 포함하세요.",
+  tpl_usage_probe:
+    "실제 사용 맥락과 불편 요소, 향후 니즈를 탐색하는 설문을 생성하세요. usage_context → pain_point → future_need 블록을 중심으로 구성하세요.",
+  tpl_brand_awareness:
+    "브랜드 인지도, 연상 이미지, 경쟁 대비 포지셔닝을 측정하는 설문을 생성하세요. spontaneous awareness → aided recall → brand association → competitive positioning 순서로 구성하세요.",
+  tpl_price_sensitivity:
+    "응답자의 가격 수용 범위와 WTP(지불 의향)를 Van Westendorp 또는 직접 질문 방식으로 측정하는 설문을 생성하세요.",
+  tpl_csat:
+    "현재 제품·서비스 경험에 대한 전반적 만족도(CSAT)와 재구매 의향, 개선 우선순위를 수집하는 설문을 생성하세요. NPS 문항을 포함할 수 있습니다.",
+  tpl_competitor:
+    "자사 제품과 주요 경쟁사를 비교 평가하는 설문을 생성하세요. 인지도, 사용 경험, 선호 요인, 전환 의향을 포함하세요.",
+  simulation:
+    "Respond as a digital twin persona that authentically reflects the given demographic and psychographic profile. Base all answers on the persona's background, values, and usage context.",
+  assistant:
+    "Answer research questions with evidence and analytical confidence. Provide structured insights grounded in the available data.",
 };
-
-const DEFAULT_SEO_SETTINGS: SeoSettings = {
-  enabled: true,
-  scope: ["report", "project", "insight"],
-  locale: { language: "ko", country: "KR" },
-  meta: {
-    title_template: "{프로젝트명} | Digital Twin Insight {YYYY}",
-    description_template: "{프로젝트명} 핵심 인사이트와 리서치 결과를 요약합니다.",
-    canonical_base_url: "https://insight.example.com/reports",
-    og_image_mode: "per-project",
-  },
-  keywords: {
-    manual_keywords: ["디지털 트윈", "리서치 자동화", "시장조사"],
-    ai_extraction_enabled: true,
-    excluded_keywords: ["무료", "이벤트"],
-    brand_priority: true,
-  },
-  content_policy: {
-    summary_length: "medium",
-    auto_headings: true,
-    faq_block: true,
-    structured_data: true,
-  },
-  publishing: {
-    auto_publish: false,
-    approval_required: true,
-  },
-};
-
-const DEFAULT_GEO_SETTINGS: GeoSettings = {
-  enabled: true,
-  default_market: "대한민국",
-  included_regions: ["수도권", "영남권", "호남권", "충청/강원/제주"],
-  excluded_regions: [],
-  sampling: {
-    weights: [
-      { region: "수도권", ratio: 45, min_sample: 400 },
-      { region: "영남권", ratio: 25, min_sample: 200 },
-      { region: "호남권", ratio: 15, min_sample: 120 },
-      { region: "충청/강원/제주", ratio: 15, min_sample: 120 },
-    ],
-    rebalance_enabled: true,
-  },
-  localization: {
-    auto_translation: true,
-    cultural_filter_enabled: true,
-    locale_format: {
-      currency: "KRW",
-      measurement: "metric",
-      date_format: "YYYY-MM-DD",
-    },
-  },
-  apply_to: {
-    survey_generation: true,
-    persona_generation: true,
-    simulation: true,
-    report_rendering: false,
-  },
-};
-
-function parseCsv(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function toCsv(items: string[]): string {
-  return items.join(", ");
-}
 
 function StatCard({
   label,
@@ -211,1194 +145,39 @@ function StatCard({
   tone?: "neutral" | "primary" | "warn" | "danger" | "success";
   icon?: React.ElementType;
 }) {
-  const iconBg = {
-    neutral: "bg-[var(--panel-soft)] border-[var(--border)] text-[var(--secondary-foreground)]",
-    primary: "bg-primary/10 border-primary/20 text-primary",
-    warn: "bg-[var(--warning-light)] border-[var(--warning)]/20 text-[var(--warning)]",
-    danger: "bg-red-50 border-red-100 text-[#ef4444]",
-    success: "bg-[var(--success-light)] border-[var(--success)]/20 text-[var(--success)]",
+  const accent = {
+    neutral: "border-l-[var(--border-strong)]",
+    primary: "border-l-primary",
+    warn: "border-l-[var(--warning)]",
+    danger: "border-l-[var(--destructive)]",
+    success: "border-l-[var(--success)]",
   }[tone];
 
   const valueColor = {
     neutral: "text-foreground",
     primary: "text-primary",
     warn: "text-[var(--warning)]",
-    danger: "text-[#ef4444]",
+    danger: "text-[var(--destructive)]",
+    success: "text-[var(--success)]",
+  }[tone];
+
+  const iconColor = {
+    neutral: "text-[var(--muted-foreground)]",
+    primary: "text-primary",
+    warn: "text-[var(--warning)]",
+    danger: "text-[var(--destructive)]",
     success: "text-[var(--success)]",
   }[tone];
 
   return (
-    <div className="bg-card border border-[var(--border)] p-5 rounded-2xl shadow-[var(--shadow-sm)] transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-md)]">
-      {Icon && (
-        <div className={cn("mb-4 inline-flex rounded-xl border p-2.5", iconBg)}>
-          <Icon size={15} />
-        </div>
-      )}
-      <p className={cn("text-[22px] font-black leading-none", valueColor)}>{value}</p>
-      <p className="mt-1.5 text-[12px] font-bold text-[var(--secondary-foreground)]">{label}</p>
-      {sub && <p className="mt-1 text-[11px] font-medium text-[var(--muted-foreground)]">{sub}</p>}
+    <div className={cn("bg-card border border-[var(--border)] border-l-[3px] px-4 py-3.5 rounded-xl", accent)}>
+      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-2">
+        {Icon && <Icon size={11} className={iconColor} />}
+        {label}
+      </p>
+      <p className={cn("text-[22px] font-black leading-none tracking-tight", valueColor)}>{value}</p>
+      {sub && <p className="mt-1.5 text-[10px] font-medium text-[var(--muted-foreground)]">{sub}</p>}
     </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  desc,
-  checked,
-  onChange,
-}: {
-  label: string;
-  desc: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <label className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4 shadow-sm">
-      <div>
-        <p className="text-[13px] font-black text-foreground">{label}</p>
-        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{desc}</p>
-      </div>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-primary"
-      />
-    </label>
-  );
-}
-
-function SeoSettingsSection() {
-  const [settings, setSettings] = useState<SeoSettings>(DEFAULT_SEO_SETTINGS);
-  const [savedSettings, setSavedSettings] = useState<SeoSettings>(DEFAULT_SEO_SETTINGS);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const response = await settingsApi.getSeoSettings();
-      const next = response ? { ...DEFAULT_SEO_SETTINGS, ...response } : DEFAULT_SEO_SETTINGS;
-      setSettings(next);
-      setSavedSettings(next);
-      setLoading(false);
-    };
-    load();
-  }, []);
-
-  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
-  const keywordCoverage = settings.keywords.manual_keywords.length + (settings.keywords.ai_extraction_enabled ? 5 : 0);
-  const previewTitle = settings.meta.title_template
-    .replace("{프로젝트명}", "Galaxy S26 AI 카메라")
-    .replace("{YYYY}", "2026");
-  const previewDescription = settings.meta.description_template.replace("{프로젝트명}", "Galaxy S26 AI 카메라");
-  const normalizedPreviewUrl = `${settings.meta.canonical_base_url.replace(/\/$/, "")}/galaxy-s26-ai-camera`;
-  const contentReadiness = [
-    settings.content_policy.auto_headings,
-    settings.content_policy.faq_block,
-    settings.content_policy.structured_data,
-    settings.keywords.ai_extraction_enabled,
-  ].filter(Boolean).length;
-  const qualityChecks = [
-    {
-      label: "타이틀 길이",
-      state: previewTitle.length >= 20 && previewTitle.length <= 60 ? "ok" : "warn",
-      helper: `${previewTitle.length}자`,
-    },
-    {
-      label: "설명 길이",
-      state: previewDescription.length >= 70 && previewDescription.length <= 160 ? "ok" : "warn",
-      helper: `${previewDescription.length}자`,
-    },
-    {
-      label: "키워드 밀도",
-      state: settings.keywords.manual_keywords.length >= 3 ? "ok" : "warn",
-      helper: `${settings.keywords.manual_keywords.length}개 수동 키워드`,
-    },
-    {
-      label: "발행 안전성",
-      state: settings.publishing.auto_publish && !settings.publishing.approval_required ? "warn" : "ok",
-      helper: settings.publishing.approval_required ? "승인 절차 유지" : "자동 발행 우선",
-    },
-  ] as const;
-  const seoPriorityCards = [
-    {
-      title: "검색 결과 품질",
-      value: `${Math.min(100, 58 + contentReadiness * 9)}점`,
-      desc: "메타 정보, FAQ, 구조화 데이터, 헤딩 정책을 합산한 운영 점검 지표",
-      tone: "primary",
-    },
-    {
-      title: "콘텐츠 생성 방향",
-      value:
-        settings.content_policy.summary_length === "short"
-          ? "짧은 요약"
-          : settings.content_policy.summary_length === "medium"
-            ? "균형형 요약"
-            : "긴 설명형",
-      desc: "AI가 검색용 요약과 섹션 구조를 만드는 기본 톤",
-      tone: "neutral",
-    },
-    {
-      title: "배포 리스크",
-      value:
-        settings.publishing.auto_publish && !settings.publishing.approval_required
-          ? "높음"
-          : settings.publishing.auto_publish
-            ? "보통"
-            : "낮음",
-      desc: "승인 절차와 자동 발행 조합 기준의 운영 위험도",
-      tone: "danger",
-    },
-  ] as const;
-
-  const save = async () => {
-    setSaving(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-    const response = await settingsApi.saveSeoSettings(settings);
-    if (!response) {
-      setErrorMessage("SEO 설정 저장에 실패했습니다.");
-      setSaving(false);
-      return;
-    }
-    setSettings(response);
-    setSavedSettings(response);
-    setStatusMessage("SEO 정책을 저장했습니다.");
-    setSaving(false);
-  };
-
-  const reset = () => {
-    setSettings(savedSettings);
-    setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
-    setErrorMessage(null);
-  };
-
-  return (
-    <>
-      <SectionTitle
-        title="SEO 정책 콘솔"
-        desc="검색 노출용 메타데이터와 키워드 생성 규칙, 발행 검수 정책을 실제 설정값 기준으로 관리합니다."
-      />
-
-      <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="정책 상태">
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {[
-                {
-                  label: "SEO 적용 상태",
-                  value: settings.enabled ? "활성" : "비활성",
-                  sub: settings.scope.join(" · ") || "적용 대상 없음",
-                },
-                {
-                  label: "키워드 커버리지",
-                  value: `${keywordCoverage}개`,
-                  sub: settings.keywords.ai_extraction_enabled ? "AI 추출 포함" : "수동 키워드만 사용",
-                },
-                {
-                  label: "발행 정책",
-                  value: settings.publishing.approval_required ? "승인 필요" : "자동 발행",
-                  sub: settings.publishing.auto_publish ? "자동 발행 허용" : "초안 저장 우선",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm"
-                >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                    {item.label}
-                  </p>
-                  <p className="mt-3 text-2xl font-black text-foreground">{item.value}</p>
-                  <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">{item.sub}</p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[var(--primary-light-bg)] via-card to-card p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">
-                    Search Operations Brief
-                  </p>
-                  <h3 className="mt-2 text-[18px] font-black tracking-tight text-foreground">
-                    검색 노출 정책을 콘텐츠 운영 흐름과 연결
-                  </h3>
-                </div>
-                <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                  <Search size={18} />
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.locale.language.toUpperCase()} / {settings.locale.country}
-                </Badge>
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.meta.og_image_mode}
-                </Badge>
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.scope.length}개 노출 채널
-                </Badge>
-              </div>
-              <p className="mt-4 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                이 정책은 리포트 메타데이터, 인사이트 요약, 랜딩 설명문에 공통 적용됩니다. 검색 프리뷰 길이와 승인
-                정책을 함께 보면 운영 리스크를 빠르게 판단할 수 있습니다.
-              </p>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="운영 우선순위">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            {seoPriorityCards.map((card) => (
-              <div
-                key={card.title}
-                className={cn(
-                  "rounded-2xl border p-5 shadow-sm",
-                  card.tone === "primary" && "border-primary/20 bg-[var(--primary-light-bg)]",
-                  card.tone === "neutral" && "border-[var(--border)] bg-[var(--panel-soft)]",
-                  card.tone === "danger" && "border-amber-200 bg-amber-50/80"
-                )}
-              >
-                <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                  {card.title}
-                </p>
-                <p className="mt-3 text-2xl font-black text-foreground">{card.value}</p>
-                <p className="mt-2 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                  {card.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="기본 정책">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ToggleRow
-              label="SEO 정책 활성화"
-              desc="리포트와 프로젝트 소개 콘텐츠에 검색 노출용 규칙을 적용합니다."
-              checked={settings.enabled}
-              onChange={(enabled) => setSettings((prev) => ({ ...prev, enabled }))}
-            />
-            <ToggleRow
-              label="브랜드 키워드 우선 반영"
-              desc="메타데이터와 요약 생성 시 브랜드 키워드를 우선 순위로 배치합니다."
-              checked={settings.keywords.brand_priority}
-              onChange={(brand_priority) =>
-                setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, brand_priority } }))
-              }
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                기본 언어
-              </label>
-              <select
-                value={settings.locale.language}
-                onChange={(e) =>
-                  setSettings((prev) => ({ ...prev, locale: { ...prev.locale, language: e.target.value } }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="ko">한국어</option>
-                <option value="en">영어</option>
-                <option value="ja">일본어</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                기본 국가
-              </label>
-              <select
-                value={settings.locale.country}
-                onChange={(e) =>
-                  setSettings((prev) => ({ ...prev, locale: { ...prev.locale, country: e.target.value } }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="KR">대한민국</option>
-                <option value="US">미국</option>
-                <option value="JP">일본</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-              적용 대상
-            </label>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-              {[
-                ["report", "리포트"],
-                ["project", "프로젝트 소개"],
-                ["insight", "인사이트 요약"],
-                ["landing", "랜딩 페이지"],
-              ].map(([value, label]) => (
-                <label
-                  key={value}
-                  className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-[var(--secondary-foreground)] shadow-sm"
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.scope.includes(value)}
-                    onChange={(e) =>
-                      setSettings((prev) => ({
-                        ...prev,
-                        scope: e.target.checked ? [...prev.scope, value] : prev.scope.filter((item) => item !== value),
-                      }))
-                    }
-                    className="h-4 w-4 accent-primary"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="메타 및 키워드 규칙">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                타이틀 템플릿
-              </label>
-              <input
-                value={settings.meta.title_template}
-                onChange={(e) =>
-                  setSettings((prev) => ({ ...prev, meta: { ...prev.meta, title_template: e.target.value } }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                Canonical Base URL
-              </label>
-              <input
-                value={settings.meta.canonical_base_url}
-                onChange={(e) =>
-                  setSettings((prev) => ({ ...prev, meta: { ...prev.meta, canonical_base_url: e.target.value } }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                OG 이미지 정책
-              </label>
-              <select
-                value={settings.meta.og_image_mode}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    meta: { ...prev.meta, og_image_mode: e.target.value as SeoSettings["meta"]["og_image_mode"] },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="default">기본 템플릿</option>
-                <option value="per-project">프로젝트별 비주얼</option>
-                <option value="manual">수동 업로드</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                요약 길이
-              </label>
-              <select
-                value={settings.content_policy.summary_length}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    content_policy: {
-                      ...prev.content_policy,
-                      summary_length: e.target.value as SeoSettings["content_policy"]["summary_length"],
-                    },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="short">짧게</option>
-                <option value="medium">균형형</option>
-                <option value="long">길게</option>
-              </select>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-              메타 설명 템플릿
-            </label>
-            <textarea
-              value={settings.meta.description_template}
-              onChange={(e) =>
-                setSettings((prev) => ({ ...prev, meta: { ...prev.meta, description_template: e.target.value } }))
-              }
-              className="h-28 w-full rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                수동 키워드
-              </label>
-              <input
-                value={toCsv(settings.keywords.manual_keywords)}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    keywords: { ...prev.keywords, manual_keywords: parseCsv(e.target.value) },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                제외 키워드
-              </label>
-              <input
-                value={toCsv(settings.keywords.excluded_keywords)}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    keywords: { ...prev.keywords, excluded_keywords: parseCsv(e.target.value) },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <ToggleRow
-              label="AI 키워드 추출"
-              desc="본문 요약에서 보조 키워드를 자동 생성합니다."
-              checked={settings.keywords.ai_extraction_enabled}
-              onChange={(ai_extraction_enabled) =>
-                setSettings((prev) => ({ ...prev, keywords: { ...prev.keywords, ai_extraction_enabled } }))
-              }
-            />
-            <ToggleRow
-              label="자동 헤딩 생성"
-              desc="H1~H3 구조를 정책에 맞춰 생성합니다."
-              checked={settings.content_policy.auto_headings}
-              onChange={(auto_headings) =>
-                setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, auto_headings } }))
-              }
-            />
-            <ToggleRow
-              label="FAQ 블록 생성"
-              desc="주요 질문과 답변을 검색 노출용 블록으로 생성합니다."
-              checked={settings.content_policy.faq_block}
-              onChange={(faq_block) =>
-                setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, faq_block } }))
-              }
-            />
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="발행 정책 및 미리보기">
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-5">
-              <div className="space-y-4">
-                <ToggleRow
-                  label="구조화 데이터(schema.org) 사용"
-                  desc="리포트와 인사이트 페이지에 구조화 마크업을 삽입합니다."
-                  checked={settings.content_policy.structured_data}
-                  onChange={(structured_data) =>
-                    setSettings((prev) => ({ ...prev, content_policy: { ...prev.content_policy, structured_data } }))
-                  }
-                />
-                <ToggleRow
-                  label="자동 발행 허용"
-                  desc="검수 조건 충족 시 초안 단계를 건너뛰고 배포합니다."
-                  checked={settings.publishing.auto_publish}
-                  onChange={(auto_publish) =>
-                    setSettings((prev) => ({ ...prev, publishing: { ...prev.publishing, auto_publish } }))
-                  }
-                />
-                <ToggleRow
-                  label="승인 절차 필요"
-                  desc="최종 게시 전에 운영자 승인을 필수로 요구합니다."
-                  checked={settings.publishing.approval_required}
-                  onChange={(approval_required) =>
-                    setSettings((prev) => ({ ...prev, publishing: { ...prev.publishing, approval_required } }))
-                  }
-                />
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
-                    <Sparkles size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Content Guidance
-                    </p>
-                    <p className="mt-1 text-[14px] font-black text-foreground">
-                      운영자가 바로 이해할 수 있는 생성 원칙
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {[
-                    `요약 길이: ${settings.content_policy.summary_length}`,
-                    settings.content_policy.auto_headings ? "헤딩 구조 자동 생성" : "헤딩은 수동 검수 우선",
-                    settings.content_policy.faq_block ? "FAQ 블록 포함" : "FAQ 블록 미포함",
-                    settings.meta.og_image_mode === "manual" ? "OG 이미지는 수동 관리" : "OG 이미지는 정책 자동 생성",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[12px] font-bold text-[var(--secondary-foreground)]"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Search Preview
-                    </p>
-                    <p className="mt-1 text-[12px] font-medium text-[var(--secondary-foreground)]">
-                      Google 검색 결과와 공유 미리보기를 동시에 점검합니다.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
-                    <Globe size={16} />
-                  </div>
-                </div>
-                <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
-                  <p className="text-[18px] font-black leading-snug text-[#1A0DAB]">{previewTitle}</p>
-                  <p className="mt-1 text-[12px] font-bold text-[#188038]">{normalizedPreviewUrl}</p>
-                  <p className="mt-3 text-[13px] font-medium leading-relaxed text-[#4D5156]">{previewDescription}</p>
-                </div>
-                <div className="mt-4 rounded-2xl border border-[var(--border)] bg-card p-4 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Open Graph Preview
-                    </p>
-                    <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                      {settings.meta.og_image_mode}
-                    </Badge>
-                  </div>
-                  <div className="mt-3 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel-soft)]">
-                    <div className="h-28 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent" />
-                    <div className="p-4">
-                      <p className="text-[13px] font-black text-foreground">{previewTitle}</p>
-                      <p className="mt-1 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                        {previewDescription}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {settings.keywords.manual_keywords.slice(0, 5).map((keyword) => (
-                    <Badge key={keyword} variant="outline" className="border-primary/30 bg-white text-primary">
-                      {keyword}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-card p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-amber-50 p-2.5 text-amber-500 shadow-sm">
-                    <AlertTriangle size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Quality Checks
-                    </p>
-                    <p className="mt-1 text-[14px] font-black text-foreground">저장 전에 확인할 검색 품질 포인트</p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {qualityChecks.map((check) => (
-                    <div
-                      key={check.label}
-                      className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-[12px] font-black text-foreground">{check.label}</p>
-                        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">
-                          {check.helper}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "font-black uppercase tracking-wider",
-                          check.state === "ok"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                            : "border-amber-200 bg-amber-50 text-amber-600"
-                        )}
-                      >
-                        {check.state === "ok" ? "적정" : "점검 필요"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          {(statusMessage || errorMessage) && (
-            <div
-              className={cn(
-                "rounded-xl border px-4 py-3 text-[12px] font-bold",
-                errorMessage
-                  ? "border-red-200 bg-red-50 text-red-500"
-                  : "border-primary/20 bg-[var(--primary-light-bg)] text-primary"
-              )}
-            >
-              {errorMessage ?? statusMessage}
-            </div>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              onClick={reset}
-              disabled={loading || saving || !isDirty}
-            >
-              <RotateCcw size={16} /> 되돌리기
-            </Button>
-            <Button size="lg" className="gap-2" onClick={save} disabled={loading || saving || !isDirty}>
-              <Save size={16} /> {saving ? "저장 중..." : "SEO 정책 저장"}
-            </Button>
-          </div>
-        </SettingGroup>
-      </div>
-    </>
-  );
-}
-
-function GeoSettingsSection() {
-  const [settings, setSettings] = useState<GeoSettings>(DEFAULT_GEO_SETTINGS);
-  const [savedSettings, setSavedSettings] = useState<GeoSettings>(DEFAULT_GEO_SETTINGS);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const response = await settingsApi.getGeoSettings();
-      const next = response ? { ...DEFAULT_GEO_SETTINGS, ...response } : DEFAULT_GEO_SETTINGS;
-      setSettings(next);
-      setSavedSettings(next);
-      setLoading(false);
-    };
-    load();
-  }, []);
-
-  const isDirty = JSON.stringify(settings) !== JSON.stringify(savedSettings);
-  const totalRatio = settings.sampling.weights.reduce((sum, item) => sum + Number(item.ratio || 0), 0);
-  const ratioValid = totalRatio === 100;
-  const highestRegion = [...settings.sampling.weights].sort((a, b) => b.ratio - a.ratio)[0];
-  const totalMinSample = settings.sampling.weights.reduce((sum, item) => sum + Number(item.min_sample || 0), 0);
-  const geoChecks = [
-    {
-      label: "가중치 합계",
-      state: ratioValid ? "ok" : "warn",
-      helper: `${totalRatio}%`,
-    },
-    {
-      label: "포함 지역 수",
-      state: settings.included_regions.length >= 2 ? "ok" : "warn",
-      helper: `${settings.included_regions.length}개 시장`,
-    },
-    {
-      label: "기본 시장 지정",
-      state: settings.default_market.trim() ? "ok" : "warn",
-      helper: settings.default_market || "미지정",
-    },
-    {
-      label: "로컬라이징 정책",
-      state: settings.localization.auto_translation || settings.localization.cultural_filter_enabled ? "ok" : "warn",
-      helper: settings.localization.auto_translation ? "번역 활성" : "번역 비활성",
-    },
-  ] as const;
-  const geoPriorityCards = [
-    {
-      title: "대표 시장",
-      value: highestRegion ? highestRegion.region : "미설정",
-      desc: highestRegion ? `현재 기본 가중치 ${highestRegion.ratio}%` : "가중치 설정 필요",
-      tone: "primary",
-    },
-    {
-      title: "최소 확보 표본",
-      value: `${totalMinSample.toLocaleString()}명`,
-      desc: "리전별 min sample 합계 기준의 초기 수집 목표치",
-      tone: "neutral",
-    },
-    {
-      title: "운영 리스크",
-      value: ratioValid ? "안정" : "점검 필요",
-      desc: ratioValid ? "가중치 합계와 시장 범위가 정상입니다." : "가중치 합계 또는 시장 범위를 재검토해야 합니다.",
-      tone: "danger",
-    },
-  ] as const;
-
-  const updateWeight = (region: string, field: "ratio" | "min_sample", value: number) => {
-    setSettings((prev) => ({
-      ...prev,
-      sampling: {
-        ...prev.sampling,
-        weights: prev.sampling.weights.map((item) => (item.region === region ? { ...item, [field]: value } : item)),
-      },
-    }));
-  };
-
-  const save = async () => {
-    if (!ratioValid) {
-      setErrorMessage("지역별 가중치 합계는 100이어야 합니다.");
-      return;
-    }
-    setSaving(true);
-    setErrorMessage(null);
-    setStatusMessage(null);
-    const response = await settingsApi.saveGeoSettings(settings);
-    if (!response) {
-      setErrorMessage("GEO 설정 저장에 실패했습니다.");
-      setSaving(false);
-      return;
-    }
-    setSettings(response);
-    setSavedSettings(response);
-    setStatusMessage("GEO 타겟팅 정책을 저장했습니다.");
-    setSaving(false);
-  };
-
-  const reset = () => {
-    setSettings(savedSettings);
-    setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
-    setErrorMessage(null);
-  };
-
-  return (
-    <>
-      <SectionTitle
-        title="GEO 정책 콘솔"
-        desc="대상 시장 범위, 샘플링 비중, 로컬라이징 정책을 실제 생성 흐름에 반영할 수 있도록 관리합니다."
-      />
-
-      <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="시장 운영 브리프">
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {geoPriorityCards.map((card) => (
-                <div
-                  key={card.title}
-                  className={cn(
-                    "rounded-2xl border p-5 shadow-sm",
-                    card.tone === "primary" && "border-primary/20 bg-[var(--primary-light-bg)]",
-                    card.tone === "neutral" && "border-[var(--border)] bg-[var(--panel-soft)]",
-                    card.tone === "danger" && "border-amber-200 bg-amber-50/80"
-                  )}
-                >
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                    {card.title}
-                  </p>
-                  <p className="mt-3 text-2xl font-black text-foreground">{card.value}</p>
-                  <p className="mt-2 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                    {card.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-            <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-[var(--primary-light-bg)] via-card to-card p-5 shadow-sm">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-widest text-primary">Geo Operations Brief</p>
-                  <h3 className="mt-2 text-[18px] font-black tracking-tight text-foreground">
-                    시장 범위와 샘플링 정책을 같은 화면에서 통제
-                  </h3>
-                </div>
-                <div className="rounded-xl bg-primary/10 p-3 text-primary">
-                  <MapPin size={18} />
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.default_market || "기본 시장 미지정"}
-                </Badge>
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.localization.locale_format.currency}
-                </Badge>
-                <Badge variant="outline" className="border-primary/30 bg-white text-primary">
-                  {settings.localization.locale_format.measurement}
-                </Badge>
-              </div>
-              <p className="mt-4 text-[12px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                이 정책은 설문 생성, 페르소나 샘플링, 시뮬레이션 응답, 리포트 현지화에 연결됩니다. 지역 가중치와 번역
-                정책을 같이 보면서 운영 리스크를 점검하는 용도입니다.
-              </p>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="시장 범위 및 적용 대상">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ToggleRow
-              label="GEO 타겟팅 활성화"
-              desc="신규 프로젝트와 설문 생성 시 지역 정책을 기본값으로 적용합니다."
-              checked={settings.enabled}
-              onChange={(enabled) => setSettings((prev) => ({ ...prev, enabled }))}
-            />
-            <ToggleRow
-              label="대표성 자동 보정"
-              desc="실행 중 응답 분포가 목표 비율에서 벗어나면 후속 배치를 재조정합니다."
-              checked={settings.sampling.rebalance_enabled}
-              onChange={(rebalance_enabled) =>
-                setSettings((prev) => ({ ...prev, sampling: { ...prev.sampling, rebalance_enabled } }))
-              }
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                기본 시장
-              </label>
-              <input
-                value={settings.default_market}
-                onChange={(e) => setSettings((prev) => ({ ...prev, default_market: e.target.value }))}
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                포함 지역
-              </label>
-              <input
-                value={toCsv(settings.included_regions)}
-                onChange={(e) => setSettings((prev) => ({ ...prev, included_regions: parseCsv(e.target.value) }))}
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-              제외 지역
-            </label>
-            <input
-              value={toCsv(settings.excluded_regions)}
-              onChange={(e) => setSettings((prev) => ({ ...prev, excluded_regions: parseCsv(e.target.value) }))}
-              className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-medium text-foreground outline-none focus:border-primary shadow-sm"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            {[
-              ["survey_generation", "설문 생성"],
-              ["persona_generation", "페르소나 생성"],
-              ["simulation", "시뮬레이션"],
-              ["report_rendering", "리포트 렌더링"],
-            ].map(([key, label]) => (
-              <label
-                key={key}
-                className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-[var(--secondary-foreground)] shadow-sm"
-              >
-                <input
-                  type="checkbox"
-                  checked={settings.apply_to[key as keyof GeoSettings["apply_to"]]}
-                  onChange={(e) =>
-                    setSettings((prev) => ({ ...prev, apply_to: { ...prev.apply_to, [key]: e.target.checked } }))
-                  }
-                  className="h-4 w-4 accent-primary"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="지역별 샘플링 비중">
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-            <div className="space-y-5">
-              <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-card shadow-sm">
-                <table className="w-full text-left">
-                  <thead className="bg-[var(--panel-soft)]">
-                    <tr className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      <th className="px-4 py-3">Region</th>
-                      <th className="px-4 py-3">Ratio</th>
-                      <th className="px-4 py-3">Min Sample</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {settings.sampling.weights.map((item) => (
-                      <tr key={item.region} className="border-t border-[var(--border)]">
-                        <td className="px-4 py-3 text-[13px] font-black text-foreground">{item.region}</td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            value={item.ratio}
-                            onChange={(e) => updateWeight(item.region, "ratio", Number(e.target.value))}
-                            className="h-10 w-24 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 text-[13px] font-bold text-foreground outline-none focus:border-primary"
-                          />
-                        </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min={0}
-                            value={item.min_sample ?? 0}
-                            onChange={(e) => updateWeight(item.region, "min_sample", Number(e.target.value))}
-                            className="h-10 w-28 rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 text-[13px] font-bold text-foreground outline-none focus:border-primary"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
-                    <Globe size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Localization Guidance
-                    </p>
-                    <p className="mt-1 text-[14px] font-black text-foreground">
-                      시장별 응답 문맥에 직접 영향을 주는 로컬라이징 기준
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                  {[
-                    settings.localization.auto_translation ? "자동 번역 활성화" : "원문 중심 운영",
-                    settings.localization.cultural_filter_enabled ? "문화권 금기어 필터 적용" : "금기어 필터 비활성",
-                    `통화: ${settings.localization.locale_format.currency}`,
-                    `도량형: ${settings.localization.locale_format.measurement}`,
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[12px] font-bold text-[var(--secondary-foreground)]"
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-5">
-              <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 shadow-sm">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Market Mix Preview
-                    </p>
-                    <p className="mt-1 text-[12px] font-medium text-[var(--secondary-foreground)]">
-                      현재 설정이 실제 샘플링 비중으로 어떻게 보이는지 확인합니다.
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white p-2.5 text-primary shadow-sm">
-                    <MapPin size={16} />
-                  </div>
-                </div>
-                <div className="mt-5 rounded-2xl border border-[var(--border)] bg-white p-5 shadow-sm">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                        기본 시장
-                      </p>
-                      <p className="mt-2 text-[16px] font-black text-foreground">
-                        {settings.default_market || "미지정"}
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] p-4">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                        비중 합계
-                      </p>
-                      <p className={cn("mt-2 text-[16px] font-black", ratioValid ? "text-foreground" : "text-red-500")}>
-                        {totalRatio}%
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 space-y-3">
-                    {settings.sampling.weights.map((item) => (
-                      <div key={item.region}>
-                        <div className="mb-1 flex items-center justify-between text-[12px] font-bold text-[var(--secondary-foreground)]">
-                          <span>{item.region}</span>
-                          <span>{item.ratio}%</span>
-                        </div>
-                        <div className="h-2 rounded-full overflow-hidden border border-[var(--border)] bg-card">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${Math.min(item.ratio, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-card p-5 shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className="rounded-xl bg-amber-50 p-2.5 text-amber-500 shadow-sm">
-                    <AlertTriangle size={16} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                      Policy Checks
-                    </p>
-                    <p className="mt-1 text-[14px] font-black text-foreground">저장 전에 확인할 지역 정책 리스크</p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-3">
-                  {geoChecks.map((check) => (
-                    <div
-                      key={check.label}
-                      className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-[12px] font-black text-foreground">{check.label}</p>
-                        <p className="mt-1 text-[11px] font-medium text-[var(--secondary-foreground)]">
-                          {check.helper}
-                        </p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "font-black uppercase tracking-wider",
-                          check.state === "ok"
-                            ? "border-emerald-200 bg-emerald-50 text-emerald-600"
-                            : "border-amber-200 bg-amber-50 text-amber-600"
-                        )}
-                      >
-                        {check.state === "ok" ? "정상" : "점검 필요"}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="로컬라이징 정책">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <ToggleRow
-              label="자동 현지화 번역"
-              desc="시장 언어에 맞춰 설문/리포트 문구를 자동 변환합니다."
-              checked={settings.localization.auto_translation}
-              onChange={(auto_translation) =>
-                setSettings((prev) => ({ ...prev, localization: { ...prev.localization, auto_translation } }))
-              }
-            />
-            <ToggleRow
-              label="문화권 금기어 필터"
-              desc="현지 문화권에서 문제될 수 있는 표현을 차단합니다."
-              checked={settings.localization.cultural_filter_enabled}
-              onChange={(cultural_filter_enabled) =>
-                setSettings((prev) => ({ ...prev, localization: { ...prev.localization, cultural_filter_enabled } }))
-              }
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                통화
-              </label>
-              <select
-                value={settings.localization.locale_format.currency}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    localization: {
-                      ...prev.localization,
-                      locale_format: { ...prev.localization.locale_format, currency: e.target.value },
-                    },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="KRW">KRW</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                도량형
-              </label>
-              <select
-                value={settings.localization.locale_format.measurement}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    localization: {
-                      ...prev.localization,
-                      locale_format: {
-                        ...prev.localization.locale_format,
-                        measurement: e.target.value as "metric" | "imperial",
-                      },
-                    },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              >
-                <option value="metric">Metric</option>
-                <option value="imperial">Imperial</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="ml-1 text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                날짜 형식
-              </label>
-              <input
-                value={settings.localization.locale_format.date_format}
-                onChange={(e) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    localization: {
-                      ...prev.localization,
-                      locale_format: { ...prev.localization.locale_format, date_format: e.target.value },
-                    },
-                  }))
-                }
-                className="h-[44px] w-full rounded-xl border border-[var(--border)] bg-card px-4 text-[13px] font-bold text-foreground outline-none focus:border-primary shadow-sm"
-              />
-            </div>
-          </div>
-          {(statusMessage || errorMessage) && (
-            <div
-              className={cn(
-                "rounded-xl border px-4 py-3 text-[12px] font-bold",
-                errorMessage
-                  ? "border-red-200 bg-red-50 text-red-500"
-                  : "border-primary/20 bg-[var(--primary-light-bg)] text-primary"
-              )}
-            >
-              {errorMessage ?? statusMessage}
-            </div>
-          )}
-          <div className="flex justify-end gap-3 pt-2">
-            <Button
-              variant="outline"
-              size="lg"
-              className="gap-2"
-              onClick={reset}
-              disabled={loading || saving || !isDirty}
-            >
-              <RotateCcw size={16} /> 되돌리기
-            </Button>
-            <Button size="lg" className="gap-2" onClick={save} disabled={loading || saving || !isDirty || !ratioValid}>
-              <MapPin size={16} /> {saving ? "저장 중..." : "GEO 정책 저장"}
-            </Button>
-          </div>
-        </SettingGroup>
-      </div>
-    </>
   );
 }
 
@@ -1734,10 +513,10 @@ function DataSourceSection() {
                               className={cn(
                                 "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter border",
                                 src.status === "Healthy"
-                                  ? "bg-green-50 text-green-600 border-green-200"
+                                  ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
                                   : src.status === "Idle"
                                     ? "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                    : "bg-red-50 text-red-600 border-red-200 animate-pulse"
+                                    : "bg-red-50 text-[var(--destructive)] border-red-100 animate-pulse"
                               )}
                             >
                               {src.status}
@@ -1806,10 +585,10 @@ function DataSourceSection() {
                             className={cn(
                               "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border",
                               src.status === "Healthy"
-                                ? "bg-green-50 text-green-600 border-green-200"
+                                ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
                                 : src.status === "Idle"
                                   ? "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]"
-                                  : "bg-red-50 text-red-600 border-red-200 animate-pulse"
+                                  : "bg-red-50 text-[var(--destructive)] border-red-100 animate-pulse"
                             )}
                           >
                             {src.status}
@@ -1898,8 +677,8 @@ function DataSourceSection() {
                                       className={cn(
                                         "px-2 py-0.5 rounded-md text-[10px] font-black border",
                                         h.result === "Success"
-                                          ? "bg-green-50 text-green-600 border-green-200"
-                                          : "bg-red-50 text-red-600 border-red-200"
+                                          ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
+                                          : "bg-red-50 text-[var(--destructive)] border-red-100"
                                       )}
                                     >
                                       {h.result}
@@ -2062,45 +841,53 @@ function PromptSettingsSection() {
       />
 
       <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="엔진 성능 대시보드">
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: "평균 응답 속도", value: "1.2s", color: "text-green-500", bg: "bg-green-50" },
-              { label: "분석 정확도(QA)", value: "98.4%", color: "text-primary", bg: "bg-[var(--primary-light-bg)]" },
-              { label: "토큰 효율성", value: "92%", color: "text-amber-500", bg: "bg-amber-50" },
-              {
-                label: "실패율",
-                value: "0.02%",
-                color: "text-[var(--muted-foreground)]",
-                bg: "bg-[var(--panel-soft)]",
-              },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className={cn("p-5 rounded-xl border border-[var(--border)] text-center shadow-sm", s.bg)}
-              >
-                <p className="text-[10px] font-black text-[var(--muted-foreground)] uppercase tracking-widest mb-2">
-                  {s.label}
-                </p>
-                <p className={cn("text-2xl font-black tracking-tight", s.color)}>{s.value}</p>
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard label="평균 응답 속도" value="1.2s" sub="AI 파이프라인 기준" tone="success" icon={Zap} />
+          <StatCard
+            label="분석 정확도 (QA)"
+            value="98.4%"
+            sub="페르소나 검증 기준"
+            tone="primary"
+            icon={CheckCircle2}
+          />
+          <StatCard label="토큰 효율성" value="92%" sub="입출력 대비 평균" tone="warn" icon={Cpu} />
+          <StatCard label="실패율" value="0.02%" sub="최근 30일 기준" tone="neutral" icon={AlertTriangle} />
+        </div>
 
-        <SettingGroup title="분석 지시문(Prompt) 파인튜닝">
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-            {PROMPT_PRESETS.map((preset) => (
-              <Button
-                key={preset.id}
-                variant={preset.id === selectedPromptType ? "default" : "outline"}
-                size="sm"
-                className="shrink-0 gap-2"
-                onClick={() => setSelectedPromptType(preset.id)}
-              >
-                <preset.icon size={14} /> {preset.label}
-              </Button>
-            ))}
+        <SettingGroup title="리서치 유형별 시스템 프롬프트">
+          <div className="mb-5 space-y-3">
+            <div>
+              <p className="app-label mb-2">설문 템플릿</p>
+              <div className="flex flex-wrap gap-2">
+                {PROMPT_PRESETS.filter((p) => p.group === "survey").map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={preset.id === selectedPromptType ? "default" : "outline"}
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setSelectedPromptType(preset.id)}
+                  >
+                    <preset.icon size={13} /> {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="app-label mb-2">AI 파이프라인</p>
+              <div className="flex flex-wrap gap-2">
+                {PROMPT_PRESETS.filter((p) => p.group === "pipeline").map((preset) => (
+                  <Button
+                    key={preset.id}
+                    variant={preset.id === selectedPromptType ? "default" : "outline"}
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setSelectedPromptType(preset.id)}
+                  >
+                    <preset.icon size={13} /> {preset.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
@@ -2385,11 +1172,14 @@ const CONTENT: Record<string, React.ReactNode> = {
                     <span
                       className={cn(
                         "px-2.5 py-1 rounded-md text-[10px] font-black tracking-wider uppercase border",
-                        p.status === "진행중" && "bg-blue-50/60 text-blue-600 border-blue-200",
-                        p.status === "분석중" && "bg-emerald-50/60 text-emerald-600 border-emerald-200",
+                        p.status === "진행중" &&
+                          "bg-[var(--primary-light-bg)] text-primary border-[var(--primary-light-border)]",
+                        p.status === "분석중" &&
+                          "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30",
                         p.status === "완료" &&
                           "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]",
-                        p.status === "대기" && "bg-amber-50/60 text-amber-600 border-amber-200"
+                        p.status === "대기" &&
+                          "bg-[var(--warning-light)] text-[var(--warning)] border-[var(--warning)]/30"
                       )}
                     >
                       {p.status}
@@ -2443,7 +1233,7 @@ const CONTENT: Record<string, React.ReactNode> = {
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-1000",
-                        p.progress === 100 ? "bg-emerald-500" : "bg-primary"
+                        p.progress === 100 ? "bg-[var(--success)]" : "bg-primary"
                       )}
                       style={{ width: `${p.progress}%` }}
                     />
@@ -2461,44 +1251,15 @@ const CONTENT: Record<string, React.ReactNode> = {
     <>
       <SectionTitle
         title="사용자 및 권한 제어 (Data Access)"
-        desc="운영자/분석가/뷰어 등 역할별 상세 접근 권한 및 민감 데이터 열람 통제 정책을 관리합니다."
+        desc="운영자/편집자/뷰어 등 역할별 상세 접근 권한 및 민감 데이터 열람 통제 정책을 관리합니다."
       />
       <div className="grid grid-cols-1 gap-6">
-        <SettingGroup title="계정 현황">
-          <div className="grid grid-cols-4 gap-4">
-            {[
-              { label: "전체 사용자", value: "31", sub: "+2 이번 달" },
-              { label: "활성 세션", value: "8", sub: "현재 접속 중" },
-              { label: "2FA 미설정", value: "12", sub: "조치 필요", warn: true },
-              { label: "휴면 계정 (90d+)", value: "3", sub: "비활성화 권고", warn: true },
-            ].map((s) => (
-              <div
-                key={s.label}
-                className={cn(
-                  "p-5 rounded-xl border text-center shadow-sm",
-                  s.warn ? "bg-red-50/40 border-red-100" : "bg-[var(--panel-soft)] border-[var(--border)]"
-                )}
-              >
-                <p
-                  className={cn("text-3xl font-black leading-none mb-1.5", s.warn ? "text-red-500" : "text-foreground")}
-                >
-                  {s.value}
-                </p>
-                <p className="text-[11px] font-black text-[var(--muted-foreground)] uppercase tracking-widest">
-                  {s.label}
-                </p>
-                <p
-                  className={cn(
-                    "text-[10px] font-bold mt-1",
-                    s.warn ? "text-red-400" : "text-[var(--subtle-foreground)]"
-                  )}
-                >
-                  {s.sub}
-                </p>
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
+        <div className="grid grid-cols-4 gap-4">
+          <StatCard label="전체 사용자" value="20" sub="+1 이번 달" tone="neutral" icon={Users} />
+          <StatCard label="활성 세션" value="6" sub="현재 접속 중" tone="primary" icon={Activity} />
+          <StatCard label="2FA 미설정" value="3" sub="조치 필요" tone="warn" icon={AlertTriangle} />
+          <StatCard label="휴면 계정 (90d+)" value="2" sub="비활성화 권고" tone="danger" icon={Clock} />
+        </div>
 
         <SettingGroup title="사용자 목록">
           <div className="flex items-center gap-2 mb-4 bg-[var(--panel-soft)] px-4 py-3 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all">
@@ -2517,6 +1278,9 @@ const CONTENT: Record<string, React.ReactNode> = {
                   </th>
                   <th className="px-5 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-widest">
                     역할
+                  </th>
+                  <th className="px-5 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-widest">
+                    상태
                   </th>
                   <th className="px-5 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-widest">
                     부서
@@ -2538,94 +1302,253 @@ const CONTENT: Record<string, React.ReactNode> = {
                     name: "이동훈",
                     email: "dh.lee@samsung.com",
                     role: "운영자",
-                    dept: "CX 전략팀",
+                    status: "active" as const,
+                    dept: "소비자인사이트팀",
                     lastAccess: "방금 전",
                     mfa: true,
                   },
                   {
                     name: "김민준",
                     email: "mj.kim@samsung.com",
-                    role: "분석가",
-                    dept: "삼성 리서치",
-                    lastAccess: "1시간 전",
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "MX 마케팅실",
+                    lastAccess: "32분 전",
                     mfa: true,
                   },
                   {
                     name: "이서연",
                     email: "sy.lee@samsung.com",
-                    role: "분석가",
-                    dept: "MX 마케팅실",
-                    lastAccess: "3시간 전",
-                    mfa: false,
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "브랜드전략팀",
+                    lastAccess: "1시간 전",
+                    mfa: true,
                   },
                   {
                     name: "박지호",
                     email: "jh.park@samsung.com",
-                    role: "뷰어",
-                    dept: "글로벌 전략팀",
-                    lastAccess: "어제",
-                    mfa: false,
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "삼성 리서치",
+                    lastAccess: "2시간 전",
+                    mfa: true,
                   },
                   {
                     name: "최예은",
                     email: "ye.choi@samsung.com",
-                    role: "뷰어",
-                    dept: "영남 지역 본부",
-                    lastAccess: "2일 전",
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "소비자인사이트팀",
+                    lastAccess: "3시간 전",
                     mfa: true,
                   },
                   {
                     name: "정태양",
                     email: "ty.jung@samsung.com",
-                    role: "분석가",
-                    dept: "삼성 리서치",
-                    lastAccess: "5일 전",
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "DX마케팅기획팀",
+                    lastAccess: "5시간 전",
                     mfa: false,
                   },
-                ].map((u) => (
-                  <tr key={u.email} className="hover:bg-[var(--surface-hover)] transition-colors">
-                    <td className="px-5 py-3.5">
-                      <p className="font-black text-foreground text-[13px]">{u.name}</p>
-                      <p className="font-medium text-[var(--muted-foreground)] text-[11px]">{u.email}</p>
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "font-black text-[10px]",
-                          u.role === "운영자" ? "text-primary border-primary/30 bg-[#eef3ff]" : ""
+                  {
+                    name: "한수빈",
+                    email: "sb.han@samsung.com",
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "MX 마케팅실",
+                    lastAccess: "어제",
+                    mfa: true,
+                  },
+                  {
+                    name: "오민재",
+                    email: "mj.oh@samsung.com",
+                    role: "편집자",
+                    status: "active" as const,
+                    dept: "제품전략팀",
+                    lastAccess: "어제",
+                    mfa: true,
+                  },
+                  {
+                    name: "장예진",
+                    email: "yj.jang@samsung.com",
+                    role: "편집자",
+                    status: "invited" as const,
+                    dept: "삼성 리서치",
+                    lastAccess: "—",
+                    mfa: false,
+                  },
+                  {
+                    name: "윤성호",
+                    email: "sh.yoon@samsung.com",
+                    role: "편집자",
+                    status: "invited" as const,
+                    dept: "브랜드전략팀",
+                    lastAccess: "—",
+                    mfa: false,
+                  },
+                  {
+                    name: "강지수",
+                    email: "js.kang@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "글로벌마케팅오피스",
+                    lastAccess: "2시간 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "임현우",
+                    email: "hw.lim@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "CX전략팀",
+                    lastAccess: "어제",
+                    mfa: true,
+                  },
+                  {
+                    name: "신다연",
+                    email: "dy.shin@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "MX 마케팅실",
+                    lastAccess: "어제",
+                    mfa: false,
+                  },
+                  {
+                    name: "조현석",
+                    email: "hs.cho@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "DX마케팅기획팀",
+                    lastAccess: "2일 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "배소윤",
+                    email: "sy.bae@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "제품전략팀",
+                    lastAccess: "2일 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "홍준서",
+                    email: "js.hong@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "글로벌마케팅오피스",
+                    lastAccess: "3일 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "문지현",
+                    email: "jh.moon@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "소비자인사이트팀",
+                    lastAccess: "4일 전",
+                    mfa: false,
+                  },
+                  {
+                    name: "권태은",
+                    email: "te.kwon@samsung.com",
+                    role: "뷰어",
+                    status: "active" as const,
+                    dept: "CX전략팀",
+                    lastAccess: "1주일 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "류상민",
+                    email: "sm.ryu@samsung.com",
+                    role: "뷰어",
+                    status: "suspended" as const,
+                    dept: "브랜드전략팀",
+                    lastAccess: "45일 전",
+                    mfa: true,
+                  },
+                  {
+                    name: "나은채",
+                    email: "ec.na@samsung.com",
+                    role: "뷰어",
+                    status: "suspended" as const,
+                    dept: "DX마케팅기획팀",
+                    lastAccess: "62일 전",
+                    mfa: true,
+                  },
+                ].map((u) => {
+                  const statusStyle = {
+                    active: {
+                      label: "Active",
+                      cls: "border-[var(--success)]/30 bg-[var(--success-light)] text-[var(--success)]",
+                    },
+                    invited: {
+                      label: "Invited",
+                      cls: "border-[var(--warning)]/30 bg-[var(--warning-light)] text-[var(--warning)]",
+                    },
+                    suspended: {
+                      label: "Suspended",
+                      cls: "border-[var(--destructive)]/20 bg-[var(--destructive)]/5 text-[var(--destructive)]",
+                    },
+                  }[u.status];
+                  return (
+                    <tr key={u.email} className="hover:bg-[var(--surface-hover)] transition-colors">
+                      <td className="px-5 py-3.5">
+                        <p className="font-black text-foreground text-[13px]">{u.name}</p>
+                        <p className="font-medium text-[var(--muted-foreground)] text-[11px]">{u.email}</p>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "font-black text-[10px]",
+                            u.role === "운영자"
+                              ? "text-primary border-primary/30 bg-[var(--primary-light-bg)]"
+                              : u.role === "편집자"
+                                ? "text-[var(--secondary-foreground)] border-[var(--border-strong)] bg-[var(--panel-soft)]"
+                                : "text-[var(--muted-foreground)] border-[var(--border)] bg-[var(--accent)]"
+                          )}
+                        >
+                          {u.role}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <Badge variant="outline" className={cn("font-bold text-[10px]", statusStyle.cls)}>
+                          {statusStyle.label}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-[var(--secondary-foreground)] text-[12px]">
+                        {u.dept}
+                      </td>
+                      <td className="px-5 py-3.5 font-bold text-[var(--muted-foreground)] text-[12px] flex items-center gap-1.5">
+                        <Clock size={11} /> {u.lastAccess}
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        {u.mfa ? (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-black text-[var(--success)] bg-[var(--success-light)] px-2 py-0.5 rounded-full border border-[var(--success)]/30">
+                            <CheckCircle2 size={10} /> ON
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-black text-[var(--warning)] bg-[var(--warning-light)] px-2 py-0.5 rounded-full border border-[var(--warning)]/30">
+                            <AlertTriangle size={10} /> OFF
+                          </div>
                         )}
-                      >
-                        {u.role}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 font-medium text-[var(--secondary-foreground)] text-[12px]">{u.dept}</td>
-                    <td className="px-5 py-3.5 font-bold text-[var(--muted-foreground)] text-[12px] flex items-center gap-1.5">
-                      <Clock size={11} /> {u.lastAccess}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      {u.mfa ? (
-                        <div className="inline-flex items-center gap-1 text-[10px] font-black text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">
-                          <CheckCircle2 size={10} /> ON
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1 text-[10px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                          <AlertTriangle size={10} /> OFF
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <Button variant="outline" size="sm" className="text-[11px] h-7 px-3">
-                        권한 수정
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        <Button variant="outline" size="sm" className="text-[11px] h-7 px-3">
+                          권한 수정
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
           <div className="flex justify-between items-center pt-2">
-            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 6명 표시 중 (전체 31명)</span>
+            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">전체 20명</span>
             <Button size="sm" className="gap-2">
               <Users size={14} /> 사용자 초대
             </Button>
@@ -2641,35 +1564,63 @@ const CONTENT: Record<string, React.ReactNode> = {
                     권한 항목
                   </th>
                   <th className="px-5 py-3.5 font-black text-center text-primary">운영자</th>
-                  <th className="px-5 py-3.5 font-black text-center text-foreground">분석가</th>
+                  <th className="px-5 py-3.5 font-black text-center text-foreground">편집자</th>
                   <th className="px-5 py-3.5 font-black text-center text-[var(--muted-foreground)]">뷰어</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)] bg-card">
-                {[
-                  { key: "admin", label: "시스템 설정 및 사용자 관리" },
-                  { key: "analyze", label: "분석 워크플로우 실행/수정" },
-                  { key: "report", label: "리포트 생성 및 배포" },
-                  { key: "pii", label: "민감 데이터(PII) 원본 열람" },
-                  { key: "view", label: "익명화 데이터 조회 및 다운로드" },
-                ].map((row) => (
-                  <tr key={row.key} className="hover:bg-[var(--surface-hover)] transition-colors">
-                    <td className="px-5 py-3.5 font-bold text-foreground">{row.label}</td>
-                    <td className="px-5 py-3.5 text-center">
-                      <div className="w-2.5 h-2.5 rounded-full bg-primary mx-auto shadow-[0_0_8px_rgba(49,107,255,0.4)]" />
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      {(row.key === "analyze" || row.key === "report" || row.key === "view") && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-foreground mx-auto" />
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      {row.key === "view" && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-[var(--border-strong)] mx-auto" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {(
+                  [
+                    {
+                      key: "user_mgmt",
+                      label: "사용자 관리 및 시스템 설정",
+                      admin: true,
+                      editor: false,
+                      viewer: false,
+                    },
+                    { key: "project", label: "프로젝트 생성 및 삭제", admin: true, editor: true, viewer: false },
+                    { key: "survey", label: "설문 생성 및 실행", admin: true, editor: true, viewer: false },
+                    { key: "simulation", label: "시뮬레이션 실행", admin: true, editor: true, viewer: false },
+                    { key: "report", label: "리포트 생성 및 다운로드", admin: true, editor: true, viewer: true },
+                    { key: "persona", label: "페르소나 열람 및 편집", admin: true, editor: true, viewer: true },
+                    {
+                      key: "result_view",
+                      label: "분석 결과 및 인사이트 조회",
+                      admin: true,
+                      editor: true,
+                      viewer: true,
+                    },
+                    { key: "prompt", label: "시스템 프롬프트 설정 변경", admin: true, editor: false, viewer: false },
+                  ] as { key: string; label: string; admin: boolean; editor: boolean; viewer: boolean }[]
+                ).map((row) => {
+                  const Dot = ({ on, tone }: { on: boolean; tone: "primary" | "neutral" | "muted" }) =>
+                    on ? (
+                      <div
+                        className={cn(
+                          "w-2.5 h-2.5 rounded-full mx-auto",
+                          tone === "primary" && "bg-primary shadow-[0_0_8px_rgba(49,107,255,0.4)]",
+                          tone === "neutral" && "bg-foreground",
+                          tone === "muted" && "bg-[var(--border-strong)]"
+                        )}
+                      />
+                    ) : (
+                      <div className="w-2.5 h-2.5 rounded-full mx-auto border border-[var(--border)] bg-transparent" />
+                    );
+                  return (
+                    <tr key={row.key} className="hover:bg-[var(--surface-hover)] transition-colors">
+                      <td className="px-5 py-3.5 font-bold text-foreground">{row.label}</td>
+                      <td className="px-5 py-3.5 text-center">
+                        <Dot on={row.admin} tone="primary" />
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <Dot on={row.editor} tone="neutral" />
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <Dot on={row.viewer} tone="muted" />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -2697,11 +1648,11 @@ const CONTENT: Record<string, React.ReactNode> = {
         <SettingGroup title="사용자별 AI 사용 현황 (이번 달)">
           <div className="space-y-3">
             {[
+              { name: "김민준", email: "mj.kim@samsung.com", requests: 312, tokens: 134800, role: "편집자" },
+              { name: "정태양", email: "ty.jung@samsung.com", requests: 241, tokens: 103600, role: "편집자" },
               { name: "이동훈", email: "dh.lee@samsung.com", requests: 184, tokens: 78420, role: "운영자" },
-              { name: "김민준", email: "mj.kim@samsung.com", requests: 312, tokens: 134800, role: "분석가" },
-              { name: "이서연", email: "sy.lee@samsung.com", requests: 97, tokens: 41200, role: "분석가" },
-              { name: "박지호", email: "jh.park@samsung.com", requests: 56, tokens: 23900, role: "뷰어" },
-              { name: "정태양", email: "ty.jung@samsung.com", requests: 241, tokens: 103600, role: "분석가" },
+              { name: "이서연", email: "sy.lee@samsung.com", requests: 97, tokens: 41200, role: "편집자" },
+              { name: "강지수", email: "js.kang@samsung.com", requests: 56, tokens: 23900, role: "뷰어" },
             ].map((u, i) => {
               const maxTokens = 134800;
               const pct = Math.round((u.tokens / maxTokens) * 100);
@@ -3037,8 +1988,8 @@ const CONTENT: Record<string, React.ReactNode> = {
                     className={cn(
                       "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tight border shadow-sm shrink-0",
                       log.result === "Pass"
-                        ? "bg-green-50 text-green-600 border-green-200"
-                        : "bg-red-50 text-red-600 border-red-200 animate-pulse"
+                        ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
+                        : "bg-red-50 text-[var(--destructive)] border-red-100 animate-pulse"
                     )}
                   >
                     {log.result === "Flagged" ? "Hallucination Risk" : log.result}
@@ -3193,507 +2144,6 @@ const CONTENT: Record<string, React.ReactNode> = {
     </>
   ),
   prompt: null,
-  report: (
-    <>
-      <SectionTitle
-        title="리포트 배포 및 자동화"
-        desc="생성된 리포트의 정기 배포 주기와 수신 채널, 보안 워터마크 정책을 설정합니다."
-      />
-
-      <div className="grid grid-cols-1 gap-6">
-        {/* 배포 현황 스탯 */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard label="이번 달 발송" value="142건" sub="전월 대비 +18건" tone="primary" icon={Send} />
-          <StatCard label="평균 열람률" value="78.4%" sub="업계 평균 52%" tone="success" icon={Eye} />
-          <StatCard label="미확인 리포트" value="9건" sub="수신 확인 대기" tone="warn" icon={AlertTriangle} />
-          <StatCard label="활성 배포 룰" value="7개" sub="3채널 운영 중" tone="neutral" icon={Calendar} />
-        </div>
-
-        {/* 자동 배포 타임라인 */}
-        <SettingGroup title="자동 배포 스케줄">
-          <div className="space-y-3">
-            {[
-              {
-                label: "점주용 일간 리포트",
-                schedule: "매일 08:30",
-                type: "Email",
-                icon: Mail,
-                recipients: 24,
-                lastSent: "오늘 08:30",
-                status: "active",
-              },
-              {
-                label: "본사 전략 주간 보고",
-                schedule: "매주 월요일 09:00",
-                type: "Slack",
-                icon: MessageSquare,
-                recipients: 8,
-                lastSent: "어제 09:00",
-                status: "active",
-              },
-              {
-                label: "글로벌 마켓 월간 요약",
-                schedule: "매월 1일",
-                type: "Dashboard",
-                icon: Globe,
-                recipients: 15,
-                lastSent: "2026-04-01",
-                status: "active",
-              },
-              {
-                label: "MZ 세그먼트 인사이트 알림",
-                schedule: "매주 수요일 14:00",
-                type: "Email",
-                icon: Mail,
-                recipients: 6,
-                lastSent: "3일 전",
-                status: "paused",
-              },
-              {
-                label: "글로벌 브랜드 지수 주간 리포트",
-                schedule: "매주 금요일 17:00",
-                type: "Slack",
-                icon: MessageSquare,
-                recipients: 12,
-                lastSent: "2일 전",
-                status: "active",
-              },
-            ].map((r) => (
-              <div key={r.label} className="flex items-center gap-4 group">
-                <div className="w-32 shrink-0 text-right">
-                  <p className="text-[11px] font-black text-[var(--subtle-foreground)] leading-tight">{r.schedule}</p>
-                  <p className="text-[10px] font-bold text-[var(--muted-foreground)] mt-0.5 flex items-center justify-end gap-1">
-                    <Clock size={9} /> {r.lastSent}
-                  </p>
-                </div>
-                <div className="relative flex flex-col items-center shrink-0">
-                  <div
-                    className={cn(
-                      "w-3.5 h-3.5 rounded-full border-[3px] bg-card z-10 shadow-sm",
-                      r.status === "active" ? "border-primary" : "border-[var(--border)]"
-                    )}
-                  />
-                  <div className="absolute top-3.5 bottom-0 w-px bg-[var(--border)] -mb-3 group-last:hidden" />
-                </div>
-                <div
-                  className={cn(
-                    "flex-1 border rounded-xl p-4 hover:border-primary/30 transition-all shadow-sm",
-                    r.status === "paused"
-                      ? "bg-[var(--panel-soft)] border-[var(--border)] opacity-60"
-                      : "bg-[var(--panel-soft)] border-[var(--border)]"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1.5 rounded-lg bg-card border border-[var(--border)] shadow-sm">
-                        <r.icon size={13} className="text-primary" />
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-foreground">{r.label}</p>
-                        <p className="text-[10px] font-bold text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1.5">
-                          <Users size={9} /> {r.recipients}명 수신
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "px-2 py-0.5 rounded-md text-[10px] font-black border shadow-sm",
-                          r.status === "active"
-                            ? "bg-emerald-50 text-emerald-600 border-emerald-200"
-                            : "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]"
-                        )}
-                      >
-                        {r.status === "active" ? "운영중" : "일시정지"}
-                      </span>
-                      <span className="px-2 py-0.5 rounded-md bg-card border border-[var(--border)] text-[10px] font-black text-[var(--muted-foreground)] shadow-sm">
-                        {r.type}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-end pt-2">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <Plus size={13} /> 배포 룰 추가
-            </Button>
-          </div>
-        </SettingGroup>
-
-        {/* 최근 발송 이력 */}
-        <SettingGroup title="최근 발송 이력">
-          <div className="overflow-hidden rounded-xl border border-[var(--border)] shadow-sm">
-            <table className="w-full text-left text-[12px]">
-              <thead className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
-                <tr>
-                  <th className="px-4 py-3 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    리포트명
-                  </th>
-                  <th className="px-4 py-3 font-black text-[var(--muted-foreground)] uppercase tracking-wider">채널</th>
-                  <th className="px-4 py-3 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
-                    수신자
-                  </th>
-                  <th className="px-4 py-3 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
-                    열람
-                  </th>
-                  <th className="px-4 py-3 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    발송일시
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)] bg-card">
-                {[
-                  {
-                    name: "점주용 일간 리포트 #84",
-                    channel: "Email",
-                    recipients: 24,
-                    opened: 21,
-                    date: "2026-04-07 08:30",
-                  },
-                  {
-                    name: "본사 전략 주간 보고 #18",
-                    channel: "Slack",
-                    recipients: 8,
-                    opened: 8,
-                    date: "2026-04-06 09:00",
-                  },
-                  {
-                    name: "MZ 세그먼트 인사이트 #12",
-                    channel: "Email",
-                    recipients: 6,
-                    opened: 4,
-                    date: "2026-04-02 14:00",
-                  },
-                  {
-                    name: "글로벌 마켓 월간 요약 #4",
-                    channel: "Dashboard",
-                    recipients: 15,
-                    opened: 15,
-                    date: "2026-04-01 00:00",
-                  },
-                ].map((row, i) => {
-                  const openRate = Math.round((row.opened / row.recipients) * 100);
-                  return (
-                    <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
-                      <td className="px-4 py-3 font-bold text-foreground">{row.name}</td>
-                      <td className="px-4 py-3">
-                        <span className="font-black text-[11px] px-2 py-0.5 rounded-md bg-[var(--panel-soft)] border border-[var(--border)]">
-                          {row.channel}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center font-black text-foreground">{row.recipients}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span
-                          className={cn(
-                            "font-black text-[12px]",
-                            openRate >= 80 ? "text-emerald-600" : openRate >= 60 ? "text-amber-500" : "text-red-500"
-                          )}
-                        >
-                          {openRate}%
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-bold text-[var(--muted-foreground)] whitespace-nowrap">
-                        {row.date}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="배포 보안 및 권한 설정">
-          <div className="grid grid-cols-2 gap-8">
-            <div className="space-y-3">
-              {[
-                { label: "PDF 워터마크 강제 적용", checked: true },
-                { label: "수신인 고유 식별 코드 삽입", checked: true },
-                { label: "배포 후 7일 뒤 자동 파기", checked: true },
-                { label: "미열람 건 3일 후 재발송", checked: false },
-              ].map((opt) => (
-                <label
-                  key={opt.label}
-                  className="flex items-center justify-between p-4 rounded-xl bg-[var(--panel-soft)] border border-[var(--border)] cursor-pointer hover:bg-card transition-colors"
-                >
-                  <span className="text-[13px] font-bold text-[var(--secondary-foreground)]">{opt.label}</span>
-                  <input type="checkbox" defaultChecked={opt.checked} className="w-4 h-4 accent-primary" />
-                </label>
-              ))}
-            </div>
-            <div className="space-y-2">
-              <label className="text-[11px] font-black uppercase text-[var(--muted-foreground)] ml-1 tracking-widest">
-                수신 그룹 화이트리스트
-              </label>
-              <div className="h-[192px] bg-card border border-dashed border-[var(--border)] rounded-xl p-3 overflow-y-auto space-y-1.5 shadow-inner">
-                {[
-                  { name: "CX 전략팀", members: 8 },
-                  { name: "본사 마케팅실", members: 12 },
-                  { name: "영남 지역 본부", members: 5 },
-                  { name: "글로벌 리서치센터", members: 7 },
-                  { name: "삼성 리서치", members: 15 },
-                ].map((team) => (
-                  <div
-                    key={team.name}
-                    className="flex items-center justify-between px-3 py-2.5 hover:bg-[var(--surface-hover)] rounded-lg transition-colors border border-transparent hover:border-[var(--border)]"
-                  >
-                    <div>
-                      <span className="text-[12px] font-bold text-[var(--secondary-foreground)]">{team.name}</span>
-                      <span className="text-[10px] font-bold text-[var(--muted-foreground)] ml-2">
-                        {team.members}명
-                      </span>
-                    </div>
-                    <input type="checkbox" defaultChecked className="w-3.5 h-3.5 accent-primary" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </SettingGroup>
-
-        <div className="flex justify-end pt-2">
-          <Button size="lg" className="gap-2">
-            <Save size={16} /> 글로벌 배포 정책 저장
-          </Button>
-        </div>
-      </div>
-    </>
-  ),
-  seo: <SeoSettingsSection />,
-  geo: <GeoSettingsSection />,
-  menu: (
-    <>
-      <SectionTitle
-        title="화면 위젯 및 대시보드 커스터마이징"
-        desc="사용자별 업무 특성에 맞춰 대시보드 레이아웃과 위젯 배치를 최적화합니다."
-      />
-
-      <div className="grid grid-cols-1 gap-6">
-        {/* 역할별 프리셋 */}
-        <SettingGroup title="역할별 추천 구성 프리셋">
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              {
-                role: "운영자",
-                icon: Shield,
-                desc: "전체 프로젝트 현황, 팀 활동 로그, 시스템 경고 중심",
-                widgets: ["마스터 프로젝트 뷰", "팀 활동 로그", "AI 사용 현황", "보안 알림"],
-                tone: "primary" as const,
-                active: true,
-              },
-              {
-                role: "분석가",
-                icon: BarChart,
-                desc: "데이터 스트림, 인사이트 요약, 설문 진행 차트 중심",
-                widgets: ["인사이트 요약", "실시간 응답 스트림", "페르소나 분포", "퀵 액션"],
-                tone: "neutral" as const,
-                active: false,
-              },
-              {
-                role: "뷰어",
-                icon: Eye,
-                desc: "최신 리포트 목록, 공유된 인사이트 피드 중심",
-                widgets: ["최신 리포트 목록", "공유 인사이트 피드", "공지사항"],
-                tone: "neutral" as const,
-                active: false,
-              },
-            ].map((preset) => (
-              <div
-                key={preset.role}
-                className={cn(
-                  "rounded-xl border p-5 cursor-pointer hover:border-primary/50 transition-all shadow-sm",
-                  preset.active
-                    ? "border-primary/30 bg-[var(--primary-light-bg)]"
-                    : "border-[var(--border)] bg-[var(--panel-soft)] hover:bg-card"
-                )}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div
-                      className={cn(
-                        "p-2 rounded-lg",
-                        preset.active
-                          ? "bg-primary/10 text-primary"
-                          : "bg-card text-[var(--muted-foreground)] border border-[var(--border)]"
-                      )}
-                    >
-                      <preset.icon size={14} />
-                    </div>
-                    <span className={cn("text-[14px] font-black", preset.active ? "text-primary" : "text-foreground")}>
-                      {preset.role}
-                    </span>
-                  </div>
-                  {preset.active && (
-                    <span className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" /> 현재 적용
-                    </span>
-                  )}
-                </div>
-                <p className="text-[11px] font-medium text-[var(--secondary-foreground)] leading-relaxed mb-3">
-                  {preset.desc}
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {preset.widgets.map((w) => (
-                    <span
-                      key={w}
-                      className="px-1.5 py-0.5 rounded bg-card border border-[var(--border)] text-[9px] font-bold text-[var(--muted-foreground)] shadow-sm"
-                    >
-                      {w}
-                    </span>
-                  ))}
-                </div>
-                {!preset.active && (
-                  <Button variant="outline" size="sm" className="mt-4 w-full text-[11px] gap-1">
-                    <Layers size={12} /> 이 프리셋 적용
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        </SettingGroup>
-
-        {/* 위젯 배치 미리보기 */}
-        <SettingGroup title="대시보드 레이아웃 미리보기 (운영자 기준)">
-          <div className="p-6 bg-[var(--panel-soft)] border-2 border-dashed border-[var(--border)] rounded-2xl">
-            <div className="grid grid-cols-3 grid-rows-2 gap-3" style={{ height: 220 }}>
-              <div className="col-span-2 row-span-1 bg-card border border-primary/30 rounded-xl flex items-center justify-center shadow-md relative overflow-hidden group cursor-move">
-                <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="text-center">
-                  <BarChart size={18} className="text-primary mx-auto mb-1" />
-                  <p className="text-[11px] font-black text-primary uppercase tracking-widest">마스터 프로젝트 뷰</p>
-                </div>
-              </div>
-              <div className="col-span-1 row-span-2 bg-card border border-[var(--border)] rounded-xl flex items-center justify-center shadow-sm opacity-75 hover:opacity-100 transition-opacity cursor-move group">
-                <div className="text-center">
-                  <Activity
-                    size={16}
-                    className="text-[var(--muted-foreground)] mx-auto mb-1 group-hover:text-primary transition-colors"
-                  />
-                  <p className="text-[10px] font-bold text-[var(--muted-foreground)]">팀 활동 로그</p>
-                </div>
-              </div>
-              <div className="col-span-1 row-span-1 bg-card border border-[var(--border)] rounded-xl flex items-center justify-center shadow-sm opacity-75 hover:opacity-100 transition-opacity cursor-move group">
-                <div className="text-center">
-                  <Zap
-                    size={14}
-                    className="text-[var(--muted-foreground)] mx-auto mb-1 group-hover:text-primary transition-colors"
-                  />
-                  <p className="text-[10px] font-bold text-[var(--muted-foreground)]">AI 사용 현황</p>
-                </div>
-              </div>
-              <div className="col-span-1 row-span-1 bg-card border border-[var(--border)] rounded-xl flex items-center justify-center shadow-sm opacity-75 hover:opacity-100 transition-opacity cursor-move group">
-                <div className="text-center">
-                  <Shield
-                    size={14}
-                    className="text-[var(--muted-foreground)] mx-auto mb-1 group-hover:text-primary transition-colors"
-                  />
-                  <p className="text-[10px] font-bold text-[var(--muted-foreground)]">보안 알림</p>
-                </div>
-              </div>
-            </div>
-            <p className="mt-4 text-center text-[11px] font-bold text-[var(--muted-foreground)] flex items-center justify-center gap-2">
-              <LayoutGrid size={12} /> 드래그 앤 드롭으로 위젯 위치·크기를 조정합니다
-            </p>
-          </div>
-        </SettingGroup>
-
-        {/* 위젯별 노출 설정 */}
-        <SettingGroup title="위젯 노출 상세 설정">
-          <div className="space-y-3">
-            {[
-              {
-                name: "마스터 프로젝트 뷰",
-                desc: "전사 프로젝트 진행률 및 상태 요약",
-                icon: Briefcase,
-                checked: true,
-                size: "Large",
-              },
-              {
-                name: "AI 대화 사용 현황",
-                desc: "사용자별 AI 요청 건수 및 토큰 소비",
-                icon: Cpu,
-                checked: true,
-                size: "Medium",
-              },
-              {
-                name: "팀 활동 로그",
-                desc: "최근 팀원 작업·접속 이력 피드",
-                icon: Activity,
-                checked: true,
-                size: "Medium",
-              },
-              {
-                name: "인사이트 요약 카드",
-                desc: "오늘의 핵심 발견사항 자동 요약",
-                icon: Sparkles,
-                checked: true,
-                size: "Small",
-              },
-              {
-                name: "실시간 응답 스트림",
-                desc: "현재 수집 중인 설문 응답 실시간 피드",
-                icon: Zap,
-                checked: false,
-                size: "Large",
-              },
-              {
-                name: "페르소나 분포 차트",
-                desc: "생성된 페르소나의 인구통계 분포 시각화",
-                icon: PieChart,
-                checked: false,
-                size: "Medium",
-              },
-              {
-                name: "커스텀 단축 버튼",
-                desc: "자주 쓰는 기능 바로가기 (최대 5개)",
-                icon: LayoutGrid,
-                checked: true,
-                size: "Small",
-              },
-              {
-                name: "보안 알림 배너",
-                desc: "로그인 이상·권한 변경 실시간 경고",
-                icon: Shield,
-                checked: true,
-                size: "Small",
-              },
-            ].map((w) => (
-              <label
-                key={w.name}
-                className="flex items-center gap-4 p-4 rounded-xl bg-[var(--panel-soft)] border border-[var(--border)] cursor-pointer hover:bg-card shadow-sm transition-colors group"
-              >
-                <div className="p-2 rounded-lg bg-card border border-[var(--border)] shadow-sm group-hover:border-primary/30 transition-colors shrink-0">
-                  <w.icon
-                    size={14}
-                    className="text-[var(--muted-foreground)] group-hover:text-primary transition-colors"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-black text-foreground">{w.name}</p>
-                  <p className="text-[11px] font-medium text-[var(--muted-foreground)] mt-0.5">{w.desc}</p>
-                </div>
-                <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-card border border-[var(--border)] text-[var(--muted-foreground)] shrink-0">
-                  {w.size}
-                </span>
-                <input type="checkbox" defaultChecked={w.checked} className="w-4 h-4 accent-primary shrink-0" />
-              </label>
-            ))}
-          </div>
-        </SettingGroup>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" size="lg" className="gap-2">
-            <FileText size={16} /> 공용 템플릿으로 저장
-          </Button>
-          <Button size="lg" className="gap-2">
-            <LayoutGrid size={16} /> 위젯 레이아웃 적용
-          </Button>
-        </div>
-      </div>
-    </>
-  ),
 };
 
 /* ─── 메인 ─── */
@@ -3701,43 +2151,98 @@ export const SettingsPage: React.FC = () => {
   const { tab } = useParams<{ tab: string }>();
   const navigate = useNavigate();
   const active = tab ?? "projects";
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-background">
+    <div className="flex h-screen w-full overflow-hidden bg-background">
       {/* Sidebar Nav */}
-      <nav className="hide-scrollbar w-[240px] shrink-0 overflow-y-auto border-r border-[var(--border)] bg-card px-4 py-6 shadow-[var(--shadow-sm)]">
-        {NAV.map((section) => (
-          <div key={section.label} className="mb-7">
-            <p className="px-3 pb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--subtle-foreground)]">
-              {section.label}
-            </p>
-            <div className="flex flex-col gap-0.5">
-              {section.items.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => navigate(`/settings/${item.key}`)}
-                  className={cn(
-                    "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all",
-                    active === item.key
-                      ? "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)] font-bold"
-                      : "text-[var(--secondary-foreground)] font-semibold hover:bg-[var(--surface-hover)] hover:text-foreground"
-                  )}
-                >
-                  <item.icon
-                    size={15}
-                    className={
-                      active === item.key
-                        ? "text-primary"
-                        : "text-[var(--subtle-foreground)] group-hover:text-primary transition-colors"
-                    }
-                  />
-                  <span className="text-[13px]">{item.label}</span>
-                </button>
-              ))}
-            </div>
+      <nav className="flex w-[240px] shrink-0 flex-col border-r border-[var(--border)] bg-card shadow-[var(--shadow-sm)]">
+        {/* 상단: 뒤로가기 */}
+        <div className="shrink-0 border-b border-[var(--border)] px-4 py-4">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="group flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left transition-all hover:bg-[var(--surface-hover)]"
+          >
+            <ArrowLeft
+              size={15}
+              className="text-[var(--subtle-foreground)] transition-transform group-hover:-translate-x-0.5 group-hover:text-primary"
+            />
+            <span className="text-[13px] font-semibold text-[var(--secondary-foreground)] group-hover:text-primary">
+              홈으로 돌아가기
+            </span>
+          </button>
+          <div className="mt-3 px-3">
+            <p className="text-[11px] font-black uppercase tracking-widest text-[var(--subtle-foreground)]">Settings</p>
           </div>
-        ))}
+        </div>
+
+        {/* 가운데: 섹션 네비게이션 */}
+        <div className="flex-1 overflow-y-auto hide-scrollbar px-4 py-5">
+          {NAV.map((section) => (
+            <div key={section.label} className="mb-7">
+              <p className="px-3 pb-2.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--subtle-foreground)]">
+                {section.label}
+              </p>
+              <div className="flex flex-col gap-0.5">
+                {section.items.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => navigate(`/settings/${item.key}`)}
+                    className={cn(
+                      "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all",
+                      active === item.key
+                        ? "bg-[var(--primary-light-bg)] text-primary border border-[var(--primary-light-border)] font-bold"
+                        : "text-[var(--secondary-foreground)] font-semibold hover:bg-[var(--surface-hover)] hover:text-foreground"
+                    )}
+                  >
+                    <item.icon
+                      size={15}
+                      className={
+                        active === item.key
+                          ? "text-primary"
+                          : "text-[var(--subtle-foreground)] group-hover:text-primary transition-colors"
+                      }
+                    />
+                    <span className="text-[13px]">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 하단: 유저카드 */}
+        <div className="relative shrink-0 border-t border-[var(--border)] p-3">
+          {userMenuOpen && (
+            <div className="absolute bottom-[76px] left-3 right-3 z-50 overflow-hidden rounded-2xl border border-[var(--border)] bg-card p-1.5 shadow-[var(--shadow-lg)]">
+              <div className="my-1 h-px bg-[var(--border)] opacity-50" />
+              <button
+                type="button"
+                className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--destructive)] transition-colors hover:bg-red-50"
+              >
+                <LogOut size={16} /> 로그아웃
+              </button>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setUserMenuOpen((v) => !v)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-xl p-2 transition-all hover:bg-[var(--surface-hover)]",
+              userMenuOpen && "bg-[var(--surface-hover)]"
+            )}
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--primary-light-bg)] text-primary shadow-inner">
+              <UserCircle size={20} />
+            </div>
+            <div className="min-w-0 text-left">
+              <p className="truncate text-[13px] font-bold text-foreground">관리자</p>
+              <p className="truncate text-[11px] font-medium text-[var(--subtle-foreground)]">admin@samsung.com</p>
+            </div>
+          </button>
+        </div>
       </nav>
 
       {/* Content Area */}
