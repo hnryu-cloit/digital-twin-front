@@ -27,7 +27,6 @@ import { STORAGE_KEYS } from "@/lib/storageKeys";
 import favicon from "@/assets/favicon.svg";
 import {
   aiJobApi,
-  geminiApi,
   surveyApi,
   type AIJob,
   type SurveyDraftPreview,
@@ -439,9 +438,9 @@ export const SurveyChatPage: React.FC = () => {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [syncStatus, setSyncStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [confirming, setConfirming] = useState(false);
-  const [qualityCheck, setQualityCheck] = useState<SurveyQualityCheckResponse | null>(null);
+  const [qualityCheck] = useState<SurveyQualityCheckResponse | null>(null);
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
-  const [qualityCheckLoading, setQualityCheckLoading] = useState(false);
+  const qualityCheckLoading = false;
   const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("tpl_concept_test_v1");
   const [initialDataReady, setInitialDataReady] = useState(false);
@@ -692,20 +691,6 @@ export const SurveyChatPage: React.FC = () => {
     }
     setPreview(nextPreview);
     setPreviewOpen(true);
-  };
-
-  const openQualityCheck = async () => {
-    if (!projectId) return;
-    const synced = await syncQuestions();
-    if (!synced) return;
-    setQualityCheckLoading(true);
-    try {
-      const result = await geminiApi.checkSurveyQuality(projectId);
-      setQualityCheck(result);
-      setQualityCheckOpen(true);
-    } finally {
-      setQualityCheckLoading(false);
-    }
   };
 
   const confirmSurvey = async () => {

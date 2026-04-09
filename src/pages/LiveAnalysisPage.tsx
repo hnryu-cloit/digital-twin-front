@@ -209,7 +209,7 @@ export const LiveAnalysisPage: React.FC = () => {
   const [targetResponses, setTargetResponses] = useState(0);
   const [crossSegmentSummary, setCrossSegmentSummary] = useState<CrossSegmentSummaryResponse | null>(null);
   const [baseDataLoading, setBaseDataLoading] = useState(false);
-  const [liveDataLoading, setLiveDataLoading] = useState(false);
+  const [, setLiveDataLoading] = useState(false);
   const [baseDataReady, setBaseDataReady] = useState(false);
   const [liveDataReady, setLiveDataReady] = useState(false);
   const [reportTransitionLoading, setReportTransitionLoading] = useState(false);

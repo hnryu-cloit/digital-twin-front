@@ -74,7 +74,7 @@ interface FindingCardData {
   label: string;
   value: string;
   desc: string;
-  evidence: { label: string; value: string }[];
+  evidence: { label: string; value: string; source_question_id?: string | null }[];
   action: string;
   tone: "primary" | "neutral";
 }
