@@ -505,7 +505,7 @@ export const ReportPage: React.FC = () => {
         <div>
           <p className="app-page-eyebrow">Insight Report</p>
           <h1 className="app-page-title mt-1">
-            전략적 분석 결과 <span className="text-primary">최종 리포트.</span>
+            전략적 분석 결과 <span className="text-primary">최종 리포트</span>
           </h1>
           <p className="app-page-description">{`${(project?.target_responses ?? 0).toLocaleString()}건 규모 프로젝트 기반 컨설팅 인사이트 보고서입니다.`}</p>
         </div>
@@ -808,7 +808,7 @@ export const ReportPage: React.FC = () => {
                                   ))
                                 ) : (
                                   <div className="text-[13px] font-semibold text-[var(--muted-foreground)]">
-                                    근거 데이터가 없습니다.
+                                    근거 데이터가 없습니다
                                   </div>
                                 )}
                               </div>
@@ -832,7 +832,7 @@ export const ReportPage: React.FC = () => {
                     })
                   ) : (
                     <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)]/30 px-8 py-10 text-center text-[14px] font-bold text-[var(--muted-foreground)]">
-                      리포트 인사이트 데이터가 없습니다.
+                      리포트 인사이트 데이터가 없습니다
                     </div>
                   )}
                 </div>
@@ -943,7 +943,7 @@ export const ReportPage: React.FC = () => {
                     ))
                   ) : (
                     <div className="rounded-3xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)]/30 px-8 py-10 text-center text-[14px] font-bold text-[var(--muted-foreground)]">
-                      세그먼트 데이터가 없습니다.
+                      세그먼트 데이터가 없습니다
                     </div>
                   )}
                 </div>
@@ -960,7 +960,7 @@ export const ReportPage: React.FC = () => {
                     </div>
                     <h3 className="text-[16px] font-bold text-foreground">실행 가능한 마케팅 플랜이 필요하신가요?</h3>
                     <p className="text-[13px] text-[var(--muted-foreground)] font-medium mt-2 max-w-xs leading-relaxed">
-                      분석 리포트 결과를 바탕으로 AI가 구체적인 90일 실행 계획과 예산 배분안을 수립합니다.
+                      분석 리포트 결과를 바탕으로 AI가 구체적인 90일 실행 계획과 예산 배분안을 수립합니다
                     </p>
                     <button
                       onClick={handleGenerateActionPlan}
@@ -978,9 +978,9 @@ export const ReportPage: React.FC = () => {
                         <Zap size={20} className="text-primary animate-pulse" />
                       </div>
                     </div>
-                    <p className="text-[15px] font-bold text-foreground">최적의 마케팅 믹스를 계산 중입니다...</p>
+                    <p className="text-[15px] font-bold text-foreground">최적의 마케팅 믹스를 계산 중입니다..</p>
                     <p className="text-[12px] text-[var(--muted-foreground)] mt-2">
-                      리포트의 핵심 인사이트를 실행 과제로 전환하고 있습니다.
+                      리포트의 핵심 인사이트를 실행 과제로 전환하고 있습니다
                     </p>
                   </div>
                 ) : (
@@ -1144,11 +1144,11 @@ export const ReportPage: React.FC = () => {
               </p>
               {sourceDrawer.loading ? (
                 <div className="flex items-center justify-center py-10 text-[var(--muted-foreground)] text-[13px]">
-                  불러오는 중...
+                  불러오는 중..
                 </div>
               ) : sourceDrawer.responses.length === 0 ? (
                 <div className="flex items-center justify-center py-10 text-[var(--muted-foreground)] text-[13px]">
-                  응답 데이터가 없습니다.
+                  응답 데이터가 없습니다
                 </div>
               ) : (
                 <>

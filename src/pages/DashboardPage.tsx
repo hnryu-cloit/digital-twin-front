@@ -40,7 +40,7 @@ import {
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 
 /* ─── Persona Pool ─── */
-type PersonaSegment = "MZ 얼리어답터" | "프리미엄 구매자" | "실용 중시 가족형" | "게이밍 성향군" | "비즈니스 프로";
+type PersonaSegment = string; // AI가 동적으로 생성하므로 고정 목록 없음
 
 type OccupationCat = "학생" | "직장인" | "전문직" | "자영업자" | "프리랜서";
 type SpendingLevel = "가성비형" | "실용형" | "프리미엄형";
@@ -70,15 +70,10 @@ interface FilterPersona {
   buyChannel: string;
 }
 
-const SEG_STYLE: Record<PersonaSegment, { bg: string; text: string; dot: string }> = {
-  "MZ 얼리어답터": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
-  "프리미엄 구매자": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
-  "실용 중시 가족형": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
-  "게이밍 성향군": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
-  "비즈니스 프로": { bg: "#eef3ff", text: "#2f66ff", dot: "#2f66ff" },
-};
-
+// 세그먼트 이름은 AI가 동적으로 생성하므로 이름 기반 매핑 대신 인덱스 기반으로 스타일을 결정한다
 const SEG_COLORS = ["var(--primary)", "#DB2777", "#16A34A", "#9333EA", "#0D9488"];
+const SEG_TEXT_COLORS = ["#2f66ff", "#9d174d", "#166534", "#6b21a8", "#0f766e"];
+const SEG_BG_COLORS = ["#eef3ff", "#fdf2f8", "#f0fdf4", "#faf5ff", "#f0fdfa"];
 
 /* ─── Segment Derivation ─── */
 function topN(arr: string[], n: number) {
@@ -117,7 +112,7 @@ function deriveSegments(personas: FilterPersona[]) {
         members.flatMap((p) => p.keywords),
         4
       );
-      return { name: name as PersonaSegment, members, avgAge, maleRatio, techDist, topInterests, topKeywords };
+      return { name, members, avgAge, maleRatio, techDist, topInterests, topKeywords };
     });
 }
 
@@ -273,7 +268,7 @@ export const DashboardPage: React.FC = () => {
           region: item.region || "대한민국",
           householdType: item.household_type || "1인 가구",
           device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
-          segments: [item.segment || "MZ 얼리어답터"] as PersonaSegment[],
+          segments: [item.segment || "기타"],
           techLevel: (item.future_value >= 90 ? "전문가" : item.future_value >= 75 ? "중급" : "초보") as
             | "전문가"
             | "중급"
@@ -667,7 +662,7 @@ export const DashboardPage: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-[var(--background)]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm font-medium text-[var(--muted-foreground)]">실시간 디지털 트윈 데이터를 분석 중...</p>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">실시간 디지털 트윈 데이터를 분석 중..</p>
         </div>
       </div>
     );
@@ -811,7 +806,7 @@ export const DashboardPage: React.FC = () => {
                             setOccupationAddInput("");
                           }
                         }}
-                        placeholder="직업군 추가..."
+                        placeholder="직업군 추가.."
                         className="flex-1 bg-transparent text-[11px] font-semibold outline-none text-[var(--secondary-foreground)] placeholder:text-[var(--subtle-foreground)] placeholder:font-normal"
                       />
                       <button
@@ -884,7 +879,7 @@ export const DashboardPage: React.FC = () => {
                             setCountryInput("");
                           }
                         }}
-                        placeholder="국가 추가..."
+                        placeholder="국가 추가.."
                         className="flex-1 bg-transparent text-[11px] font-semibold outline-none text-[var(--secondary-foreground)] placeholder:text-[var(--subtle-foreground)] placeholder:font-normal"
                       />
                       <button
@@ -957,7 +952,7 @@ export const DashboardPage: React.FC = () => {
                             setHouseholdAddInput("");
                           }
                         }}
-                        placeholder="가구 형태 추가..."
+                        placeholder="가구 형태 추가.."
                         className="flex-1 bg-transparent text-[11px] font-semibold outline-none text-[var(--secondary-foreground)] placeholder:text-[var(--subtle-foreground)] placeholder:font-normal"
                       />
                       <button
@@ -1214,7 +1209,7 @@ export const DashboardPage: React.FC = () => {
                             setContentChannelAddInput("");
                           }
                         }}
-                        placeholder="채널 추가..."
+                        placeholder="채널 추가.."
                         className="flex-1 bg-transparent text-[11px] font-semibold outline-none text-[var(--secondary-foreground)] placeholder:text-[var(--subtle-foreground)] placeholder:font-normal"
                       />
                       <button
@@ -1468,11 +1463,11 @@ export const DashboardPage: React.FC = () => {
             <h1 className="app-page-title mt-1">
               {hasFilters ? (
                 <>
-                  필터 기반 <span className="text-primary">세그먼트 분석 결과.</span>
+                  필터 기반 <span className="text-primary">세그먼트 분석 결과</span>
                 </>
               ) : (
                 <>
-                  세그먼트 설정 및 <span className="text-primary">분포 현황.</span>
+                  세그먼트 설정 및 <span className="text-primary">분포 현황</span>
                 </>
               )}
             </h1>
@@ -1486,50 +1481,50 @@ export const DashboardPage: React.FC = () => {
           <main className="flex-1 overflow-y-auto px-10 pt-8 pb-4 hide-scrollbar space-y-8">
             {/* ── AI Research Design Recommendation Banner ── */}
             {recommendationVisible && (recommendation || recommendationLoading) && (
-              <div className="rounded-3xl border border-primary/20 bg-gradient-to-r from-primary/[0.04] to-card p-1 shadow-sm animate-in fade-in slide-in-from-top-4 duration-700">
-                <div className="rounded-[22px] bg-white p-6 md:p-8 flex flex-col md:flex-row items-center gap-8">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0 shadow-inner">
-                    <Sparkles size={32} />
+              <div className="app-card px-6 py-5 flex flex-col md:flex-row md:items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-500 border-[var(--primary-light-border)]">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--primary-light-bg)] text-primary flex items-center justify-center shrink-0">
+                    <Sparkles size={17} />
                   </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <div className="flex items-center justify-center md:justify-start gap-3 mb-2">
-                      <p className="text-[11px] font-black text-primary uppercase tracking-[0.2em]">
-                        AI Research Design Recommendation
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-[10px] font-black text-primary uppercase tracking-[0.18em]">
+                        AI 리서치 설계 추천
                       </p>
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse shrink-0" />
                     </div>
                     {recommendationLoading ? (
-                      <div className="space-y-3">
-                        <div className="h-6 bg-primary/5 rounded-lg animate-pulse w-3/4" />
-                        <div className="h-4 bg-primary/5 rounded-lg animate-pulse w-1/2" />
+                      <div className="space-y-2">
+                        <div className="h-5 bg-[var(--panel-soft)] rounded-md animate-pulse w-72" />
+                        <div className="h-4 bg-[var(--panel-soft)] rounded-md animate-pulse w-48" />
                       </div>
                     ) : (
                       <>
-                        <h2 className="text-[20px] font-black text-foreground tracking-tight mb-2">
+                        <p className="text-[14px] font-black text-foreground tracking-tight truncate">
                           {recommendation?.recommendation}
-                        </h2>
-                        <p className="text-[13px] font-medium text-[var(--muted-foreground)] leading-relaxed">
+                        </p>
+                        <p className="text-[12px] font-medium text-[var(--muted-foreground)] mt-0.5 leading-relaxed line-clamp-2">
                           {recommendation?.rationale}
                         </p>
                       </>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => setRecommendationOpen(false)}
-                      className="px-6 py-3 rounded-xl border border-[var(--border)] text-[13px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] transition-all"
-                    >
-                      나중에 하기
-                    </button>
-                    <button
-                      onClick={applyRecommendedFilters}
-                      disabled={recommendationLoading}
-                      className="px-8 py-3 rounded-xl bg-primary text-white text-[13px] font-black shadow-lg hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-2"
-                    >
-                      추천 필터 적용하기
-                      <ChevronRight size={16} />
-                    </button>
-                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setRecommendationOpen(false)}
+                    className="px-4 py-2 rounded-xl border border-[var(--border)] text-[12px] font-bold text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] transition-all"
+                  >
+                    나중에
+                  </button>
+                  <button
+                    onClick={applyRecommendedFilters}
+                    disabled={recommendationLoading}
+                    className="px-5 py-2 rounded-xl bg-primary text-white text-[12px] font-black hover:bg-primary-hover active:scale-95 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    추천 필터 적용
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
               </div>
             )}
@@ -1690,13 +1685,14 @@ export const DashboardPage: React.FC = () => {
                     조건에 맞는 페르소나가 없습니다
                   </p>
                   <p className="text-[12px] text-[var(--subtle-foreground)] mt-1">
-                    필터 조건을 조정하거나 초기화해 주세요.
+                    필터 조건을 조정하거나 초기화해 주세요
                   </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 p-6">
                   {derivedSegments.map((seg, idx) => {
-                    const style = SEG_STYLE[seg.name];
+                    const segText = SEG_TEXT_COLORS[idx % SEG_TEXT_COLORS.length];
+                    const segBg = SEG_BG_COLORS[idx % SEG_BG_COLORS.length];
                     const ratio = Math.round(
                       (seg.members.length / (hasFilters ? matchedPersonas.length : allPersonas.length || 1)) * 100
                     );
@@ -1704,7 +1700,7 @@ export const DashboardPage: React.FC = () => {
                       <div
                         key={seg.name}
                         className="rounded-2xl border border-[var(--border)] p-6 hover:border-[var(--border-hover)] hover:shadow-md transition-all group"
-                        style={{ background: "linear-gradient(135deg, #eef3ff 0%, #ffffff 70%)" }}
+                        style={{ background: `linear-gradient(135deg, ${segBg} 0%, #ffffff 70%)` }}
                       >
                         <div className="flex items-start justify-between mb-4">
                           <div className="flex items-center gap-3">
@@ -1715,7 +1711,7 @@ export const DashboardPage: React.FC = () => {
                               {String.fromCharCode(65 + idx)}
                             </div>
                             <div>
-                              <p className="text-[13px] font-black" style={{ color: style.text }}>
+                              <p className="text-[13px] font-black" style={{ color: segText }}>
                                 {seg.name}
                               </p>
                               <p className="text-[10px] font-semibold text-[var(--muted-foreground)] mt-0.5">
@@ -1724,7 +1720,7 @@ export const DashboardPage: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="text-[22px] font-black leading-none" style={{ color: style.text }}>
+                            <p className="text-[22px] font-black leading-none" style={{ color: segText }}>
                               {seg.members.length.toLocaleString()}
                               <span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">
                                 명

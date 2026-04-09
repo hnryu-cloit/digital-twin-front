@@ -98,11 +98,9 @@ export const ReportHistoryPage: React.FC = () => {
         <div>
           <p className="app-page-eyebrow">Report Archive</p>
           <h1 className="app-page-title mt-1">
-            분석 리포트 <span className="text-primary">아카이브.</span>
+            분석 리포트 <span className="text-primary">아카이브</span>
           </h1>
-          <p className="app-page-description">
-            지금까지 생성된 모든 전략 리포트와 분석 데이터를 체계적으로 관리합니다.
-          </p>
+          <p className="app-page-description">지금까지 생성된 모든 전략 리포트와 분석 데이터를 체계적으로 관리합니다</p>
         </div>
 
         {/* 헤더 우측 컨트롤 */}
@@ -116,7 +114,7 @@ export const ReportHistoryPage: React.FC = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-transparent outline-none text-[13px] font-bold w-64 text-foreground placeholder:text-[var(--subtle-foreground)]"
-              placeholder="리포트 제목 또는 프로젝트 검색..."
+              placeholder="리포트 제목 또는 프로젝트 검색.."
             />
           </div>
           <button className="h-[42px] px-4 flex items-center gap-2 bg-card border border-[var(--border)] rounded-xl text-muted-foreground hover:text-primary hover:border-primary/30 transition-all shadow-[var(--shadow-sm)] active:scale-95 text-[13px] font-bold">

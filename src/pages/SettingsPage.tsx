@@ -6,7 +6,6 @@ import {
   Database,
   FileText,
   Users,
-  Sparkles,
   Save,
   RotateCcw,
   Terminal,
@@ -29,7 +28,7 @@ import {
   Network,
   Key,
   Plus,
-  Calendar,
+  Calendar as CalendarIcon,
   UserCheck,
   ChevronRight,
   Award,
@@ -48,8 +47,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+
 import { cn } from "@/lib/utils";
 import { settingsApi } from "@/lib/api";
+import type { DateRange } from "react-day-picker";
 
 /* ─── 네비게이션 구조 ─── */
 interface NavSection {
@@ -59,19 +62,19 @@ interface NavSection {
 
 const NAV: NavSection[] = [
   {
-    label: "엔터프라이즈 통합 관리",
+    label: "플랫폼 관리",
     items: [
-      { key: "projects", label: "리서치 프로젝트 마스터 뷰", icon: Briefcase },
-      { key: "datasrc", label: "데이터 소스 및 스키마", icon: Database },
-      { key: "users", label: "사용자 및 권한 제어", icon: Users },
+      { key: "projects", label: "프로젝트 현황판", icon: Briefcase },
+      { key: "datasrc", label: "데이터 커넥터", icon: Database },
+      { key: "users", label: "멤버 & 접근 제어", icon: Users },
     ],
   },
   {
-    label: "AI 엔진 및 감사 로그",
+    label: "AI 구성 & 감사",
     items: [
-      { key: "prompt", label: "시스템 프롬프트 설정", icon: Terminal },
-      { key: "logs", label: "AI 대화 감사 로그", icon: MessageSquare },
-      { key: "validation", label: "페르소나 검증 (CoT) 아카이브", icon: History },
+      { key: "prompt", label: "설문 템플릿 관리", icon: Terminal },
+      { key: "logs", label: "대화 감사 로그", icon: MessageSquare },
+      { key: "validation", label: "품질 검증 아카이브", icon: History },
     ],
   },
 ];
@@ -107,29 +110,291 @@ const PROMPT_PRESETS = [
   { id: "tpl_price_sensitivity", label: "가격 민감도 조사", icon: BarChart, group: "survey" },
   { id: "tpl_csat", label: "고객 만족도 (CSAT)", icon: UserCheck, group: "survey" },
   { id: "tpl_competitor", label: "경쟁사 비교 조사", icon: BarChart2, group: "survey" },
-  { id: "simulation", label: "시뮬레이션", icon: Zap, group: "pipeline" },
-  { id: "assistant", label: "어시스턴트", icon: Sparkles, group: "pipeline" },
 ] as const;
 
-const DEFAULT_PROMPT_TEXT: Record<string, string> = {
-  tpl_concept_test:
-    "신제품 또는 기능 컨셉에 대한 첫 반응, 매력도, 구매 의향을 정량·정성으로 측정하는 설문을 생성하세요. awareness → appeal → purchase_intent → concern → open_feedback 블록 순서를 준수하세요.",
-  tpl_ad_message:
-    "광고 메시지의 전달력, 기억도, 구매 의향 변화를 측정하는 설문을 생성하세요. message_clarity → memorability → intent_shift → improvement_area 블록을 포함하세요.",
-  tpl_usage_probe:
-    "실제 사용 맥락과 불편 요소, 향후 니즈를 탐색하는 설문을 생성하세요. usage_context → pain_point → future_need 블록을 중심으로 구성하세요.",
-  tpl_brand_awareness:
-    "브랜드 인지도, 연상 이미지, 경쟁 대비 포지셔닝을 측정하는 설문을 생성하세요. spontaneous awareness → aided recall → brand association → competitive positioning 순서로 구성하세요.",
-  tpl_price_sensitivity:
-    "응답자의 가격 수용 범위와 WTP(지불 의향)를 Van Westendorp 또는 직접 질문 방식으로 측정하는 설문을 생성하세요.",
-  tpl_csat:
-    "현재 제품·서비스 경험에 대한 전반적 만족도(CSAT)와 재구매 의향, 개선 우선순위를 수집하는 설문을 생성하세요. NPS 문항을 포함할 수 있습니다.",
-  tpl_competitor:
-    "자사 제품과 주요 경쟁사를 비교 평가하는 설문을 생성하세요. 인지도, 사용 경험, 선호 요인, 전환 의향을 포함하세요.",
-  simulation:
-    "Respond as a digital twin persona that authentically reflects the given demographic and psychographic profile. Base all answers on the persona's background, values, and usage context.",
-  assistant:
-    "Answer research questions with evidence and analytical confidence. Provide structured insights grounded in the available data.",
+interface TemplateDefault {
+  prompt: string;
+  temperature: number;
+  top_p: number;
+  model: string;
+  reasoning_effort: "low" | "medium" | "high";
+  deep_research: boolean;
+  allow_external_data: boolean;
+  allow_third_party_data: boolean;
+  use_project_context: boolean;
+  use_segment_context: boolean;
+  survey_type: string;
+  recommended_question_count: number;
+  required_blocks: string[];
+}
+
+function buildSurveyTemplatePrompt({
+  role,
+  surveyType,
+  requiredBlocks,
+  extraRules,
+}: {
+  role: string;
+  surveyType: string;
+  requiredBlocks: string[];
+  extraRules: string[];
+}) {
+  return `${role}
+
+[현재 설문 생성 계약]
+- 이 템플릿은 survey_type="${surveyType}" 기반 설문 생성에 사용됩니다
+- 입력은 user_prompt, research template, segment_context를 함께 반영해야 합니다
+- 출력은 JSON 배열만 가정하며 각 문항은 text, type, options를 포함해야 합니다
+- 허용 문항 타입은 단일선택, 복수선택, 리커트척도, 주관식 4종입니다
+- 주관식 문항의 options는 반드시 빈 배열 [] 이어야 합니다
+- 리커트척도 문항은 5점 척도를 기본으로 설계합니다
+- question_count를 초과하지 말고, 각 문항은 서로 다른 역할을 가져야 합니다
+
+[필수 블록]
+${requiredBlocks.map((block, index) => `${index + 1}. ${block}`).join("\n")}
+
+[설계 원칙]
+- 사용자 요청을 그대로 반복하지 말고 측정 가능한 문항으로 변환하세요
+- segment_context가 주어지면 세그먼트 특성을 rationale 수준으로 반영하되 편향적 표현은 피하세요
+- 문항 텍스트는 한국어 기준으로 자연스럽고 중립적인 어조를 유지하세요
+- 현재 데이터 스키마상 options는 문자열 배열만 허용되므로 복합 구조를 만들지 마세요
+- 추후 시뮬레이션과 리포트에서 재사용되므로 질문 의도와 선택지가 명확해야 합니다
+
+[템플릿별 추가 규칙]
+${extraRules.map((rule) => `- ${rule}`).join("\n")}`;
+}
+
+const TEMPLATE_DEFAULTS: Record<string, TemplateDefault> = {
+  tpl_concept_test: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "medium",
+    deep_research: false,
+    allow_external_data: false,
+    allow_third_party_data: false,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "concept",
+    recommended_question_count: 8,
+    required_blocks: ["awareness", "appeal", "purchase_intent", "concern", "open_feedback"],
+    temperature: 0.4,
+    top_p: 0.85,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 소비자 리서치 전문가입니다. 신제품 또는 기능 컨셉의 초기 수용 가능성과 구매 유발 요인을 측정하는 설문을 설계하세요.",
+      surveyType: "concept",
+      requiredBlocks: ["awareness", "appeal", "purchase_intent", "concern", "open_feedback"],
+      extraRules: [
+        "첫인상과 매력도, 구매 의향, 우려 요소가 모두 포함되도록 설계하세요.",
+        "브랜드명과 제품명은 [브랜드], [제품명] 플레이스홀더로 남겨 두세요.",
+        "정성 문항은 최소 2개 포함해 구매 맥락과 우려 이유를 확보하세요.",
+      ],
+    }),
+  },
+  tpl_ad_message: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "medium",
+    deep_research: false,
+    allow_external_data: false,
+    allow_third_party_data: false,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "ad",
+    recommended_question_count: 8,
+    required_blocks: ["message_clarity", "memorability", "brand_fit", "intent_shift", "improvement_area"],
+    temperature: 0.4,
+    top_p: 0.85,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 광고 효과 측정 전문가입니다. 광고 메시지의 전달력과 브랜드 적합성, 구매 의향 변화를 측정하는 설문을 설계하세요.",
+      surveyType: "ad",
+      requiredBlocks: ["message_clarity", "memorability", "brand_fit", "intent_shift", "improvement_area"],
+      extraRules: [
+        "광고 노출 전과 후의 질문 흐름을 분리해 메시지 효과를 비교 가능하게 만드세요.",
+        "광고 소재는 [광고 소재] 플레이스홀더로 남겨 두세요.",
+        "비보조 기억과 보조 기억을 혼동하지 않도록 문항 순서를 설계하세요.",
+      ],
+    }),
+  },
+  tpl_usage_probe: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "high",
+    deep_research: false,
+    allow_external_data: false,
+    allow_third_party_data: false,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "usage",
+    recommended_question_count: 10,
+    required_blocks: ["usage_context", "satisfaction", "pain_point", "workaround", "future_need"],
+    temperature: 0.5,
+    top_p: 0.9,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 UX 리서치 전문가입니다. 실제 사용 맥락, 불편 요소, 우회 행동, 향후 니즈를 깊게 탐색하는 설문을 설계하세요.",
+      surveyType: "usage",
+      requiredBlocks: ["usage_context", "satisfaction", "pain_point", "workaround", "future_need"],
+      extraRules: [
+        "행동 기반 질문을 우선하고, 단순 의견 질문만으로 구성하지 마세요.",
+        "제품명은 [제품명] 플레이스홀더로 남겨 두세요.",
+        "정성 탐색 목적이 강하므로 주관식 문항 비중을 충분히 확보하세요.",
+      ],
+    }),
+  },
+  tpl_brand_awareness: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "medium",
+    deep_research: true,
+    allow_external_data: true,
+    allow_third_party_data: true,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "brand_awareness",
+    recommended_question_count: 9,
+    required_blocks: [
+      "spontaneous_awareness",
+      "aided_recall",
+      "brand_association",
+      "competitive_positioning",
+      "preference",
+    ],
+    temperature: 0.4,
+    top_p: 0.85,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 브랜드 전략 리서치 전문가입니다. 브랜드 인지도, 연상 이미지, 경쟁 대비 포지셔닝을 측정하는 설문을 설계하세요.",
+      surveyType: "brand_awareness",
+      requiredBlocks: [
+        "spontaneous_awareness",
+        "aided_recall",
+        "brand_association",
+        "competitive_positioning",
+        "preference",
+      ],
+      extraRules: [
+        "비보조 인지 후 보조 인지 순서를 반드시 유지하세요.",
+        "경쟁 브랜드명은 [경쟁사A], [경쟁사B] 플레이스홀더로 남겨 두세요.",
+        "외부 시장 정보가 있더라도 문항은 중립적 비교 구조로 유지하세요.",
+      ],
+    }),
+  },
+  tpl_price_sensitivity: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "high",
+    deep_research: true,
+    allow_external_data: true,
+    allow_third_party_data: true,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "price_sensitivity",
+    recommended_question_count: 7,
+    required_blocks: ["too_cheap", "cheap", "expensive", "too_expensive", "price_context"],
+    temperature: 0.3,
+    top_p: 0.8,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 가격 전략 리서치 전문가입니다. Van Westendorp 기반으로 가격 수용 범위와 지불 의향을 측정하는 설문을 설계하세요.",
+      surveyType: "price_sensitivity",
+      requiredBlocks: ["too_cheap", "cheap", "expensive", "too_expensive", "price_context"],
+      extraRules: [
+        "Too Cheap, Cheap, Expensive, Too Expensive의 4개 핵심 가격 문항을 반드시 포함하세요.",
+        "제품 사양은 [제품 사양] 플레이스홀더로 남겨 두세요.",
+        "가격 맥락을 해석할 수 있도록 현재 지출 또는 대안 비교 문항을 포함하세요.",
+      ],
+    }),
+  },
+  tpl_csat: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "medium",
+    deep_research: false,
+    allow_external_data: false,
+    allow_third_party_data: false,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "csat",
+    recommended_question_count: 8,
+    required_blocks: ["overall_csat", "nps", "dimension_csat", "repurchase_intent", "improvement_priority"],
+    temperature: 0.3,
+    top_p: 0.8,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 CX 리서치 전문가입니다. 제품 또는 서비스의 전반 만족도와 추천, 재구매 의향을 측정하는 설문을 설계하세요.",
+      surveyType: "csat",
+      requiredBlocks: ["overall_csat", "nps", "dimension_csat", "repurchase_intent", "improvement_priority"],
+      extraRules: [
+        "CSAT는 5점 척도, NPS는 0~10점 척도를 유지하세요.",
+        "NPS 점수 이유를 파악할 수 있는 주관식 또는 후속 문항을 포함하세요.",
+        "세부 만족도는 품질, 가격, 서비스 등 개선 액션과 연결되게 설계하세요.",
+      ],
+    }),
+  },
+  tpl_competitor: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "high",
+    deep_research: true,
+    allow_external_data: true,
+    allow_third_party_data: true,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "competitor",
+    recommended_question_count: 10,
+    required_blocks: ["awareness", "usage_experience", "attribute_comparison", "switching_intent", "ideal_product"],
+    temperature: 0.4,
+    top_p: 0.85,
+    prompt: buildSurveyTemplatePrompt({
+      role: "당신은 삼성전자 경쟁사 인텔리전스 리서치 전문가입니다. 자사와 주요 경쟁사를 비교 평가하는 설문을 설계하세요.",
+      surveyType: "competitor",
+      requiredBlocks: ["awareness", "usage_experience", "attribute_comparison", "switching_intent", "ideal_product"],
+      extraRules: [
+        "비교 대상 브랜드는 [경쟁사A], [경쟁사B] 플레이스홀더로 남겨 두세요.",
+        "현재 사용 브랜드에 따라 분기 가능한 질문 흐름을 고려하세요.",
+        "속성 비교 문항은 품질, 가격, 디자인, 서비스처럼 해석 가능한 항목으로 제한하세요.",
+      ],
+    }),
+  },
+  simulation: {
+    model: "gemini-2.5-flash",
+    reasoning_effort: "medium",
+    deep_research: false,
+    allow_external_data: false,
+    allow_third_party_data: false,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "simulation",
+    recommended_question_count: 0,
+    required_blocks: [],
+    temperature: 0.8,
+    top_p: 0.95,
+    prompt: `당신은 삼성전자 디지털 트윈 시뮬레이션 엔진입니다. 주어진 인구통계 및 심리통계 프로파일을 가진 가상 페르소나로서 설문에 응답하세요.
+
+[페르소나 응답 원칙]
+- 페르소나의 연령, 직업, 소비 성향, 브랜드 선호도, 기술 수용 수준을 일관되게 반영하세요
+- 응답은 해당 페르소나의 실제 경험과 가치관에 근거해야 합니다
+- 모든 응답자가 동일하게 응답하는 패턴을 피하고, 페르소나별 개성을 유지하세요
+- 척도 응답 시 중립(3점)으로만 수렴하지 말고, 프로파일에 맞는 분포를 형성하세요
+
+[응답 품질 기준]
+- 주관식 응답은 2~4문장으로 작성하되, 페르소나의 어휘 수준과 관심사를 반영하세요
+- 브랜드 충성도가 높은 페르소나는 긍정 편향을, 가격 민감 페르소나는 가성비 관점을 중심으로 응답하세요`,
+  },
+  assistant: {
+    model: "gemini-2.5-pro",
+    reasoning_effort: "medium",
+    deep_research: true,
+    allow_external_data: true,
+    allow_third_party_data: true,
+    use_project_context: true,
+    use_segment_context: true,
+    survey_type: "assistant",
+    recommended_question_count: 0,
+    required_blocks: [],
+    temperature: 0.6,
+    top_p: 0.9,
+    prompt: `당신은 삼성전자 리서치 인사이트 어시스턴트입니다. 수집된 설문 데이터와 페르소나 분석 결과를 바탕으로 마케팅 전략적 인사이트를 제공하세요.
+
+[응답 원칙]
+- 질문에 대한 답변은 데이터 근거를 먼저 제시하고, 그로부터 도출되는 인사이트를 설명하세요
+- 수치와 비율은 구체적으로 인용하되, 불확실한 추측은 명확히 구분하세요
+- 실행 가능한 액션 아이템을 포함하여 답변을 마무리하세요
+
+[출력 형식]
+- 복잡한 질문은 핵심 요약 → 상세 분석 → 권고 사항 순으로 구조화하세요
+- 임원 보고용 요약이 필요한 경우 3줄 이내 불릿 포인트로 제공하세요
+- 세그먼트별 비교가 필요한 경우 표 형식을 활용하세요`,
+  },
 };
 
 function StatCard({
@@ -138,21 +403,15 @@ function StatCard({
   sub,
   tone = "neutral",
   icon: Icon,
+  onDetail,
 }: {
   label: string;
   value: string;
   sub?: string;
   tone?: "neutral" | "primary" | "warn" | "danger" | "success";
   icon?: React.ElementType;
+  onDetail?: () => void;
 }) {
-  const accent = {
-    neutral: "border-l-[var(--border-strong)]",
-    primary: "border-l-primary",
-    warn: "border-l-[var(--warning)]",
-    danger: "border-l-[var(--destructive)]",
-    success: "border-l-[var(--success)]",
-  }[tone];
-
   const valueColor = {
     neutral: "text-foreground",
     primary: "text-primary",
@@ -162,7 +421,7 @@ function StatCard({
   }[tone];
 
   const iconColor = {
-    neutral: "text-[var(--muted-foreground)]",
+    neutral: "text-[var(--subtle-foreground)]",
     primary: "text-primary",
     warn: "text-[var(--warning)]",
     danger: "text-[var(--destructive)]",
@@ -170,13 +429,22 @@ function StatCard({
   }[tone];
 
   return (
-    <div className={cn("bg-card border border-[var(--border)] border-l-[3px] px-4 py-3.5 rounded-xl", accent)}>
-      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-2">
+    <div className="group bg-card border border-[var(--border)] rounded-xl p-4 flex flex-col gap-0 hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-sm)] transition-all">
+      <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--subtle-foreground)] mb-2.5">
         {Icon && <Icon size={11} className={iconColor} />}
         {label}
       </p>
-      <p className={cn("text-[22px] font-black leading-none tracking-tight", valueColor)}>{value}</p>
-      {sub && <p className="mt-1.5 text-[10px] font-medium text-[var(--muted-foreground)]">{sub}</p>}
+      <p className={cn("text-[20px] font-black leading-none tracking-tight", valueColor)}>{value}</p>
+      <div className="mt-3 flex items-center justify-between pt-2.5 border-t border-[var(--border)]">
+        {sub ? <p className="text-[10px] font-medium text-[var(--muted-foreground)]">{sub}</p> : <span />}
+        <button
+          type="button"
+          onClick={onDetail}
+          className="flex items-center gap-0.5 text-[10px] font-bold text-[var(--muted-foreground)] hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+        >
+          더보기 <ChevronRight size={11} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -186,13 +454,13 @@ const DATA_SOURCES = [
   {
     id: "pos",
     name: "삼성 POS 트랜잭션",
-    type: "Manual Upload",
+    type: "GCS 배치 업로드",
     status: "Healthy" as const,
     sync: "1시간 전",
     signal: 100,
     icon: Database,
-    endpoint: "s3://samsung-dt-uploads/pos/",
-    auth: "IAM Role",
+    endpoint: "gs://samsung-dt-lake/pos/",
+    auth: "GCP 서비스 계정",
     schedule: "매일 02:00",
     syncHistory: [
       { date: "2026-04-07 02:01", rows: 184200, duration: "4m 12s", result: "Success" },
@@ -268,8 +536,8 @@ const DATA_SOURCES = [
     sync: "5분 전",
     signal: 95,
     icon: TableProperties,
-    endpoint: "postgres://survey-db.internal:5432/responses",
-    auth: "Service Account",
+    endpoint: "postgres://survey-db.dt.samsung.internal:5432/responses",
+    auth: "GCP 서비스 계정",
     schedule: "5분 주기 풀링",
     syncHistory: [
       { date: "2026-04-07 09:55", rows: 1820, duration: "8s", result: "Success" },
@@ -289,13 +557,13 @@ const DATA_SOURCES = [
   {
     id: "firebase",
     name: "앱 행동 로그 (Firebase)",
-    type: "SDK Integration",
+    type: "GCP SDK Integration",
     status: "Healthy" as const,
     sync: "실시간",
     signal: 90,
     icon: Zap,
-    endpoint: "firebase://samsung-dt-app.firebaseio.com",
-    auth: "Service Account JSON",
+    endpoint: "https://samsung-dt-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+    auth: "GCP 서비스 계정 JSON",
     schedule: "실시간 Stream",
     syncHistory: [
       { date: "2026-04-07 09:56", rows: 9820, duration: "0.1s", result: "Success" },
@@ -401,10 +669,10 @@ function DataSourceSection() {
   return (
     <>
       <SectionTitle
-        title="데이터 소스 및 스키마 커넥터"
-        desc="연결된 데이터 소스의 상태를 모니터링하고, 소스별 스키마와 동기화 이력을 관리합니다."
+        title="데이터 커넥터"
+        desc="연결된 데이터 소스의 상태를 모니터링하고 소스별 스키마와 동기화 이력을 확인합니다"
       />
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 gap-4">
         {/* 상태 요약 */}
         <div className="grid grid-cols-4 gap-4">
           <StatCard
@@ -432,7 +700,7 @@ function DataSourceSection() {
         </div>
 
         {/* 뷰 타입 토글 + 액션 */}
-        <SettingGroup>
+        <div className="app-card p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1 bg-[var(--panel-soft)] p-1 rounded-xl border border-[var(--border)]">
               <button
@@ -469,7 +737,7 @@ function DataSourceSection() {
               </Button>
             </div>
           </div>
-        </SettingGroup>
+        </div>
 
         {/* 소스 목록 */}
         <SettingGroup title="연결된 데이터 소스">
@@ -765,48 +1033,93 @@ function DataSourceSection() {
 }
 
 function PromptSettingsSection() {
-  const [selectedPromptType, setSelectedPromptType] = useState<(typeof PROMPT_PRESETS)[number]["id"]>("survey");
-  const [prompt, setPrompt] = useState("");
+  const [selectedPromptType, setSelectedPromptType] =
+    useState<(typeof PROMPT_PRESETS)[number]["id"]>("tpl_concept_test");
+  const [prompt, setPrompt] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].prompt);
   const [savedPrompt, setSavedPrompt] = useState("");
-  const [temperature, setTemperature] = useState(0.7);
-  const [topP, setTopP] = useState(0.9);
-  const [savedLlm, setSavedLlm] = useState({ temperature: 0.7, top_p: 0.9 });
+  const [temperature, setTemperature] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].temperature);
+  const [topP, setTopP] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].top_p);
+  const [model, setModel] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].model);
+  const [reasoningEffort, setReasoningEffort] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].reasoning_effort);
+  const [deepResearch, setDeepResearch] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].deep_research);
+  const [allowExternalData, setAllowExternalData] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].allow_external_data);
+  const [allowThirdPartyData, setAllowThirdPartyData] = useState(
+    TEMPLATE_DEFAULTS["tpl_concept_test"].allow_third_party_data
+  );
+  const [useProjectContext, setUseProjectContext] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].use_project_context);
+  const [useSegmentContext, setUseSegmentContext] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"].use_segment_context);
+  const [savedTemplate, setSavedTemplate] = useState(TEMPLATE_DEFAULTS["tpl_concept_test"]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const defaults = TEMPLATE_DEFAULTS[selectedPromptType];
+  const activePreset = PROMPT_PRESETS.find((preset) => preset.id === selectedPromptType) ?? PROMPT_PRESETS[0];
+  const enabledRuntimeFlags = [
+    deepResearch,
+    allowExternalData,
+    allowThirdPartyData,
+    useProjectContext,
+    useSegmentContext,
+  ].filter(Boolean).length;
+
   useEffect(() => {
     const loadSettings = async () => {
       setLoading(true);
       setErrorMessage(null);
-      const [promptResponse, llmResponse] = await Promise.all([
+      const [promptResponse, llmResponse, templateBundle] = await Promise.all([
         settingsApi.getPrompt(selectedPromptType),
         settingsApi.getLlmParameters(),
+        settingsApi.getSurveyTemplateSettings(),
       ]);
 
-      if (!promptResponse) {
-        setErrorMessage("설정 정보를 불러오지 못했습니다.");
-      } else {
-        setPrompt(promptResponse.prompt);
-        setSavedPrompt(promptResponse.prompt);
-      }
+      const storedTemplate = templateBundle?.templates?.[selectedPromptType];
 
-      if (llmResponse) {
-        setTemperature(llmResponse.temperature);
-        setTopP(llmResponse.top_p);
-        setSavedLlm(llmResponse);
+      const resolvedPrompt = storedTemplate?.prompt || promptResponse?.prompt || defaults.prompt;
+      const resolvedTemp = storedTemplate?.temperature ?? llmResponse?.temperature ?? defaults.temperature;
+      const resolvedTopP = storedTemplate?.top_p ?? llmResponse?.top_p ?? defaults.top_p;
+      const resolvedTemplate = {
+        ...defaults,
+        ...storedTemplate,
+        prompt: resolvedPrompt,
+        temperature: resolvedTemp,
+        top_p: resolvedTopP,
+      };
+
+      setPrompt(resolvedTemplate.prompt);
+      setSavedPrompt(resolvedTemplate.prompt);
+      setTemperature(resolvedTemplate.temperature);
+      setTopP(resolvedTemplate.top_p);
+      setModel(resolvedTemplate.model);
+      setReasoningEffort(resolvedTemplate.reasoning_effort);
+      setDeepResearch(resolvedTemplate.deep_research);
+      setAllowExternalData(resolvedTemplate.allow_external_data);
+      setAllowThirdPartyData(resolvedTemplate.allow_third_party_data);
+      setUseProjectContext(resolvedTemplate.use_project_context);
+      setUseSegmentContext(resolvedTemplate.use_segment_context);
+      setSavedTemplate(resolvedTemplate);
+
+      if (!promptResponse && !storedTemplate) {
+        console.warn("템플릿 설정을 불러오지 못해 기본값을 사용합니다.");
       }
       setLoading(false);
     };
 
-    loadSettings();
-  }, [selectedPromptType]);
+    void loadSettings();
+  }, [defaults, selectedPromptType]);
 
   const resetCurrent = () => {
-    setPrompt(savedPrompt || DEFAULT_PROMPT_TEXT[selectedPromptType]);
-    setTemperature(savedLlm.temperature);
-    setTopP(savedLlm.top_p);
+    setPrompt(savedPrompt || savedTemplate.prompt || defaults.prompt);
+    setTemperature(savedTemplate.temperature);
+    setTopP(savedTemplate.top_p);
+    setModel(savedTemplate.model);
+    setReasoningEffort(savedTemplate.reasoning_effort);
+    setDeepResearch(savedTemplate.deep_research);
+    setAllowExternalData(savedTemplate.allow_external_data);
+    setAllowThirdPartyData(savedTemplate.allow_third_party_data);
+    setUseProjectContext(savedTemplate.use_project_context);
+    setUseSegmentContext(savedTemplate.use_segment_context);
     setStatusMessage("마지막 저장 상태로 되돌렸습니다.");
     setErrorMessage(null);
   };
@@ -816,45 +1129,86 @@ function PromptSettingsSection() {
     setStatusMessage(null);
     setErrorMessage(null);
 
-    const [promptResponse, llmResponse] = await Promise.all([
+    const templateBundle = await settingsApi.getSurveyTemplateSettings();
+    const nextTemplate = {
+      ...defaults,
+      prompt,
+      model,
+      temperature,
+      top_p: topP,
+      reasoning_effort: reasoningEffort,
+      deep_research: deepResearch,
+      allow_external_data: allowExternalData,
+      allow_third_party_data: allowThirdPartyData,
+      use_project_context: useProjectContext,
+      use_segment_context: useSegmentContext,
+    };
+    const nextBundle = {
+      templates: {
+        ...(templateBundle?.templates ?? {}),
+        [selectedPromptType]: nextTemplate,
+      },
+      updated_at: new Date().toISOString(),
+    };
+
+    const [promptResponse, llmResponse, templateResponse] = await Promise.all([
       settingsApi.savePrompt(selectedPromptType, prompt),
       settingsApi.saveLlmParameters({ temperature, top_p: topP }),
+      settingsApi.saveSurveyTemplateSettings(nextBundle),
     ]);
 
-    if (!promptResponse || !llmResponse) {
-      setErrorMessage("일부 설정 저장에 실패했습니다.");
+    if (!promptResponse || !llmResponse || !templateResponse) {
+      setErrorMessage("일부 템플릿 설정 저장에 실패했습니다.");
       setSaving(false);
       return;
     }
 
     setSavedPrompt(promptResponse.prompt);
-    setSavedLlm(llmResponse);
-    setStatusMessage("프롬프트와 LLM 파라미터를 저장했습니다.");
+    setSavedTemplate(nextTemplate);
+    setStatusMessage("템플릿 번들과 레거시 프롬프트/LLM 값을 함께 저장했습니다.");
     setSaving(false);
   };
 
   return (
     <>
       <SectionTitle
-        title="시스템 프롬프트 설정 및 버전 관리"
-        desc="리서치 템플릿별 AI 시스템 프롬프트를 설정하고, 배포된 버전 이력을 관리합니다."
+        title="설문 템플릿 관리"
+        desc="시스템 프롬프트는 물론 모델, 딥리서치, 외부 데이터 허용 여부까지 템플릿 단위로 묶어서 관리합니다"
       />
 
       <div className="grid grid-cols-1 gap-6">
         <div className="grid grid-cols-4 gap-4">
-          <StatCard label="평균 응답 속도" value="1.2s" sub="AI 파이프라인 기준" tone="success" icon={Zap} />
           <StatCard
-            label="분석 정확도 (QA)"
-            value="98.4%"
-            sub="페르소나 검증 기준"
+            label="활성 템플릿"
+            value={String(PROMPT_PRESETS.length)}
+            sub="설문 유형 기준"
+            tone="success"
+            icon={FlaskConical}
+          />
+          <StatCard
+            label="권장 문항 수"
+            value={`${defaults.recommended_question_count}문항`}
+            sub={defaults.survey_type}
             tone="primary"
+            icon={List}
+          />
+          <StatCard
+            label="필수 블록"
+            value={String(defaults.required_blocks.length)}
+            sub="템플릿 계약 기준"
+            tone="warn"
             icon={CheckCircle2}
           />
-          <StatCard label="토큰 효율성" value="92%" sub="입출력 대비 평균" tone="warn" icon={Cpu} />
-          <StatCard label="실패율" value="0.02%" sub="최근 30일 기준" tone="neutral" icon={AlertTriangle} />
+          <StatCard
+            label="실행 옵션"
+            value={`${enabledRuntimeFlags}/5`}
+            sub="현재 활성화됨"
+            tone="neutral"
+            icon={Cpu}
+          />
         </div>
 
-        <SettingGroup title="리서치 유형별 시스템 프롬프트">
+        <SettingGroup title="템플릿별 설계 규칙 및 실행 옵션">
           <div className="mb-5 space-y-3">
             <div>
               <p className="app-label mb-2">설문 템플릿</p>
@@ -872,27 +1226,16 @@ function PromptSettingsSection() {
                 ))}
               </div>
             </div>
-            <div>
-              <p className="app-label mb-2">AI 파이프라인</p>
-              <div className="flex flex-wrap gap-2">
-                {PROMPT_PRESETS.filter((p) => p.group === "pipeline").map((preset) => (
-                  <Button
-                    key={preset.id}
-                    variant={preset.id === selectedPromptType ? "default" : "outline"}
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => setSelectedPromptType(preset.id)}
-                  >
-                    <preset.icon size={13} /> {preset.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-[13px] font-black text-foreground">시스템 프롬프트 (System Prompt)</span>
+              <div>
+                <span className="text-[13px] font-black text-foreground">시스템 프롬프트</span>
+                <p className="mt-1 text-[11px] font-medium text-[var(--muted-foreground)]">
+                  현재 설문 스키마(`text`, `type`, `options`)와 생성 계약을 반영하도록 기본 프롬프트를 정리했습니다.
+                </p>
+              </div>
               <span className="bg-[var(--panel-soft)] px-2 py-0.5 text-[11px] font-black uppercase tracking-tighter text-[var(--muted-foreground)] rounded-md border border-[var(--border)]">
                 {selectedPromptType}
               </span>
@@ -908,8 +1251,47 @@ function PromptSettingsSection() {
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
                 <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                  temperature
+                  model
                 </label>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  disabled={loading}
+                  className="w-full rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-foreground outline-none focus:border-primary disabled:opacity-60"
+                >
+                  <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                  <option value="gpt-5.4">gpt-5.4</option>
+                  <option value="gpt-5.4-mini">gpt-5.4-mini</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                  reasoning_effort
+                </label>
+                <select
+                  value={reasoningEffort}
+                  onChange={(e) => setReasoningEffort(e.target.value as "low" | "medium" | "high")}
+                  disabled={loading}
+                  className="w-full rounded-xl border border-[var(--border)] bg-card px-4 py-3 text-[13px] font-bold text-foreground outline-none focus:border-primary disabled:opacity-60"
+                >
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                    temperature
+                  </label>
+                  <span className="text-[10px] font-bold text-[var(--subtle-foreground)]">
+                    기본값 {defaults.temperature.toFixed(1)}
+                  </span>
+                </div>
                 <div className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
                   <input
                     type="range"
@@ -920,13 +1302,23 @@ function PromptSettingsSection() {
                     onChange={(e) => setTemperature(Number(e.target.value))}
                     className="w-full"
                   />
-                  <div className="mt-2 text-[12px] font-black text-primary">{temperature.toFixed(1)}</div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-[12px] font-black text-primary">{temperature.toFixed(1)}</span>
+                    {temperature !== defaults.temperature && (
+                      <span className="text-[10px] font-bold text-[var(--warning)]">기본값과 다름</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
-                  top_p
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-[var(--muted-foreground)]">
+                    top_p
+                  </label>
+                  <span className="text-[10px] font-bold text-[var(--subtle-foreground)]">
+                    기본값 {defaults.top_p.toFixed(2)}
+                  </span>
+                </div>
                 <div className="rounded-xl border border-[var(--border)] bg-card px-4 py-3">
                   <input
                     type="range"
@@ -940,6 +1332,60 @@ function PromptSettingsSection() {
                   <div className="mt-2 text-[12px] font-black text-primary">{topP.toFixed(2)}</div>
                 </div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                {
+                  label: "딥리서치 사용",
+                  value: deepResearch,
+                  setter: setDeepResearch,
+                  desc: "고난도 탐색형 템플릿에만 권장합니다.",
+                },
+                {
+                  label: "외부 데이터 허용",
+                  value: allowExternalData,
+                  setter: setAllowExternalData,
+                  desc: "프로젝트 내부 데이터 외 시장 정보 사용 여부입니다.",
+                },
+                {
+                  label: "3rd-party 데이터 허용",
+                  value: allowThirdPartyData,
+                  setter: setAllowThirdPartyData,
+                  desc: "패널/경쟁사/외부 파트너 데이터 사용 정책입니다.",
+                },
+                {
+                  label: "프로젝트 컨텍스트 반영",
+                  value: useProjectContext,
+                  setter: setUseProjectContext,
+                  desc: "프로젝트 목적과 브리프를 프롬프트에 주입합니다.",
+                },
+                {
+                  label: "세그먼트 컨텍스트 반영",
+                  value: useSegmentContext,
+                  setter: setUseSegmentContext,
+                  desc: "세그먼트 분석 결과를 설문 설계 근거로 반영합니다.",
+                },
+              ].map((item) => (
+                <label
+                  key={item.label}
+                  className="flex items-start justify-between gap-3 rounded-xl border border-[var(--border)] bg-card px-4 py-3"
+                >
+                  <div>
+                    <p className="text-[13px] font-black text-foreground">{item.label}</p>
+                    <p className="mt-1 text-[11px] font-medium leading-relaxed text-[var(--muted-foreground)]">
+                      {item.desc}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={item.value}
+                    disabled={loading}
+                    onChange={(e) => item.setter(e.target.checked)}
+                    className="mt-1 h-4 w-4 shrink-0"
+                  />
+                </label>
+              ))}
             </div>
 
             {statusMessage ? (
@@ -964,23 +1410,31 @@ function PromptSettingsSection() {
           </div>
         </SettingGroup>
 
-        <SettingGroup title="프롬프트 버전 히스토리">
+        <SettingGroup title="템플릿 저장 레이어">
           <div className="space-y-3">
             {[
               {
                 version: "live",
-                label: "Current",
+                label: "Bundle",
                 date: "실시간 조회",
-                author: "backend settings API",
-                changes: "현재 저장된 프롬프트와 LLM 파라미터가 적용됩니다.",
+                author: "settings/kv",
+                changes: "현재 선택된 템플릿의 시스템 프롬프트와 실행 옵션을 묶어서 저장합니다.",
                 active: true,
               },
               {
+                version: "prompt",
+                label: "Legacy",
+                date: "호환성 레이어",
+                author: "settings/prompts + settings/llm-parameters",
+                changes: "기존 저장 구조와의 호환을 위해 프롬프트와 기본 LLM 파라미터를 함께 미러링합니다.",
+                active: false,
+              },
+              {
                 version: "fallback",
-                label: "Default",
+                label: "Code Default",
                 date: "코드 기본값",
-                author: "app/core/defaults.py",
-                changes: "서버 저장값이 없을 때 기본 프롬프트와 기본 LLM 파라미터를 사용합니다.",
+                author: activePreset.label,
+                changes: "저장값이 없을 때 템플릿별 기본 프롬프트, 모델, 옵션 preset을 사용합니다.",
                 active: false,
               },
             ].map((v) => (
@@ -1032,13 +1486,1027 @@ function PromptSettingsSection() {
   );
 }
 
+
+/* ─── 기간 선택 피커 ─── */
+type Preset = "week" | "month" | "lastMonth" | "custom";
+
+function getPresetRange(preset: Preset): DateRange {
+  const now = new Date();
+  if (preset === "week") {
+    const day = now.getDay();
+    const from = new Date(now);
+    from.setDate(now.getDate() - day + (day === 0 ? -6 : 1));
+    from.setHours(0, 0, 0, 0);
+    const to = new Date(from);
+    to.setDate(from.getDate() + 6);
+    return { from, to };
+  }
+  if (preset === "month") {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth(), 1),
+      to: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+    };
+  }
+  if (preset === "lastMonth") {
+    return {
+      from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+      to: new Date(now.getFullYear(), now.getMonth(), 0),
+    };
+  }
+  return { from: undefined, to: undefined };
+}
+
+function formatDateRange(range: DateRange): string {
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}년 ${String(d.getMonth() + 1).padStart(2, "0")}월 ${String(d.getDate()).padStart(2, "0")}일`;
+  if (!range.from) return "기간 선택";
+  if (!range.to) return fmt(range.from);
+  return `${fmt(range.from)} ~ ${fmt(range.to)}`;
+}
+
+const PRESET_LABELS: { key: Preset; label: string }[] = [
+  { key: "week", label: "이번 주" },
+  { key: "month", label: "이번 달" },
+  { key: "lastMonth", label: "지난 달" },
+  { key: "custom", label: "직접 설정" },
+];
+
+function DateRangePicker({ value, onChange }: { value: DateRange; onChange: (range: DateRange) => void }) {
+  const [open, setOpen] = useState(false);
+  const [activePreset, setActivePreset] = useState<Preset>("month");
+  const [localRange, setLocalRange] = useState<DateRange>(value);
+
+  const applyPreset = (key: Preset) => {
+    setActivePreset(key);
+    if (key !== "custom") {
+      const range = getPresetRange(key);
+      setLocalRange(range);
+      onChange(range);
+      setOpen(false);
+    } else {
+      setOpen(true);
+    }
+  };
+
+  const handleCalendarSelect = (range: DateRange | undefined) => {
+    if (!range) return;
+    setLocalRange(range);
+    if (range.from && range.to) {
+      onChange(range);
+      setOpen(false);
+    }
+  };
+
+  return (
+    <div className="relative">
+      {/* 프리셋 탭 */}
+      <div className="flex items-center gap-1 bg-[var(--panel-soft)] rounded-xl p-1 border border-[var(--border)]">
+        {PRESET_LABELS.map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => applyPreset(key)}
+            className={cn(
+              "px-3 py-1.5 rounded-lg text-[11px] font-black transition-all",
+              activePreset === key
+                ? "bg-primary text-white shadow-sm"
+                : "text-[var(--secondary-foreground)] hover:bg-card hover:text-foreground"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        {/* 날짜 표시 */}
+        <button
+          type="button"
+          onClick={() => {
+            setActivePreset("custom");
+            setOpen((v) => !v);
+          }}
+          className={cn(
+            "ml-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold transition-all",
+            open
+              ? "border-primary bg-[var(--primary-light-bg)] text-primary"
+              : "border-[var(--border)] bg-card text-[var(--secondary-foreground)] hover:border-primary/40"
+          )}
+        >
+          <CalendarIcon size={11} />
+          <span>{formatDateRange(localRange)}</span>
+        </button>
+      </div>
+
+      {/* 캘린더 드롭다운 */}
+      {open && (
+        <div className="absolute right-0 top-[calc(100%+6px)] z-50 rounded-2xl border border-[var(--border)] bg-card shadow-2xl p-4">
+          <CalendarPicker
+            mode="range"
+            selected={localRange}
+            onSelect={handleCalendarSelect}
+            numberOfMonths={2}
+            locale={undefined}
+            className="rounded-xl"
+          />
+          <div className="flex justify-end gap-2 pt-3 border-t border-[var(--border)] mt-1">
+            <Button variant="outline" size="sm" className="text-[11px]" onClick={() => setOpen(false)}>
+              취소
+            </Button>
+            <Button
+              size="sm"
+              className="text-[11px]"
+              disabled={!localRange.from || !localRange.to}
+              onClick={() => {
+                if (localRange.from && localRange.to) {
+                  onChange(localRange);
+                  setOpen(false);
+                }
+              }}
+            >
+              적용
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LogsSection() {
+  const [dateRange, setDateRange] = useState<DateRange>(() => getPresetRange("month"));
+
+  const handleRangeChange = (range: DateRange) => {
+    setDateRange(range);
+  };
+
+  const rangeLabel = formatDateRange(dateRange);
+
+  return (
+    <>
+      <SectionTitle
+        title="대화 감사 로그"
+        desc="AI 어시스턴트 및 설문 챗봇과 나눈 질의응답 이력을 조회하고 감사합니다"
+      />
+
+      <div className="grid grid-cols-1 gap-6">
+        {/* 요약 스탯 */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard label="총 대화 요청" value="1,284" sub="전체 누적" tone="neutral" icon={MessageSquare} />
+          <StatCard label="오늘 요청" value="38" sub="+12% 어제 대비" tone="primary" icon={Activity} />
+          <StatCard label="평균 토큰" value="428" sub="응답 당 기준" tone="neutral" icon={Cpu} />
+          <StatCard label="누적 처리 비용" value="$18.4" sub="이번 달 기준" tone="warn" icon={TrendingUp} />
+        </div>
+
+        {/* 사용자별 토큰 랭킹 */}
+        <div className="app-card p-6">
+          <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[var(--muted-foreground)]">
+              사용자별 AI 사용 현황
+              <span className="ml-2 font-semibold normal-case tracking-normal text-primary">{rangeLabel}</span>
+            </p>
+            <DateRangePicker value={dateRange} onChange={handleRangeChange} />
+          </div>
+          <div className="space-y-3">
+            {[
+              { name: "김민준", email: "mj.kim@samsung.com", requests: 312, tokens: 134800, role: "편집자" },
+              { name: "정태양", email: "ty.jung@samsung.com", requests: 241, tokens: 103600, role: "편집자" },
+              { name: "이동훈", email: "dh.lee@samsung.com", requests: 184, tokens: 78420, role: "운영자" },
+              { name: "이서연", email: "sy.lee@samsung.com", requests: 97, tokens: 41200, role: "편집자" },
+              { name: "강지수", email: "js.kang@samsung.com", requests: 56, tokens: 23900, role: "뷰어" },
+            ].map((u, i) => {
+              const maxTokens = 134800;
+              const pct = Math.round((u.tokens / maxTokens) * 100);
+              return (
+                <div key={u.email} className="flex items-center gap-4">
+                  <span className="w-5 text-[12px] font-black text-[var(--muted-foreground)] text-right shrink-0">
+                    {i + 1}
+                  </span>
+                  <div className="w-7 h-7 rounded-full bg-[var(--panel-soft)] border border-[var(--border)] flex items-center justify-center shrink-0">
+                    <span className="text-[10px] font-black text-primary">{u.name[0]}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-center mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-black text-foreground">{u.name}</span>
+                        <Badge variant="outline" className="text-[9px] font-black px-1.5">
+                          {u.role}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] font-bold text-[var(--muted-foreground)] shrink-0">
+                        <span>{u.requests}건</span>
+                        <span className="font-mono text-primary">{u.tokens.toLocaleString()} tok</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-700"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <SettingGroup title="대화 로그">
+          {/* 필터 바 */}
+          <div className="flex items-center gap-3 mb-5 flex-wrap">
+            <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-[var(--panel-soft)] px-4 py-2.5 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all">
+              <Search size={14} className="text-[var(--subtle-foreground)] shrink-0" />
+              <input
+                className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
+                placeholder="사용자, 리서치명, 프롬프트 키워드 검색.."
+              />
+            </div>
+            <select className="bg-card border border-[var(--border)] rounded-xl px-3 h-[42px] text-[12px] font-bold text-foreground outline-none focus:border-primary shadow-sm shrink-0">
+              <option>전체 사용자</option>
+              <option>dh.lee@samsung.com</option>
+              <option>mj.kim@samsung.com</option>
+              <option>sy.lee@samsung.com</option>
+            </select>
+          </div>
+
+          {/* 테이블 */}
+          <div className="overflow-hidden rounded-xl border border-[var(--border)] shadow-sm overflow-x-auto">
+            <table className="w-full text-left text-[12px] min-w-[900px]">
+              <thead className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
+                <tr>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
+                    사용자
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
+                    리서치명
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
+                    프롬프트
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
+                    AI 답변 요약
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
+                    토큰
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
+                    생성일시
+                  </th>
+                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
+                    상세
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)] bg-card">
+                {[
+                  {
+                    user: "이동훈",
+                    email: "dh.lee@samsung.com",
+                    research: "Galaxy S26 컨셉 테스트",
+                    prompt: "기존 3번 문항을 MZ 세대 톤앤매너로 수정해줘.",
+                    answer: '"S26, 너의 다음 레벨" 형태로 감성 중심 문항 3개 제안. 구어체 + 이모지 옵션 포함.',
+                    tokens: 142,
+                    date: "2026-03-15 09:12",
+                    page: "/survey",
+                  },
+                  {
+                    user: "김민준",
+                    email: "mj.kim@samsung.com",
+                    research: "MZ세대 스마트폰 Usage 조사",
+                    prompt: "현재 필터링된 그룹에서 20대 여성의 가장 큰 불만 요인은 뭐야?",
+                    answer: "배터리 수명(38%), 카메라 야간 성능(27%), 무게(18%) 순으로 불만 집중. 세부 코멘트 첨부.",
+                    tokens: 890,
+                    date: "2026-03-15 08:31",
+                    page: "/analytics",
+                  },
+                  {
+                    user: "이서연",
+                    email: "sy.lee@samsung.com",
+                    research: "글로벌 브랜드 인지도 Q1",
+                    prompt: "이 리포트의 결론을 3줄로 요약해서 임원 보고용으로 만들어줘.",
+                    answer:
+                      "① 국내 MZ 브랜드 선호도 +4.2%p ② 북미 시장 갤럭시 인지도 72% ③ 카메라·AI 기능이 핵심 구매 트리거.",
+                    tokens: 1250,
+                    date: "2026-03-14 17:45",
+                    page: "/report",
+                  },
+                  {
+                    user: "박지호",
+                    email: "jh.park@samsung.com",
+                    research: "Galaxy S26 컨셉 테스트",
+                    prompt: "프리미엄 구매자 세그먼트의 가격 저항선은 얼마야?",
+                    answer:
+                      "150만원 이하 응답 61%, 180만원 이하 84%. 고사양 카메라 번들 시 10~15만원 추가 지불 의향 확인.",
+                    tokens: 540,
+                    date: "2026-03-14 14:20",
+                    page: "/analytics",
+                  },
+                  {
+                    user: "정태양",
+                    email: "ty.jung@samsung.com",
+                    research: "MZ세대 스마트폰 Usage 조사",
+                    prompt: "게이밍 성향군 응답자들이 가장 많이 언급한 기능 키워드 뽑아줘.",
+                    answer:
+                      "게임 성능(52%), 발열 관리(44%), 화면 주사율(39%), 배터리(35%), 냉각 시스템(28%) 순으로 추출.",
+                    tokens: 317,
+                    date: "2026-03-13 11:05",
+                    page: "/analytics",
+                  },
+                ].map((log, i) => (
+                  <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
+                    <td className="px-4 py-4">
+                      <p className="font-black text-foreground text-[13px]">{log.user}</p>
+                      <p className="font-medium text-[var(--muted-foreground)] text-[10px]">{log.email}</p>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="font-bold text-[var(--secondary-foreground)] text-[12px] leading-snug">
+                        {log.research}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 max-w-[200px]">
+                      <p className="font-medium text-[var(--secondary-foreground)] text-[12px] leading-snug line-clamp-2 italic">
+                        "{log.prompt}"
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 max-w-[220px]">
+                      <p className="font-medium text-[var(--muted-foreground)] text-[12px] leading-snug line-clamp-2">
+                        {log.answer}
+                      </p>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="font-mono font-black text-[12px] text-primary">
+                        {log.tokens.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="font-bold text-[var(--muted-foreground)] text-[12px] whitespace-nowrap">
+                        {log.date}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px] gap-1">
+                        <Eye size={12} /> 보기
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-between items-center pt-3">
+            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 5건 표시 중 (전체 1,284건)</span>
+            <Button variant="outline" size="sm" className="gap-2">
+              <FileText size={13} /> CSV 내보내기
+            </Button>
+          </div>
+        </SettingGroup>
+      </div>
+    </>
+  );
+}
+
+/* ─── 품질 검증 아카이브 ─── */
+const VAL_PROJECTS = [
+  {
+    id: "p1",
+    name: "Galaxy S26 컨셉 테스트",
+    created: "2026-03-01",
+    owner: "이동훈",
+    status: "진행중",
+    accessible: true,
+  },
+  {
+    id: "p2",
+    name: "MZ세대 스마트폰 Usage 조사",
+    created: "2026-02-15",
+    owner: "김민준",
+    status: "분석중",
+    accessible: true,
+  },
+  {
+    id: "p3",
+    name: "프리미엄 사용자 재구매 의향 분석",
+    created: "2026-02-20",
+    owner: "박지호",
+    status: "진행중",
+    accessible: true,
+  },
+  {
+    id: "p4",
+    name: "글로벌 브랜드 인지도 Q1",
+    created: "2026-01-10",
+    owner: "이서연",
+    status: "대기",
+    accessible: true,
+  },
+  {
+    id: "p5",
+    name: "Z세대 갤럭시 버즈 인식 조사",
+    created: "2026-01-25",
+    owner: "최예은",
+    status: "완료",
+    accessible: true,
+  },
+  {
+    id: "p6",
+    name: "북미 시장 S25 포지셔닝 연구",
+    created: "2025-12-05",
+    owner: "정태양",
+    status: "완료",
+    accessible: false,
+  },
+  {
+    id: "p7",
+    name: "동남아 신흥시장 브랜드 침투율",
+    created: "2025-11-18",
+    owner: "한수빈",
+    status: "완료",
+    accessible: false,
+  },
+  {
+    id: "p8",
+    name: "갤럭시 AI 기능 인지도 조사",
+    created: "2026-03-10",
+    owner: "오민재",
+    status: "진행중",
+    accessible: true,
+  },
+  {
+    id: "p9",
+    name: "웨어러블 신제품 컨셉 테스트",
+    created: "2026-03-20",
+    owner: "장예진",
+    status: "대기",
+    accessible: true,
+  },
+];
+
+const VAL_LOGS = [
+  {
+    id: "VAL-8831",
+    project: "Galaxy S26 컨셉 테스트",
+    questionNo: "Q3",
+    questionLabel: "구매 의향",
+    q: "삼성 Knox의 엔터프라이즈 보안 솔루션이 구매에 영향을 주나요?",
+    answer: "별로 중요하지 않아요. 저는 그냥 카메라랑 배터리 보면 돼요.",
+    persona: "P19 · 19세 / 고등학생",
+    cot: "19세 고등학생 페르소나는 엔터프라이즈 보안 솔루션에 대한 실질적 경험이나 의사결정 권한이 없음. 질문 자체가 해당 페르소나의 사용 맥락과 불일치하여 응답 신뢰도 저하 판정.",
+    score: 45,
+    result: "Flagged",
+    date: "2026-03-13 13:50",
+  },
+  {
+    id: "VAL-8829",
+    project: "Galaxy S26 컨셉 테스트",
+    questionNo: "Q4",
+    questionLabel: "기능 인지도",
+    q: "S26 카메라의 AI 보정 기능이 게임 플레이 경험에 영향을 주나요?",
+    answer:
+      "게임 중 백그라운드 자원을 잡아먹을 수 있어서 신경 쓰이죠. 성능 모드로 전환하면 카메라 기능이 제한되는지 궁금합니다.",
+    persona: "P12 · 28세 / 게임 개발자",
+    cot: "게임 개발자는 GPU 성능과 발열 관리에 민감한 페르소나. 카메라 AI 기능의 시스템 자원 점유가 게임 프레임에 미치는 영향을 인식하고 있어 응답 일관성·신뢰도 높음.",
+    score: 98,
+    result: "Pass",
+    date: "2026-03-13 14:20",
+  },
+  {
+    id: "VAL-8830",
+    project: "프리미엄 사용자 재구매 의향 분석",
+    questionNo: "Q2",
+    questionLabel: "기능 만족도",
+    q: "보안 폴더의 사용 편의성에 대해 어떻게 생각하십니까?",
+    answer:
+      "업무용 문서를 분리 보관할 수 있어 유용합니다. 다만 폴더 진입 시 생체인증 단계가 한 번 더 있으면 좋겠습니다.",
+    persona: "P05 · 45세 / 금융 컨설턴트",
+    cot: "금융 컨설턴트는 기밀 문서 보안에 높은 관심을 가지며 기업용 보안 솔루션 사용 경험이 있을 가능성 높음. 실용적 관점에서 보안 폴더를 평가한 응답 패턴이 페르소나 프로파일과 일치.",
+    score: 95,
+    result: "Pass",
+    date: "2026-03-13 14:15",
+  },
+  {
+    id: "VAL-8826",
+    project: "MZ세대 스마트폰 Usage 조사",
+    questionNo: "Q5",
+    questionLabel: "SNS 사용 행태",
+    q: "인스타그램 릴스 편집 기능 중 가장 자주 사용하는 AI 필터는 무엇인가요?",
+    answer: "저는 주로 네이버 블로그를 써서 잘 모르겠어요.",
+    persona: "P33 · 52세 / 소상공인",
+    cot: "52세 소상공인 페르소나는 릴스 편집 세부 기능 사용 빈도가 낮을 것으로 예측됨. MZ세대 대상 조사에 고령층 페르소나를 적용한 설계 오류로 판정. 페르소나-설문 매핑 재검토 필요.",
+    score: 62,
+    result: "Flagged",
+    date: "2026-03-12 16:30",
+  },
+  {
+    id: "VAL-8824",
+    project: "MZ세대 스마트폰 Usage 조사",
+    questionNo: "Q4",
+    questionLabel: "AI 기능 활용도",
+    q: "Galaxy AI의 통화 번역 기능을 업무에서 얼마나 자주 활용하시나요?",
+    answer: "해외 클라이언트와 영어로 통화할 때 주 1~2회 정도 씁니다. 발음 인식률이 개선되면 더 자주 쓸 것 같아요.",
+    persona: "P07 · 34세 / UX 디자이너",
+    cot: "UX 디자이너는 다국어 협업 도구에 대한 필요성이 있으며 해외 클라이언트와의 소통에서 번역 기능을 활용할 구체적 맥락이 존재함. 사용 빈도·이유가 페르소나 직무와 일관됨.",
+    score: 91,
+    result: "Pass",
+    date: "2026-03-12 10:05",
+  },
+];
+
+function ProjectPickerDialog({
+  open,
+  onClose,
+  selected,
+  onConfirm,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selected: Set<string>;
+  onConfirm: (ids: Set<string>) => void;
+}) {
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [temp, setTemp] = useState<Set<string>>(new Set(selected));
+
+  // selected가 바뀌면 temp 동기화 (Dialog 열릴 때)
+  useEffect(() => {
+    if (open) setTemp(new Set(selected));
+  }, [open, selected]);
+
+  const toggle = (id: string) =>
+    setTemp((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+
+  const filtered = VAL_PROJECTS.filter(
+    (p) => p.name.toLowerCase().includes(pickerSearch.toLowerCase()) || p.owner.includes(pickerSearch)
+  );
+
+  const statusCls = (s: string) =>
+    ({
+      진행중: "bg-[var(--primary-light-bg)] text-primary border-[var(--primary-light-border)]",
+      분석중: "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30",
+      완료: "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]",
+      대기: "bg-[var(--warning-light)] text-[var(--warning)] border-[var(--warning)]/30",
+    })[s] ?? "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]";
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen: boolean) => {
+        if (!isOpen) onClose();
+      }}
+    >
+      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
+        <DialogHeader className="px-6 pt-5 pb-4 border-b border-[var(--border)]">
+          <DialogTitle className="text-[16px] font-black text-foreground tracking-tight">
+            리서치 프로젝트 선택
+          </DialogTitle>
+          <p className="text-[12px] font-medium text-[var(--muted-foreground)] mt-0.5">
+            접근 가능한 프로젝트만 표시됩니다. 체크 후 확인을 누르면 해당 프로젝트의 검증 로그를 필터합니다
+          </p>
+        </DialogHeader>
+
+        {/* 검색 */}
+        <div className="px-6 py-3 border-b border-[var(--border)] bg-[var(--panel-soft)]">
+          <div className="flex items-center gap-2 bg-card border border-[var(--border)] rounded-xl px-3 py-2.5 focus-within:border-primary transition-all">
+            <Search size={13} className="text-[var(--subtle-foreground)] shrink-0" />
+            <input
+              value={pickerSearch}
+              onChange={(e) => setPickerSearch(e.target.value)}
+              className="bg-transparent outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
+              placeholder="프로젝트명, 담당자 검색..."
+              autoFocus
+            />
+            {pickerSearch && (
+              <button
+                type="button"
+                onClick={() => setPickerSearch("")}
+                className="text-[var(--subtle-foreground)] hover:text-foreground"
+              >
+                <Plus size={13} className="rotate-45" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 프로젝트 목록 */}
+        <div className="overflow-y-auto max-h-[380px]">
+          <table className="w-full text-left text-[12px]">
+            <thead className="sticky top-0 bg-[var(--panel-soft)] border-b border-[var(--border)] z-10">
+              <tr>
+                <th className="w-10 px-4 py-3" />
+                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                  프로젝트명
+                </th>
+                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                  담당자
+                </th>
+                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                  생성일
+                </th>
+                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                  상태
+                </th>
+                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                  접근
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {filtered.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => p.accessible && toggle(p.id)}
+                  className={cn(
+                    "transition-colors",
+                    p.accessible
+                      ? "cursor-pointer hover:bg-[var(--surface-hover)]"
+                      : "opacity-40 cursor-not-allowed bg-[var(--panel-soft)]",
+                    temp.has(p.id) && "bg-[var(--primary-light-bg2)]"
+                  )}
+                >
+                  <td className="px-4 py-3.5">
+                    <div
+                      className={cn(
+                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all shrink-0",
+                        temp.has(p.id)
+                          ? "bg-primary border-primary shadow-[0_2px_6px_rgba(47,102,255,0.25)]"
+                          : "border-[var(--border)] bg-card"
+                      )}
+                    >
+                      {temp.has(p.id) && (
+                        <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
+                          <path
+                            d="M1.5 4L4 6.5L8.5 1.5"
+                            stroke="white"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3.5 font-black text-foreground">{p.name}</td>
+                  <td className="px-4 py-3.5 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
+                  <td className="px-4 py-3.5 font-bold text-[var(--muted-foreground)]">{p.created}</td>
+                  <td className="px-4 py-3.5">
+                    <span className={cn("px-2 py-0.5 rounded-md text-[10px] font-black border", statusCls(p.status))}>
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3.5">
+                    {p.accessible ? (
+                      <span className="text-[var(--success)] text-[11px] font-bold flex items-center gap-1">
+                        <CheckCircle2 size={11} /> 허용
+                      </span>
+                    ) : (
+                      <span className="text-[var(--muted-foreground)] text-[11px] font-bold">제한</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-[13px] font-bold text-[var(--muted-foreground)]"
+                  >
+                    검색 결과가 없습니다
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <DialogFooter className="px-6 py-4 border-t border-[var(--border)] bg-[var(--panel-soft)] flex items-center justify-between">
+          <span className="text-[12px] font-bold text-[var(--muted-foreground)]">
+            {temp.size > 0 ? `${temp.size}개 선택됨` : "선택 없음 (전체 표시)"}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setTemp(new Set())}>
+              선택 초기화
+            </Button>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              취소
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                onConfirm(temp);
+                onClose();
+              }}
+            >
+              확인
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ValidationSection() {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
+  const [resultFilter, setResultFilter] = useState<"전체" | "Pass" | "Flagged">("전체");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [questionFilter, setQuestionFilter] = useState("전체");
+
+  const selectedNames = VAL_PROJECTS.filter((p) => selectedProjects.has(p.id)).map((p) => p.name);
+
+  const visibleLogs = VAL_LOGS.filter((log) => {
+    if (selectedProjects.size > 0 && !selectedNames.includes(log.project)) return false;
+    if (resultFilter !== "전체" && log.result !== resultFilter) return false;
+    if (questionFilter !== "전체" && log.questionNo !== questionFilter) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!log.q.toLowerCase().includes(q) && !log.answer.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  return (
+    <>
+      <SectionTitle
+        title="품질 검증 아카이브"
+        desc="페르소나 응답 생성 시 AI가 거친 추론 과정과 품질 검증 이력을 기록하고 검토합니다"
+      />
+      <div className="grid grid-cols-1 gap-6">
+        {/* 요약 스탯 */}
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatCard label="총 검증 건수" value="8,831" sub="누적 전체" tone="neutral" icon={FlaskConical} />
+          <StatCard label="Pass" value="8,614" sub="97.5% 통과율" tone="success" icon={CheckCircle2} />
+          <StatCard label="Flagged" value="217" sub="재검토 필요" tone="warn" icon={AlertTriangle} />
+          <StatCard label="평균 신뢰도" value="93.2" sub="/ 100 기준" tone="primary" icon={Award} />
+        </div>
+
+        {/* 신뢰도 분포 */}
+        <SettingGroup title="신뢰도 구간 분포">
+          <div className="space-y-3">
+            {[
+              { label: "95 ~ 100 (우수)", count: 5820, total: 8831, color: "bg-[var(--success)]" },
+              { label: "80 ~ 94 (양호)", count: 2794, total: 8831, color: "bg-primary" },
+              { label: "60 ~ 79 (보통)", count: 147, total: 8831, color: "bg-[var(--warning)]" },
+              { label: "0 ~ 59 (위험 — Flagged)", count: 70, total: 8831, color: "bg-[var(--destructive)]" },
+            ].map((band) => {
+              const pct = Math.round((band.count / band.total) * 100);
+              return (
+                <div key={band.label} className="flex items-center gap-4">
+                  <span className="w-48 text-[11px] font-bold text-[var(--secondary-foreground)] shrink-0">
+                    {band.label}
+                  </span>
+                  <div className="flex-1 h-2.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-700", band.color)}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="w-20 text-right text-[11px] font-black text-[var(--muted-foreground)] shrink-0">
+                    {band.count.toLocaleString()}건 ({pct}%)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </SettingGroup>
+
+        {/* 검증 로그 */}
+        <SettingGroup title="응답 무결성 검증 로그">
+          {/* 필터 바 */}
+          <div className="flex items-center gap-2 mb-5 flex-wrap">
+            {/* 검색 */}
+            <div className="flex items-center gap-2 bg-[var(--panel-soft)] px-3 py-2.5 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all min-w-[180px] flex-1">
+              <Search size={13} className="text-[var(--subtle-foreground)] shrink-0" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none outline-none text-[12px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
+                placeholder="질문 키워드, 답변 내용 검색..."
+              />
+            </div>
+
+            {/* 프로젝트 피커 트리거 */}
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className={cn(
+                "flex items-center gap-2 h-[38px] px-3.5 rounded-xl border text-[12px] font-bold transition-all shrink-0",
+                selectedProjects.size > 0
+                  ? "bg-[var(--primary-light-bg)] border-[var(--primary-light-border)] text-primary"
+                  : "bg-card border-[var(--border)] text-[var(--secondary-foreground)] hover:border-primary/40"
+              )}
+            >
+              <Briefcase size={13} />
+              {selectedProjects.size > 0 ? (
+                <span>프로젝트 {selectedProjects.size}개 선택</span>
+              ) : (
+                <span>전체 프로젝트</span>
+              )}
+              <ChevronDown size={12} className="text-[var(--muted-foreground)]" />
+            </button>
+
+            {/* 설문 항목 */}
+            <select
+              value={questionFilter}
+              onChange={(e) => setQuestionFilter(e.target.value)}
+              className="bg-card border border-[var(--border)] rounded-xl px-3 h-[38px] text-[12px] font-bold text-foreground outline-none focus:border-primary shrink-0"
+            >
+              <option value="전체">전체 설문 항목</option>
+              <option value="Q1">Q1 — 컨셉 첫인상</option>
+              <option value="Q2">Q2 — 매력도 평가</option>
+              <option value="Q3">Q3 — 구매 의향</option>
+              <option value="Q4">Q4 — 기능 인지도</option>
+              <option value="Q5">Q5 — 가격 수용성</option>
+            </select>
+
+            {/* 결과 필터 */}
+            {(["전체", "Pass", "Flagged"] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setResultFilter(f)}
+                className={cn(
+                  "px-3 py-2 rounded-lg text-[12px] font-black border transition-all shrink-0",
+                  resultFilter === f
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-[var(--secondary-foreground)] border-[var(--border)] hover:border-primary/40"
+                )}
+              >
+                {f}
+              </button>
+            ))}
+          </div>
+
+          {/* 선택된 프로젝트 뱃지 */}
+          {selectedProjects.size > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-wider">
+                필터 중:
+              </span>
+              {selectedNames.map((name) => (
+                <span
+                  key={name}
+                  className="flex items-center gap-1 bg-[var(--primary-light-bg)] border border-[var(--primary-light-border)] text-primary text-[11px] font-bold px-2.5 py-1 rounded-lg"
+                >
+                  {name}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedProjects((prev) => {
+                        const next = new Set(prev);
+                        const id = VAL_PROJECTS.find((p) => p.name === name)?.id;
+                        if (id) next.delete(id);
+                        return next;
+                      })
+                    }
+                    className="hover:opacity-60 transition-opacity ml-0.5"
+                  >
+                    <Plus size={11} className="rotate-45" />
+                  </button>
+                </span>
+              ))}
+              <button
+                type="button"
+                onClick={() => setSelectedProjects(new Set())}
+                className="text-[11px] font-bold text-[var(--muted-foreground)] hover:text-foreground transition-colors"
+              >
+                전체 초기화
+              </button>
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {visibleLogs.map((log) => (
+              <div
+                key={log.id}
+                className="rounded-xl border border-[var(--border)] bg-card overflow-hidden hover:border-[var(--border-hover)] transition-all"
+              >
+                <div className="flex items-center justify-between px-4 py-3 bg-[var(--panel-soft)] border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[10px] font-mono font-black text-[var(--subtle-foreground)] bg-card border border-[var(--border)] px-2 py-0.5 rounded-md shrink-0">
+                      {log.id}
+                    </span>
+                    <span className="text-[11px] font-black text-[var(--secondary-foreground)] truncate">
+                      {log.project}
+                    </span>
+                    <span className="text-[var(--subtle-foreground)]">›</span>
+                    <span className="shrink-0 text-[10px] font-black text-primary bg-[var(--primary-light-bg)] border border-[var(--primary-light-border)] px-2 py-0.5 rounded-md">
+                      {log.questionNo} {log.questionLabel}
+                    </span>
+                  </div>
+                  <span
+                    className={cn(
+                      "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tight border shrink-0",
+                      log.result === "Pass"
+                        ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
+                        : "bg-red-50 text-[var(--destructive)] border-red-100 animate-pulse"
+                    )}
+                  >
+                    {log.result === "Flagged" ? "Hallucination Risk" : log.result}
+                  </span>
+                </div>
+                <div className="px-4 py-4 space-y-3">
+                  <div className="flex gap-2">
+                    <span className="text-[11px] font-black text-[var(--muted-foreground)] shrink-0 mt-0.5">Q</span>
+                    <p className="text-[13px] font-medium text-[var(--secondary-foreground)] leading-relaxed">
+                      {log.q}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 p-3 bg-[var(--panel-soft)] rounded-lg border border-[var(--border)]">
+                    <span className="text-[11px] font-black text-primary shrink-0 mt-0.5">A</span>
+                    <p className="text-[13px] font-medium text-foreground leading-relaxed">{log.answer}</p>
+                  </div>
+                  <div className="p-3 border border-dashed border-[var(--border)] rounded-lg">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)] mb-1.5 flex items-center gap-1.5">
+                      <FlaskConical size={10} /> CoT 추론 요약
+                    </p>
+                    <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-relaxed">
+                      {log.cot}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-center pt-1">
+                    <div className="flex items-center gap-3">
+                      <span className="text-[10px] font-bold text-[var(--muted-foreground)] flex items-center gap-1">
+                        <Users size={10} /> {log.persona}
+                      </span>
+                      <span className="text-[10px] font-bold text-[var(--muted-foreground)] flex items-center gap-1">
+                        <Clock size={10} /> {log.date}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="sm" className="text-[11px] gap-1.5 h-7">
+                        <Eye size={12} /> CoT 전체 보기
+                      </Button>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-20 h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              log.score >= 80
+                                ? "bg-primary"
+                                : log.score >= 60
+                                  ? "bg-[var(--warning)]"
+                                  : "bg-[var(--destructive)]"
+                            )}
+                            style={{ width: `${log.score}%` }}
+                          />
+                        </div>
+                        <span
+                          className={cn(
+                            "text-[12px] font-black tabular-nums",
+                            log.score >= 80
+                              ? "text-primary"
+                              : log.score >= 60
+                                ? "text-[var(--warning)]"
+                                : "text-[var(--destructive)]"
+                          )}
+                        >
+                          {log.score}
+                        </span>
+                        <span className="text-[10px] text-[var(--subtle-foreground)]">/ 100</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {visibleLogs.length === 0 && (
+              <div className="py-12 text-center text-[13px] font-bold text-[var(--muted-foreground)]">
+                조건에 맞는 검증 로그가 없습니다
+              </div>
+            )}
+          </div>
+          <div className="flex justify-between items-center pt-2">
+            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">
+              {visibleLogs.length}건 표시 중 (전체 8,831건)
+            </span>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <FileText size={13} /> CSV 내보내기
+            </Button>
+          </div>
+        </SettingGroup>
+      </div>
+
+      <ProjectPickerDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        selected={selectedProjects}
+        onConfirm={setSelectedProjects}
+      />
+    </>
+  );
+}
+
 /* ─── 섹션 콘텐츠 ─── */
 const CONTENT: Record<string, React.ReactNode> = {
   projects: (
     <>
       <SectionTitle
-        title="리서치 프로젝트 마스터 뷰"
-        desc="전사적으로 진행 중인 전체 설문 리서치 프로젝트 현황과 연결된 데이터 소스를 한눈에 관리합니다."
+        title="프로젝트 현황판"
+        desc="진행 중인 전체 리서치 프로젝트 현황과 연결된 데이터 소스를 한눈에 확인합니다"
       />
       <div className="grid grid-cols-1 gap-6">
         {/* 요약 스탯 */}
@@ -1056,7 +2524,7 @@ const CONTENT: Record<string, React.ReactNode> = {
               <Search size={14} className="text-[var(--subtle-foreground)] shrink-0" />
               <input
                 className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
-                placeholder="프로젝트명, 담당자, 소스 키워드 검색..."
+                placeholder="프로젝트명, 담당자, 소스 키워드 검색.."
               />
             </div>
             {["전체", "진행중", "분석중", "완료", "대기"].map((chip) => (
@@ -1163,7 +2631,7 @@ const CONTENT: Record<string, React.ReactNode> = {
                           <Users size={10} /> {p.team}명
                         </span>
                         <span className="text-[11px] font-bold text-[var(--muted-foreground)] flex items-center gap-1">
-                          <Calendar size={10} /> {p.deadline}
+                          <CalendarIcon size={10} /> {p.deadline}
                         </span>
                       </div>
                     </div>
@@ -1249,10 +2717,7 @@ const CONTENT: Record<string, React.ReactNode> = {
   datasrc: <DataSourceSection />,
   users: (
     <>
-      <SectionTitle
-        title="사용자 및 권한 제어 (Data Access)"
-        desc="운영자/편집자/뷰어 등 역할별 상세 접근 권한 및 민감 데이터 열람 통제 정책을 관리합니다."
-      />
+      <SectionTitle title="멤버 & 접근 제어" desc="역할별 접근 권한과 민감 데이터 열람 통제 정책을 관리합니다" />
       <div className="grid grid-cols-1 gap-6">
         <div className="grid grid-cols-4 gap-4">
           <StatCard label="전체 사용자" value="20" sub="+1 이번 달" tone="neutral" icon={Users} />
@@ -1266,7 +2731,7 @@ const CONTENT: Record<string, React.ReactNode> = {
             <Search size={15} className="text-[var(--subtle-foreground)]" />
             <input
               className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
-              placeholder="이름, 이메일, 역할 검색..."
+              placeholder="이름, 이메일, 역할 검색.."
             />
           </div>
           <div className="overflow-hidden rounded-xl border border-[var(--border)] shadow-sm">
@@ -1482,7 +2947,7 @@ const CONTENT: Record<string, React.ReactNode> = {
                   const statusStyle = {
                     active: {
                       label: "Active",
-                      cls: "border-[var(--success)]/30 bg-[var(--success-light)] text-[var(--success)]",
+                      cls: "border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] text-primary",
                     },
                     invited: {
                       label: "Invited",
@@ -1522,8 +2987,10 @@ const CONTENT: Record<string, React.ReactNode> = {
                       <td className="px-5 py-3.5 font-medium text-[var(--secondary-foreground)] text-[12px]">
                         {u.dept}
                       </td>
-                      <td className="px-5 py-3.5 font-bold text-[var(--muted-foreground)] text-[12px] flex items-center gap-1.5">
-                        <Clock size={11} /> {u.lastAccess}
+                      <td className="px-5 py-3.5 font-bold text-[var(--muted-foreground)] text-[12px] align-middle">
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={11} /> {u.lastAccess}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-center">
                         {u.mfa ? (
@@ -1628,435 +3095,13 @@ const CONTENT: Record<string, React.ReactNode> = {
       </div>
     </>
   ),
-  logs: (
-    <>
-      <SectionTitle
-        title="AI 대화 감사 로그"
-        desc="사용자들이 AI 어시스턴트 및 설문 챗봇과 나눈 질의응답 이력을 조회하고 감사합니다."
-      />
-
-      <div className="grid grid-cols-1 gap-6">
-        {/* 요약 스탯 */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard label="총 대화 요청" value="1,284" sub="전체 누적" tone="neutral" icon={MessageSquare} />
-          <StatCard label="오늘 요청" value="38" sub="+12% 어제 대비" tone="primary" icon={Activity} />
-          <StatCard label="평균 토큰" value="428" sub="응답 당 기준" tone="neutral" icon={Cpu} />
-          <StatCard label="누적 처리 비용" value="$18.4" sub="이번 달 기준" tone="warn" icon={TrendingUp} />
-        </div>
-
-        {/* 사용자별 토큰 랭킹 */}
-        <SettingGroup title="사용자별 AI 사용 현황 (이번 달)">
-          <div className="space-y-3">
-            {[
-              { name: "김민준", email: "mj.kim@samsung.com", requests: 312, tokens: 134800, role: "편집자" },
-              { name: "정태양", email: "ty.jung@samsung.com", requests: 241, tokens: 103600, role: "편집자" },
-              { name: "이동훈", email: "dh.lee@samsung.com", requests: 184, tokens: 78420, role: "운영자" },
-              { name: "이서연", email: "sy.lee@samsung.com", requests: 97, tokens: 41200, role: "편집자" },
-              { name: "강지수", email: "js.kang@samsung.com", requests: 56, tokens: 23900, role: "뷰어" },
-            ].map((u, i) => {
-              const maxTokens = 134800;
-              const pct = Math.round((u.tokens / maxTokens) * 100);
-              return (
-                <div key={u.email} className="flex items-center gap-4">
-                  <span className="w-5 text-[12px] font-black text-[var(--muted-foreground)] text-right shrink-0">
-                    {i + 1}
-                  </span>
-                  <div className="w-7 h-7 rounded-full bg-[var(--panel-soft)] border border-[var(--border)] flex items-center justify-center shrink-0">
-                    <span className="text-[10px] font-black text-primary">{u.name[0]}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-center mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-black text-foreground">{u.name}</span>
-                        <Badge variant="outline" className="text-[9px] font-black px-1.5">
-                          {u.role}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] font-bold text-[var(--muted-foreground)] shrink-0">
-                        <span>{u.requests}건</span>
-                        <span className="font-mono text-primary">{u.tokens.toLocaleString()} tok</span>
-                      </div>
-                    </div>
-                    <div className="h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-700"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </SettingGroup>
-
-        <SettingGroup title="대화 로그">
-          {/* 필터 바 */}
-          <div className="flex items-center gap-3 mb-5 flex-wrap">
-            <div className="flex-1 min-w-[200px] flex items-center gap-2 bg-[var(--panel-soft)] px-4 py-2.5 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all">
-              <Search size={14} className="text-[var(--subtle-foreground)] shrink-0" />
-              <input
-                className="bg-transparent border-none outline-none text-[13px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
-                placeholder="사용자, 리서치명, 프롬프트 키워드 검색..."
-              />
-            </div>
-            <select className="bg-card border border-[var(--border)] rounded-xl px-3 h-[42px] text-[12px] font-bold text-foreground outline-none focus:border-primary shadow-sm shrink-0">
-              <option>전체 사용자</option>
-              <option>dh.lee@samsung.com</option>
-              <option>mj.kim@samsung.com</option>
-              <option>sy.lee@samsung.com</option>
-            </select>
-            <select className="bg-card border border-[var(--border)] rounded-xl px-3 h-[42px] text-[12px] font-bold text-foreground outline-none focus:border-primary shadow-sm shrink-0">
-              <option>전체 기간</option>
-              <option>오늘</option>
-              <option>최근 7일</option>
-              <option>최근 30일</option>
-            </select>
-          </div>
-
-          {/* 테이블 */}
-          <div className="overflow-hidden rounded-xl border border-[var(--border)] shadow-sm overflow-x-auto">
-            <table className="w-full text-left text-[12px] min-w-[900px]">
-              <thead className="bg-[var(--panel-soft)] border-b border-[var(--border)]">
-                <tr>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    사용자
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    리서치명
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    프롬프트
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    AI 답변 요약
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
-                    토큰
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider">
-                    생성일시
-                  </th>
-                  <th className="px-4 py-3.5 font-black text-[var(--muted-foreground)] uppercase tracking-wider text-center">
-                    상세
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[var(--border)] bg-card">
-                {[
-                  {
-                    user: "이동훈",
-                    email: "dh.lee@samsung.com",
-                    research: "Galaxy S26 컨셉 테스트",
-                    prompt: "기존 3번 문항을 MZ 세대 톤앤매너로 수정해줘.",
-                    answer: '"S26, 너의 다음 레벨" 형태로 감성 중심 문항 3개 제안. 구어체 + 이모지 옵션 포함.',
-                    tokens: 142,
-                    date: "2026-03-15 09:12",
-                    page: "/survey",
-                  },
-                  {
-                    user: "김민준",
-                    email: "mj.kim@samsung.com",
-                    research: "MZ세대 스마트폰 Usage 조사",
-                    prompt: "현재 필터링된 그룹에서 20대 여성의 가장 큰 불만 요인은 뭐야?",
-                    answer: "배터리 수명(38%), 카메라 야간 성능(27%), 무게(18%) 순으로 불만 집중. 세부 코멘트 첨부.",
-                    tokens: 890,
-                    date: "2026-03-15 08:31",
-                    page: "/analytics",
-                  },
-                  {
-                    user: "이서연",
-                    email: "sy.lee@samsung.com",
-                    research: "글로벌 브랜드 인지도 Q1",
-                    prompt: "이 리포트의 결론을 3줄로 요약해서 임원 보고용으로 만들어줘.",
-                    answer:
-                      "① 국내 MZ 브랜드 선호도 +4.2%p ② 북미 시장 갤럭시 인지도 72% ③ 카메라·AI 기능이 핵심 구매 트리거.",
-                    tokens: 1250,
-                    date: "2026-03-14 17:45",
-                    page: "/report",
-                  },
-                  {
-                    user: "박지호",
-                    email: "jh.park@samsung.com",
-                    research: "Galaxy S26 컨셉 테스트",
-                    prompt: "프리미엄 구매자 세그먼트의 가격 저항선은 얼마야?",
-                    answer:
-                      "150만원 이하 응답 61%, 180만원 이하 84%. 고사양 카메라 번들 시 10~15만원 추가 지불 의향 확인.",
-                    tokens: 540,
-                    date: "2026-03-14 14:20",
-                    page: "/analytics",
-                  },
-                  {
-                    user: "정태양",
-                    email: "ty.jung@samsung.com",
-                    research: "MZ세대 스마트폰 Usage 조사",
-                    prompt: "게이밍 성향군 응답자들이 가장 많이 언급한 기능 키워드 뽑아줘.",
-                    answer:
-                      "게임 성능(52%), 발열 관리(44%), 화면 주사율(39%), 배터리(35%), 냉각 시스템(28%) 순으로 추출.",
-                    tokens: 317,
-                    date: "2026-03-13 11:05",
-                    page: "/analytics",
-                  },
-                ].map((log, i) => (
-                  <tr key={i} className="hover:bg-[var(--surface-hover)] transition-colors">
-                    <td className="px-4 py-4">
-                      <p className="font-black text-foreground text-[13px]">{log.user}</p>
-                      <p className="font-medium text-[var(--muted-foreground)] text-[10px]">{log.email}</p>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-bold text-[var(--secondary-foreground)] text-[12px] leading-snug">
-                        {log.research}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 max-w-[200px]">
-                      <p className="font-medium text-[var(--secondary-foreground)] text-[12px] leading-snug line-clamp-2 italic">
-                        "{log.prompt}"
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 max-w-[220px]">
-                      <p className="font-medium text-[var(--muted-foreground)] text-[12px] leading-snug line-clamp-2">
-                        {log.answer}
-                      </p>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <span className="font-mono font-black text-[12px] text-primary">
-                        {log.tokens.toLocaleString()}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="font-bold text-[var(--muted-foreground)] text-[12px] whitespace-nowrap">
-                        {log.date}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <Button variant="outline" size="sm" className="h-7 px-2.5 text-[11px] gap-1">
-                        <Eye size={12} /> 보기
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="flex justify-between items-center pt-3">
-            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">총 5건 표시 중 (전체 1,284건)</span>
-            <Button variant="outline" size="sm" className="gap-2">
-              <FileText size={13} /> CSV 내보내기
-            </Button>
-          </div>
-        </SettingGroup>
-      </div>
-    </>
-  ),
-  validation: (
-    <>
-      <SectionTitle
-        title="페르소나 검증 (CoT) 아카이브"
-        desc="가상 페르소나 응답 산출 시 사용된 추론 과정(Chain of Thought) 및 품질 검증 이력을 아카이브합니다."
-      />
-      <div className="grid grid-cols-1 gap-6">
-        {/* 요약 스탯 */}
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatCard label="총 검증 건수" value="8,831" sub="누적 전체" tone="neutral" icon={FlaskConical} />
-          <StatCard label="Pass" value="8,614" sub="97.5% 통과율" tone="success" icon={CheckCircle2} />
-          <StatCard label="Flagged" value="217" sub="재검토 필요" tone="warn" icon={AlertTriangle} />
-          <StatCard label="평균 신뢰도" value="93.2" sub="/ 100 기준" tone="primary" icon={Award} />
-        </div>
-
-        {/* 신뢰도 분포 */}
-        <SettingGroup title="신뢰도 구간 분포">
-          <div className="space-y-3">
-            {[
-              { label: "95 ~ 100 (우수)", count: 5820, total: 8831, color: "bg-emerald-500" },
-              { label: "80 ~ 94 (양호)", count: 2794, total: 8831, color: "bg-primary" },
-              { label: "60 ~ 79 (보통)", count: 147, total: 8831, color: "bg-amber-400" },
-              { label: "0 ~ 59 (위험 — Flagged)", count: 70, total: 8831, color: "bg-red-500" },
-            ].map((band) => {
-              const pct = Math.round((band.count / band.total) * 100);
-              return (
-                <div key={band.label} className="flex items-center gap-4">
-                  <span className="w-48 text-[11px] font-bold text-[var(--secondary-foreground)] shrink-0">
-                    {band.label}
-                  </span>
-                  <div className="flex-1 h-2.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
-                    <div
-                      className={cn("h-full rounded-full transition-all duration-700", band.color)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="w-20 text-right text-[11px] font-black text-[var(--muted-foreground)] shrink-0">
-                    {band.count.toLocaleString()}건 ({pct}%)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </SettingGroup>
-
-        {/* 검증 로그 */}
-        <SettingGroup title="응답 무결성 검증 로그">
-          <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <div className="flex-1 min-w-[160px] flex items-center gap-2 bg-[var(--panel-soft)] px-4 py-2.5 rounded-xl border border-[var(--border)] focus-within:border-primary focus-within:bg-card transition-all">
-              <Search size={13} className="text-[var(--subtle-foreground)] shrink-0" />
-              <input
-                className="bg-transparent border-none outline-none text-[12px] font-bold w-full text-foreground placeholder:text-[var(--subtle-foreground)] placeholder:font-medium"
-                placeholder="페르소나 ID, 질문 키워드 검색..."
-              />
-            </div>
-            {["전체", "Pass", "Flagged"].map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={cn(
-                  "px-3 py-2 rounded-lg text-[12px] font-black border transition-all",
-                  f === "전체"
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-card text-[var(--secondary-foreground)] border-[var(--border)] hover:border-primary/40"
-                )}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-          <div className="space-y-4">
-            {[
-              {
-                id: "VAL-8831",
-                persona: "P19 (19세 / 고등학생)",
-                project: "Galaxy S26 컨셉 테스트",
-                q: "삼성 Knox의 엔터프라이즈 보안 솔루션이 구매에 영향을 주나요?",
-                cot: "19세 고등학생 페르소나는 엔터프라이즈 보안 솔루션에 대한 실질적 경험이나 의사결정 권한이 없을 가능성 높음. 응답 신뢰도 저하 판정.",
-                score: 45,
-                result: "Flagged",
-                date: "2026-03-13 13:50",
-              },
-              {
-                id: "VAL-8829",
-                persona: "P12 (28세 / 게임개발자)",
-                project: "Galaxy S26 컨셉 테스트",
-                q: "S26 카메라의 AI 보정 기능이 게임 플레이 경험에 영향을 주나요?",
-                cot: "게임개발자는 GPU 성능과 발열 관리에 민감한 페르소나. 카메라 AI 기능이 시스템 자원을 점유할 경우 게임 프레임에 영향을 줄 수 있음을 인식하고 있어 응답 신뢰도 높음.",
-                score: 98,
-                result: "Pass",
-                date: "2026-03-13 14:20",
-              },
-              {
-                id: "VAL-8830",
-                persona: "P05 (45세 / 금융컨설턴트)",
-                project: "프리미엄 사용자 재구매 의향 분석",
-                q: "보안 폴더의 사용 편의성에 대해 어떻게 생각하십니까?",
-                cot: "금융컨설턴트는 기밀 문서 보안에 높은 관심을 가지며, 기업용 보안 솔루션 사용 경험 있을 가능성 높음. 실용적 관점에서 보안 폴더를 평가하는 응답 패턴 확인.",
-                score: 95,
-                result: "Pass",
-                date: "2026-03-13 14:15",
-              },
-              {
-                id: "VAL-8826",
-                persona: "P33 (52세 / 소상공인)",
-                project: "MZ세대 스마트폰 Usage 조사",
-                q: "인스타그램 릴스 편집 기능 중 가장 자주 사용하는 AI 필터는 무엇인가요?",
-                cot: "52세 소상공인 페르소나는 인스타그램 릴스 편집 세부 기능 사용 빈도가 낮을 것으로 예측됨. MZ세대 대상 조사에 고령층 페르소나 적용 여부 재검토 필요.",
-                score: 62,
-                result: "Flagged",
-                date: "2026-03-12 16:30",
-              },
-              {
-                id: "VAL-8824",
-                persona: "P07 (34세 / UX 디자이너)",
-                project: "MZ세대 스마트폰 Usage 조사",
-                q: "Galaxy AI의 통화 번역 기능을 업무에서 얼마나 자주 활용하시나요?",
-                cot: "UX 디자이너는 다국어 협업 도구에 대한 필요성이 있으며, 해외 클라이언트와의 소통에서 번역 기능을 활용할 구체적 맥락이 존재함. 응답 일관성 확인.",
-                score: 91,
-                result: "Pass",
-                date: "2026-03-12 10:05",
-              },
-            ].map((log) => (
-              <div key={log.id} className="app-card p-5 hover:border-[var(--border-hover)] transition-all">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-start gap-2.5 flex-wrap">
-                    <span className="text-[10px] font-mono font-black text-[var(--subtle-foreground)] bg-[var(--panel-soft)] border border-[var(--border)] px-2 py-0.5 rounded-md shadow-sm shrink-0 mt-0.5">
-                      {log.id}
-                    </span>
-                    <div>
-                      <p className="text-[13px] font-black text-foreground">{log.persona}</p>
-                      <p className="text-[10px] font-bold text-[var(--muted-foreground)] mt-0.5 flex items-center gap-1">
-                        <Briefcase size={9} /> {log.project}
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-tight border shadow-sm shrink-0",
-                      log.result === "Pass"
-                        ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
-                        : "bg-red-50 text-[var(--destructive)] border-red-100 animate-pulse"
-                    )}
-                  >
-                    {log.result === "Flagged" ? "Hallucination Risk" : log.result}
-                  </span>
-                </div>
-
-                <p className="text-[13px] text-[var(--secondary-foreground)] font-medium leading-relaxed mb-3 p-3 bg-[var(--panel-soft)] rounded-lg border border-[var(--border)]">
-                  <strong className="text-primary font-black mr-1.5">Q.</strong> {log.q}
-                </p>
-
-                <div className="mb-4 p-3 bg-card border border-dashed border-[var(--border)] rounded-lg">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[var(--muted-foreground)] mb-1.5 flex items-center gap-1.5">
-                    <FlaskConical size={10} /> CoT 추론 요약
-                  </p>
-                  <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-relaxed">
-                    {log.cot}
-                  </p>
-                </div>
-
-                <div className="flex justify-between items-center pt-3 border-t border-[var(--border)]">
-                  <div className="flex items-center gap-3">
-                    <Button variant="outline" size="sm" className="text-[11px] gap-1.5">
-                      <Eye size={13} /> 전체 CoT 트리
-                    </Button>
-                    <span className="text-[11px] font-bold text-[var(--muted-foreground)] flex items-center gap-1">
-                      <Clock size={10} /> {log.date}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
-                      <div
-                        className={cn(
-                          "h-full rounded-full",
-                          log.score >= 80 ? "bg-primary" : log.score >= 60 ? "bg-amber-400" : "bg-red-500"
-                        )}
-                        style={{ width: `${log.score}%` }}
-                      />
-                    </div>
-                    <span
-                      className={cn(
-                        "text-[13px] font-black tabular-nums",
-                        log.score >= 80 ? "text-primary" : log.score >= 60 ? "text-amber-500" : "text-red-500"
-                      )}
-                    >
-                      {log.score}
-                    </span>
-                    <span className="text-[11px] text-[var(--subtle-foreground)]">/ 100</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between items-center pt-2">
-            <span className="text-[12px] font-bold text-[var(--muted-foreground)]">5건 표시 중 (전체 8,831건)</span>
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <FileText size={13} /> CSV 내보내기
-            </Button>
-          </div>
-        </SettingGroup>
-      </div>
-    </>
-  ),
+  logs: <LogsSection />,
+  validation: <ValidationSection />,
   security: (
     <>
       <SectionTitle
         title="보안 및 규정 준수"
-        desc="데이터 보호를 위한 SSO 연동, IP 제어, 로그인 정책 등을 설정합니다."
+        desc="데이터 보호를 위한 SSO 연동, IP 제어, 로그인 정책 등을 설정합니다"
       />
 
       <div className="grid grid-cols-1 gap-6">
@@ -2252,11 +3297,11 @@ export const SettingsPage: React.FC = () => {
           <div>
             <p className="app-page-eyebrow">Enterprise Admin Console</p>
             <h1 className="app-page-title mt-1">
-              전사 데이터 및 <span className="text-primary">AI 운영 통제소.</span>
+              전사 데이터 및 <span className="text-primary">AI 운영 통제소</span>
             </h1>
             <p className="app-page-description">
               리서치 프로젝트 마스터 관리, 데이터 스키마 커넥터, AI 프롬프트 감사 로그 및 사용자 데이터 접근 권한을 통합
-              제어합니다.
+              제어합니다
             </p>
           </div>
         </div>

@@ -127,7 +127,7 @@ export const AiJobCenterPage: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-[var(--background)]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm font-medium text-[var(--muted-foreground)]">AI 작업 상태를 불러오는 중...</p>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">AI 작업 상태를 불러오는 중..</p>
         </div>
       </div>
     );
@@ -139,11 +139,9 @@ export const AiJobCenterPage: React.FC = () => {
         <div>
           <p className="app-page-eyebrow">AI Orchestration</p>
           <h1 className="app-page-title mt-1">
-            AI 작업 <span className="text-primary">허브.</span>
+            AI 작업 <span className="text-primary">허브</span>
           </h1>
-          <p className="app-page-description">
-            설문, 페르소나, 리포트 생성 job의 상태를 한 곳에서 추적하고 제어합니다.
-          </p>
+          <p className="app-page-description">설문, 페르소나, 리포트 생성 job의 상태를 한 곳에서 추적하고 제어합니다</p>
         </div>
         <div className="flex items-center gap-3 pb-1">
           <div className="flex items-center gap-2.5 bg-card border border-[var(--border)] rounded-xl px-4 py-2.5 shadow-[var(--shadow-sm)] focus-within:border-primary transition-all group">
@@ -155,7 +153,7 @@ export const AiJobCenterPage: React.FC = () => {
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="bg-transparent outline-none text-[13px] font-bold w-56 text-foreground placeholder:text-[var(--subtle-foreground)]"
-              placeholder="job id 또는 결과 검색..."
+              placeholder="job id 또는 결과 검색.."
             />
           </div>
           <Button variant="outline" className="gap-2 text-[13px] font-bold" onClick={() => void loadJobs(false)}>
@@ -254,7 +252,7 @@ export const AiJobCenterPage: React.FC = () => {
                   <TableCell colSpan={7} className="px-6 py-16 text-center">
                     <div className="flex flex-col items-center gap-3 text-[var(--muted-foreground)]">
                       <BrainCircuit size={28} className="text-[var(--subtle-foreground)]" />
-                      <p className="text-[14px] font-semibold">조건에 맞는 AI 작업이 없습니다.</p>
+                      <p className="text-[14px] font-semibold">조건에 맞는 AI 작업이 없습니다</p>
                     </div>
                   </TableCell>
                 </TableRow>

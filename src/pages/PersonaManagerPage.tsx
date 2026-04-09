@@ -93,7 +93,8 @@ const ICON_META = [
   { bg: "#eef3ff", color: "#2f66ff" },
   { bg: "#eef3ff", color: "#2f66ff" },
 ];
-const PAGE_SIZE = 50;
+const CARD_PAGE_SIZE = 9;
+const LIST_PAGE_SIZE = 20;
 
 /* ─── Helpers ─── */
 function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number }) {
@@ -469,7 +470,7 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
                       ))
                     ) : (
                       <div className="bg-[var(--panel-soft)] border border-[var(--border)] p-4 rounded-xl text-[12px] font-medium text-[var(--muted-foreground)]">
-                        개별 스토리 데이터가 아직 없습니다.
+                        개별 스토리 데이터가 아직 없습니다
                       </div>
                     )}
                   </div>
@@ -632,14 +633,15 @@ export const PersonaManagerPage: React.FC = () => {
   const [projectOptions, setProjectOptions] = useState<ProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"card" | "list">("card");
+  const pageSize = viewMode === "card" ? CARD_PAGE_SIZE : LIST_PAGE_SIZE;
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [detailTarget, setDetailTarget] = useState<Persona | undefined>();
 
-  const fetchPersonas = async (pid: string | null, pg: number, q: string) => {
+  const fetchPersonas = async (pid: string | null, pg: number, q: string, ps: number) => {
     try {
-      const response = await personaApi.getPersonas(pid ?? undefined, pg, PAGE_SIZE, q);
+      const response = await personaApi.getPersonas(pid ?? undefined, pg, ps, q);
       setPersonas(mapPersonaItems(response.items));
       setTotal(response.total);
     } catch (error) {
@@ -656,7 +658,7 @@ export const PersonaManagerPage: React.FC = () => {
       setPage(1);
       setSearchQuery("");
       const [response, projectDetail, options] = await Promise.all([
-        personaApi.getPersonas(pid ?? undefined, 1, PAGE_SIZE, ""),
+        personaApi.getPersonas(pid ?? undefined, 1, CARD_PAGE_SIZE, ""),
         pid ? projectApi.getProject(pid) : Promise.resolve(null),
         projectApi.getProjectOptions(),
       ]);
@@ -677,15 +679,21 @@ export const PersonaManagerPage: React.FC = () => {
     void loadAll(null);
   }, []);
 
+  useEffect(() => {
+    if (loading) return;
+    setPage(1);
+    void fetchPersonas(projectId, 1, searchQuery, pageSize);
+  }, [viewMode]);
+
   const handleSearchChange = (q: string) => {
     setSearchQuery(q);
     setPage(1);
-    void fetchPersonas(projectId, 1, q);
+    void fetchPersonas(projectId, 1, q, pageSize);
   };
 
   const handlePageChange = (pg: number) => {
     setPage(pg);
-    void fetchPersonas(projectId, pg, searchQuery);
+    void fetchPersonas(projectId, pg, searchQuery, pageSize);
   };
 
   useEffect(() => {
@@ -698,7 +706,7 @@ export const PersonaManagerPage: React.FC = () => {
       if (!latestJob || cancelled) return;
       setActiveJob(latestJob);
       if (latestJob.status === "completed") {
-        await fetchPersonas(projectId, page, searchQuery);
+        await fetchPersonas(projectId, page, searchQuery, pageSize);
       }
     };
 
@@ -743,8 +751,6 @@ export const PersonaManagerPage: React.FC = () => {
     };
   }, [detailTarget?.id]);
 
-  const [importing, setImporting] = useState(false);
-
   const handleGeneratePersonas = async () => {
     if (!projectId) return;
     const job = await personaApi.generateJob({
@@ -758,22 +764,7 @@ export const PersonaManagerPage: React.FC = () => {
     }
   };
 
-  const handleImportExcel = async () => {
-    if (!projectId) return;
-    setImporting(true);
-    try {
-      const result = await personaApi.importExcel(projectId, true);
-      if (result) {
-        await fetchPersonas(projectId, 1, "");
-        setPage(1);
-        setSearchQuery("");
-      }
-    } finally {
-      setImporting(false);
-    }
-  };
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const generationStatusLabel =
     activeJob?.status === "running"
       ? "생성 중"
@@ -798,7 +789,7 @@ export const PersonaManagerPage: React.FC = () => {
       <div className="flex h-screen items-center justify-center bg-[var(--background)]">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm font-medium text-[var(--muted-foreground)]">디지털 트윈 데이터를 불러오는 중...</p>
+          <p className="text-sm font-medium text-[var(--muted-foreground)]">디지털 트윈 데이터를 불러오는 중..</p>
         </div>
       </div>
     );
@@ -811,10 +802,10 @@ export const PersonaManagerPage: React.FC = () => {
         <div>
           <p className="app-page-eyebrow">Persona Lifecycle</p>
           <h1 className="app-page-title mt-1">
-            가상 페르소나 <span className="text-primary">자산 관리.</span>
+            가상 페르소나 <span className="text-primary">자산 관리</span>
           </h1>
           <p className="app-page-description">
-            디지털 트윈으로 구현된 타겟 그룹별 페르소나 프로파일을 관리하고 분석에 활용합니다.
+            디지털 트윈으로 구현된 타겟 그룹별 페르소나 프로파일을 관리하고 분석에 활용합니다
           </p>
         </div>
         <div className="flex items-center gap-3 shrink-0 pt-1">
@@ -837,21 +828,11 @@ export const PersonaManagerPage: React.FC = () => {
             <Search size={15} className="text-[var(--subtle-foreground)]" />
             <input
               className="bg-transparent outline-none text-[13px] font-medium w-48 text-foreground placeholder:text-[var(--subtle-foreground)]"
-              placeholder="페르소나 검색..."
+              placeholder="페르소나 검색.."
               value={searchQuery}
               onChange={(event) => handleSearchChange(event.target.value)}
             />
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-2 text-[13px] font-bold px-5 active:scale-95"
-            onClick={() => void handleImportExcel()}
-            disabled={!projectId || importing}
-          >
-            <Cpu size={15} strokeWidth={2.5} />
-            {importing ? "불러오는 중..." : "실제 데이터 불러오기"}
-          </Button>
           <Button
             size="sm"
             className="gap-2 text-[13px] font-bold px-5 active:scale-95"
@@ -859,7 +840,7 @@ export const PersonaManagerPage: React.FC = () => {
             disabled={!projectId || activeJob?.status === "queued" || activeJob?.status === "running"}
           >
             <Plus size={15} strokeWidth={2.5} />
-            {activeJob?.status === "queued" || activeJob?.status === "running" ? "AI 생성 중" : "AI 페르소나 생성"}
+            {activeJob?.status === "queued" || activeJob?.status === "running" ? "AI 생성 중" : "페르소나 업데이트"}
           </Button>
         </div>
       </div>
@@ -911,7 +892,7 @@ export const PersonaManagerPage: React.FC = () => {
         {/* ── 카드 뷰 ── */}
         {personas.length > 0 ? (
           viewMode === "card" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-12">
+            <div className="grid grid-cols-1 gap-5 mb-10 md:grid-cols-2 xl:grid-cols-3">
               {personas.map((p) => {
                 const riskFlag =
                   100 - Math.round(p.brandAttitude * 0.45 + p.marketingAcceptance * 0.25 + p.purchaseIntent * 0.3);
@@ -925,55 +906,81 @@ export const PersonaManagerPage: React.FC = () => {
                 return (
                   <article
                     key={p.id}
-                    className="app-card flex flex-col gap-4 p-6 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-[var(--shadow-md)])]"
+                    className="app-card flex flex-col gap-0 p-5 transition-all hover:border-[var(--border-hover)] hover:shadow-[var(--shadow-[var(--shadow-md)])]"
                   >
-                    <header className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3.5 min-w-0">
+                    {/* 헤더 */}
+                    <header className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3 min-w-0">
                         <div
-                          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
                           style={{ backgroundColor: p.iconBg }}
                         >
-                          <PersonaIcon iconKey={p.iconKey} size={24} />
+                          <PersonaIcon iconKey={p.iconKey} size={20} />
                         </div>
                         <div className="min-w-0">
-                          <h3 className="truncate text-[16px] font-bold text-foreground">{p.name}</h3>
-                          <p className="text-[12px] font-medium text-[var(--muted-foreground)] mt-0.5">
-                            {p.age}세 · {p.occupation}
+                          <h3 className="truncate text-[15px] font-bold text-foreground">{p.name}</h3>
+                          <p className="text-[11px] font-medium text-[var(--muted-foreground)] mt-0.5">
+                            {p.age}세 · {p.gender} · {p.occupation}
                           </p>
                         </div>
                       </div>
-                      <Badge className={`uppercase tracking-tight ${riskMeta.cls}`}>{riskMeta.label}</Badge>
+                      <Badge className={`text-[10px] uppercase tracking-tight shrink-0 ${riskMeta.cls}`}>
+                        {riskMeta.label}
+                      </Badge>
                     </header>
 
-                    <div className="flex flex-wrap gap-1.5">
-                      {p.segments.map((seg) => {
-                        const segmentColor = SEGMENT_COLORS[seg] ?? DEFAULT_SEGMENT_COLOR;
-                        return (
-                          <Badge
-                            key={seg}
-                            variant="outline"
-                            style={{
-                              backgroundColor: segmentColor.bg,
-                              color: segmentColor.text,
-                              borderColor: segmentColor.border,
-                            }}
-                          >
-                            {seg}
-                          </Badge>
-                        );
-                      })}
+                    {/* 인구통계 stat 그리드 */}
+                    <div className="grid grid-cols-2 gap-1.5 mb-4">
+                      {[
+                        { label: "연령", value: `${p.age}세` },
+                        { label: "성별", value: p.gender },
+                        { label: "직업", value: p.occupation },
+                        { label: "주기기", value: p.device },
+                      ].map((s) => (
+                        <div
+                          key={s.label}
+                          className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-2"
+                        >
+                          <span className="text-[10px] font-bold text-[var(--subtle-foreground)] uppercase tracking-wide">
+                            {s.label}
+                          </span>
+                          <span className="text-[11px] font-bold text-foreground truncate max-w-[80px] text-right">
+                            {s.value}
+                          </span>
+                        </div>
+                      ))}
                     </div>
 
-                    <p className="line-clamp-2 text-[12px] font-medium leading-relaxed text-[var(--muted-foreground)] min-h-[36px]">
-                      "{p.description}"
-                    </p>
+                    {/* 핵심 점수 바 */}
+                    <div className="space-y-2 mb-4">
+                      {[
+                        { label: "브랜드 태도", value: p.brandAttitude },
+                        { label: "구매 의향", value: p.purchaseIntent },
+                      ].map((row) => (
+                        <div key={row.label} className="flex items-center gap-3">
+                          <span className="text-[10px] font-bold text-[var(--subtle-foreground)] w-16 shrink-0">
+                            {row.label}
+                          </span>
+                          <div className="flex-1 h-1.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
+                            <div
+                              className="h-full rounded-full bg-primary transition-all"
+                              style={{ width: `${row.value}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] font-black text-foreground tabular-nums w-7 text-right shrink-0">
+                            {row.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
 
-                    <footer className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-2">
+                    {/* 푸터 */}
+                    <footer className="flex items-center justify-between border-t border-[var(--border)] pt-3.5">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--subtle-foreground)] mb-0.5">
+                        <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[var(--subtle-foreground)] mb-0.5">
                           Future Value
                         </p>
-                        <p className="text-[15px] font-bold text-foreground">{p.futureValue}%</p>
+                        <p className="text-[14px] font-black text-foreground">{p.futureValue}%</p>
                       </div>
                       <Button
                         variant="outline"
@@ -1112,7 +1119,11 @@ export const PersonaManagerPage: React.FC = () => {
             </div>
           )
         ) : null}
-        <div className="flex justify-center pt-2 pb-10">
+        <div className="flex items-center justify-between pt-2 pb-10">
+          <p className="text-[12px] font-bold text-[var(--muted-foreground)]">
+            총 {total.toLocaleString()}명 중 {(page - 1) * pageSize + (total === 0 ? 0 : 1)}-
+            {Math.min(page * pageSize, total)}명 표시
+          </p>
           <AppPagination current={page} total={totalPages} onChange={handlePageChange} />
         </div>
       </div>

@@ -57,6 +57,8 @@ apiClient.interceptors.response.use(
 );
 
 /* ─── Interfaces ─── */
+export type WorkflowStage = "created" | "survey" | "simulation" | "report";
+
 export interface Project {
   id: string;
   title: string;
@@ -68,6 +70,8 @@ export interface Project {
   responses: number;
   target: number;
   updatedAt: string;
+  createdAt: string;
+  workflowStage: WorkflowStage;
   tags: string[];
 }
 
@@ -256,6 +260,8 @@ function mapProject(raw: any): Project {
     responses: raw.response_count ?? raw.responses ?? 0,
     target: raw.target_responses ?? raw.target ?? 0,
     updatedAt: raw.updated_at ? formatRelativeTime(raw.updated_at) : (raw.updatedAt ?? ""),
+    createdAt: raw.created_at ? raw.created_at.slice(0, 10) : "",
+    workflowStage: (raw.workflow_stage as WorkflowStage) ?? "created",
     tags: raw.tags ?? [],
   };
 }
@@ -331,6 +337,15 @@ export const projectApi = {
     } catch (error) {
       console.warn("projectApi.getSegmentFilter failed.", error);
       return null;
+    }
+  },
+  deleteProject: async (projectId: string): Promise<boolean> => {
+    try {
+      await apiClient.delete(`/projects/${projectId}`);
+      return true;
+    } catch (error) {
+      console.warn("projectApi.deleteProject failed.", error);
+      return false;
     }
   },
 };
@@ -1029,6 +1044,24 @@ export interface LlmParameterResponse {
   top_p: number;
 }
 
+export interface SurveyTemplateSetting {
+  prompt: string;
+  temperature: number;
+  top_p: number;
+  model: string;
+  reasoning_effort: "low" | "medium" | "high";
+  deep_research: boolean;
+  allow_external_data: boolean;
+  allow_third_party_data: boolean;
+  use_project_context: boolean;
+  use_segment_context: boolean;
+}
+
+export interface SurveyTemplateSettingsBundle {
+  templates: Record<string, SurveyTemplateSetting>;
+  updated_at?: string;
+}
+
 export interface SeoSettings {
   enabled: boolean;
   scope: string[];
@@ -1144,6 +1177,11 @@ export const settingsApi = {
       return null;
     }
   },
+  getSurveyTemplateSettings: async (): Promise<SurveyTemplateSettingsBundle | null> =>
+    settingsApi.getJsonSetting<SurveyTemplateSettingsBundle>("survey_template_settings"),
+  saveSurveyTemplateSettings: async (
+    value: SurveyTemplateSettingsBundle
+  ): Promise<SurveyTemplateSettingsBundle | null> => settingsApi.saveJsonSetting("survey_template_settings", value),
   getSeoSettings: async (): Promise<SeoSettings | null> => settingsApi.getJsonSetting<SeoSettings>("seo_policy"),
   saveSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> =>
     settingsApi.saveJsonSetting("seo_policy", value),

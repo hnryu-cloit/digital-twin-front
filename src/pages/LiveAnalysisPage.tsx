@@ -387,7 +387,7 @@ export const LiveAnalysisPage: React.FC = () => {
         <div>
           <p className="app-page-eyebrow">실시간 시뮬레이션 모니터링</p>
           <h1 className="app-page-title mt-1">실시간 응답 분석 현황</h1>
-          <p className="app-page-description">페르소나별 실시간 응답 현황과 AI 기반 핵심 감성 지표를 모니터링합니다.</p>
+          <p className="app-page-description">페르소나별 실시간 응답 현황과 AI 기반 핵심 감성 지표를 모니터링합니다</p>
           {segmentFilter && (
             <div className="mt-3 flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-2 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-3 py-1.5">
@@ -433,7 +433,7 @@ export const LiveAnalysisPage: React.FC = () => {
                 <div>
                   <h3 className="text-[15px] font-bold leading-tight text-foreground">실시간 시뮬레이션 분석 진행률</h3>
                   <p className="mt-0.5 text-[11px] font-medium text-[var(--muted-foreground)]">
-                    선택된 세그먼트 타겟 대상 디지털 트윈 응답 수집 현황입니다.
+                    선택된 세그먼트 타겟 대상 디지털 트윈 응답 수집 현황입니다
                   </p>
                 </div>
               </div>
@@ -606,7 +606,7 @@ export const LiveAnalysisPage: React.FC = () => {
                       ))
                     ) : (
                       <li className="text-[12px] font-medium text-[var(--muted-foreground)]">
-                        권장 액션 데이터가 아직 없습니다.
+                        권장 액션 데이터가 아직 없습니다
                       </li>
                     )}
                   </ul>
@@ -656,7 +656,7 @@ export const LiveAnalysisPage: React.FC = () => {
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)]/20 px-5 py-2.5 text-[12px] font-bold text-[var(--subtle-foreground)]">
-                  추출된 키워드가 없습니다.
+                  추출된 키워드가 없습니다
                 </div>
               )}
             </div>
@@ -752,14 +752,14 @@ export const LiveAnalysisPage: React.FC = () => {
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--panel-soft)]/30 px-4 py-6 text-center text-[12px] font-bold text-[var(--muted-foreground)]">
-                실시간 응답 피드가 아직 없습니다.
+                실시간 응답 피드가 아직 없습니다
               </div>
             )}
           </div>
 
           <div className="shrink-0 border-t border-border/50 bg-[var(--panel-soft)]/30 px-5 py-4 text-center">
             <p className="text-[10px] font-bold leading-relaxed text-muted-foreground">
-              카드를 클릭하면 <span className="text-primary">AI 사고 과정</span>과 논리 일관성을 검증할 수 있습니다.
+              카드를 클릭하면 <span className="text-primary">AI 사고 과정</span>과 논리 일관성을 검증할 수 있습니다
             </p>
           </div>
         </div>

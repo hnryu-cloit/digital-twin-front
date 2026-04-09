@@ -1,11 +1,11 @@
 import { ChevronRight, Clock } from "lucide-react";
-import type { Project } from "@/lib/api";
+import type { Project, WorkflowStage } from "@/lib/api";
 
-const STATUS_STYLE: Record<Project["status"], { bg: string; text: string; label: string }> = {
-  진행중: { bg: "#EEF4FF", text: "#5B7DFF", label: "진행중" },
-  완료: { bg: "#F0FDF4", text: "#16A34A", label: "완료" },
-  초안: { bg: "#F7FAFF", text: "#7C8397", label: "초안" },
-  분석중: { bg: "#FFF7ED", text: "#EA580C", label: "분석중" },
+export const WORKFLOW_STAGE_META: Record<WorkflowStage, { label: string; bg: string; text: string; border: string }> = {
+  created: { label: "프로젝트 생성", bg: "#F7FAFF", text: "#7C8397", border: "#E2E8F0" },
+  survey: { label: "설문 설계", bg: "#EEF4FF", text: "#2F66FF", border: "#C9D8FF" },
+  simulation: { label: "시뮬레이션", bg: "#F0EEFF", text: "#7C3AED", border: "#DDD6FE" },
+  report: { label: "리포트 완료", bg: "#F0FDF4", text: "#16A34A", border: "#BBF7D0" },
 };
 
 interface ProjectCardProps {
@@ -14,7 +14,7 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onClick }: ProjectCardProps) {
-  const s = STATUS_STYLE[project.status] || STATUS_STYLE["초안"];
+  const stage = WORKFLOW_STAGE_META[project.workflowStage] ?? WORKFLOW_STAGE_META.created;
   const themeColor = project.typeColor || "#5B7DFF";
   const themeBg = project.typeBg || "#EEF4FF";
 
@@ -31,10 +31,10 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
           {project.type}
         </span>
         <span
-          className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-tight"
-          style={{ backgroundColor: s.bg, color: s.text }}
+          className="px-2.5 py-1 rounded-lg border text-[10px] font-black tracking-tight"
+          style={{ backgroundColor: stage.bg, color: stage.text, borderColor: stage.border }}
         >
-          {s.label}
+          {stage.label}
         </span>
       </div>
       <h3 className="text-[15px] font-black text-foreground leading-tight mb-2 group-hover:text-primary transition-colors">

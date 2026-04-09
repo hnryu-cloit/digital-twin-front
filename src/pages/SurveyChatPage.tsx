@@ -628,10 +628,10 @@ export const SurveyChatPage: React.FC = () => {
       <div className="app-page-header shrink-0">
         <p className="app-page-eyebrow">AI Survey Studio</p>
         <h1 className="app-page-title mt-1">
-          AI 기반 <span className="text-primary">설문 설계.</span>
+          AI 기반 <span className="text-primary">설문 설계</span>
         </h1>
         <p className="app-page-description">
-          자연어로 대화하며 리서치 목적에 맞는 최적의 문항 구조를 실시간으로 구축합니다.
+          자연어로 대화하며 리서치 목적에 맞는 최적의 문항 구조를 실시간으로 구축합니다
         </p>
         {segmentFilter && (
           <div className="mt-3 flex items-center gap-3 flex-wrap">
@@ -725,7 +725,7 @@ export const SurveyChatPage: React.FC = () => {
             <div className="flex items-center gap-2.5 bg-[var(--panel-soft)] rounded-2xl border border-[var(--border)] px-4 py-3 focus-within:border-primary focus-within:bg-card transition-colors">
               <input
                 className="flex-1 bg-transparent outline-none text-foreground placeholder:text-[var(--subtle-foreground)] text-[13px] font-medium"
-                placeholder="Digital Twin AI 에게 요청할 메시지를 입력하세요..."
+                placeholder="Digital Twin AI 에게 요청할 메시지를 입력하세요.."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
@@ -890,7 +890,7 @@ export const SurveyChatPage: React.FC = () => {
                 <p className="text-[13px] text-[var(--muted-foreground)] font-medium mt-2 max-w-xs leading-relaxed">
                   에이전트에게 주제를 제안하거나
                   <br />
-                  [문항 추가] 버튼을 눌러 직접 설계하세요.
+                  [문항 추가] 버튼을 눌러 직접 설계하세요
                 </p>
               </div>
             )}
@@ -1036,7 +1036,7 @@ export const SurveyChatPage: React.FC = () => {
                   </>
                 ) : (
                   <p className="text-[13px] font-medium text-[var(--muted-foreground)]">
-                    품질 검토 결과를 불러올 수 없습니다.
+                    품질 검토 결과를 불러올 수 없습니다
                   </p>
                 )}
               </div>
