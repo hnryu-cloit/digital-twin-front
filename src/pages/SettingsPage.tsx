@@ -2056,19 +2056,17 @@ function ProjectPickerDialog({
         if (!isOpen) onClose();
       }}
     >
-      <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-5 pb-4 border-b border-[var(--border)]">
-          <DialogTitle className="text-[16px] font-black text-foreground tracking-tight">
-            리서치 프로젝트 선택
-          </DialogTitle>
-          <p className="text-[12px] font-medium text-[var(--muted-foreground)] mt-0.5">
+      <DialogContent className="max-w-3xl overflow-hidden rounded-[32px] border-[var(--border)] bg-card p-0 gap-0 shadow-2xl">
+        <DialogHeader className="border-b border-[var(--border)] bg-card px-8 py-6">
+          <DialogTitle className="text-2xl font-black text-foreground tracking-tight">리서치 프로젝트 선택</DialogTitle>
+          <p className="mt-2 text-[13px] font-medium leading-relaxed text-[var(--muted-foreground)]">
             접근 가능한 프로젝트만 표시됩니다. 체크 후 확인을 누르면 해당 프로젝트의 검증 로그를 필터합니다
           </p>
         </DialogHeader>
 
         {/* 검색 */}
-        <div className="px-6 py-3 border-b border-[var(--border)] bg-[var(--panel-soft)]">
-          <div className="flex items-center gap-2 bg-card border border-[var(--border)] rounded-xl px-3 py-2.5 focus-within:border-primary transition-all">
+        <div className="border-b border-[var(--border)] bg-background px-8 py-5">
+          <div className="flex items-center gap-2 rounded-2xl border border-[var(--border)] bg-card px-4 py-3 shadow-[var(--shadow-sm)] transition-all focus-within:border-primary">
             <Search size={13} className="text-[var(--subtle-foreground)] shrink-0" />
             <input
               value={pickerSearch}
@@ -2090,29 +2088,29 @@ function ProjectPickerDialog({
         </div>
 
         {/* 프로젝트 목록 */}
-        <div className="overflow-y-auto max-h-[380px]">
+        <div className="max-h-[420px] overflow-y-auto bg-card">
           <table className="w-full text-left text-[12px]">
-            <thead className="sticky top-0 bg-[var(--panel-soft)] border-b border-[var(--border)] z-10">
+            <thead className="sticky top-0 z-10 border-b border-[var(--border)] bg-[var(--panel-soft)]/95 backdrop-blur-sm">
               <tr>
-                <th className="w-10 px-4 py-3" />
-                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="w-10 px-6 py-3.5" />
+                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
                   프로젝트명
                 </th>
-                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
                   담당자
                 </th>
-                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
                   생성일
                 </th>
-                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
                   상태
                 </th>
-                <th className="px-4 py-3 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
+                <th className="px-4 py-3.5 font-black text-[10px] uppercase tracking-wider text-[var(--muted-foreground)]">
                   접근
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)]">
+            <tbody className="divide-y divide-[var(--border)] bg-card">
               {filtered.map((p) => (
                 <tr
                   key={p.id}
@@ -2121,14 +2119,14 @@ function ProjectPickerDialog({
                     "transition-colors",
                     p.accessible
                       ? "cursor-pointer hover:bg-[var(--surface-hover)]"
-                      : "opacity-40 cursor-not-allowed bg-[var(--panel-soft)]",
+                      : "cursor-not-allowed bg-[var(--panel-soft)] opacity-40",
                     temp.has(p.id) && "bg-[var(--primary-light-bg2)]"
                   )}
                 >
-                  <td className="px-4 py-3.5">
+                  <td className="px-6 py-4">
                     <div
                       className={cn(
-                        "w-4 h-4 rounded-md border flex items-center justify-center transition-all shrink-0",
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-all",
                         temp.has(p.id)
                           ? "bg-primary border-primary shadow-[0_2px_6px_rgba(47,102,255,0.25)]"
                           : "border-[var(--border)] bg-card"
@@ -2147,15 +2145,15 @@ function ProjectPickerDialog({
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3.5 font-black text-foreground">{p.name}</td>
-                  <td className="px-4 py-3.5 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
-                  <td className="px-4 py-3.5 font-bold text-[var(--muted-foreground)]">{p.created}</td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-4 font-black text-foreground">{p.name}</td>
+                  <td className="px-4 py-4 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
+                  <td className="px-4 py-4 font-bold text-[var(--muted-foreground)]">{p.created}</td>
+                  <td className="px-4 py-4">
                     <span className={cn("px-2 py-0.5 rounded-md text-[10px] font-black border", statusCls(p.status))}>
                       {p.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-4 py-4">
                     {p.accessible ? (
                       <span className="text-[var(--success)] text-[11px] font-bold flex items-center gap-1">
                         <CheckCircle2 size={11} /> 허용
@@ -2180,19 +2178,20 @@ function ProjectPickerDialog({
           </table>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-[var(--border)] bg-[var(--panel-soft)] flex items-center justify-between">
+        <DialogFooter className="flex items-center justify-between border-t border-[var(--border)] bg-[var(--panel-soft)] px-8 py-5">
           <span className="text-[12px] font-bold text-[var(--muted-foreground)]">
             {temp.size > 0 ? `${temp.size}개 선택됨` : "선택 없음 (전체 표시)"}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setTemp(new Set())}>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={() => setTemp(new Set())}>
               선택 초기화
             </Button>
-            <Button variant="outline" size="sm" onClick={onClose}>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={onClose}>
               취소
             </Button>
             <Button
               size="sm"
+              className="rounded-xl px-4"
               onClick={() => {
                 onConfirm(temp);
                 onClose();
@@ -2241,36 +2240,6 @@ function ValidationSection() {
           <StatCard label="Flagged" value="217" sub="재검토 필요" tone="warn" icon={AlertTriangle} />
           <StatCard label="평균 신뢰도" value="93.2" sub="/ 100 기준" tone="primary" icon={Award} />
         </div>
-
-        {/* 신뢰도 분포 */}
-        <SettingGroup title="신뢰도 구간 분포">
-          <div className="space-y-3">
-            {[
-              { label: "95 ~ 100 (우수)", count: 5820, total: 8831, color: "bg-[var(--success)]" },
-              { label: "80 ~ 94 (양호)", count: 2794, total: 8831, color: "bg-primary" },
-              { label: "60 ~ 79 (보통)", count: 147, total: 8831, color: "bg-[var(--warning)]" },
-              { label: "0 ~ 59 (위험 — Flagged)", count: 70, total: 8831, color: "bg-[var(--destructive)]" },
-            ].map((band) => {
-              const pct = Math.round((band.count / band.total) * 100);
-              return (
-                <div key={band.label} className="flex items-center gap-4">
-                  <span className="w-48 text-[11px] font-bold text-[var(--secondary-foreground)] shrink-0">
-                    {band.label}
-                  </span>
-                  <div className="flex-1 h-2.5 bg-[var(--panel-soft)] rounded-full overflow-hidden border border-[var(--border)]/50">
-                    <div
-                      className={cn("h-full rounded-full transition-all duration-700", band.color)}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <span className="w-20 text-right text-[11px] font-black text-[var(--muted-foreground)] shrink-0">
-                    {band.count.toLocaleString()}건 ({pct}%)
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </SettingGroup>
 
         {/* 검증 로그 */}
         <SettingGroup title="응답 무결성 검증 로그">

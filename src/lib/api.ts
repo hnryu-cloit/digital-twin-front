@@ -813,6 +813,34 @@ export const simulationApi = {
     onError?: (err: unknown) => void
   ): AbortController => {
     const controller = new AbortController();
+
+    if (IS_MOCK) {
+      let idx = 0;
+      const feed = MOCK.MOCK_SIMULATION_FEED;
+      const tick = () => {
+        if (controller.signal.aborted || idx >= feed.length) {
+          onDone();
+          return;
+        }
+        const f = feed[idx++];
+        onEvent({
+          type: "result",
+          persona_name: f.persona_name,
+          segment: f.segment,
+          answers: [
+            {
+              question_id: f.question_id,
+              question_text: f.question_text,
+              selected_option: f.selected_option,
+              rationale: f.rationale,
+            },
+          ],
+        });
+        setTimeout(tick, 1800);
+      };
+      setTimeout(tick, 800);
+      return controller;
+    }
     const token =
       localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? "";
 
@@ -969,12 +997,31 @@ export interface AssistantChatResponse {
   session_id?: string;
 }
 
+const MOCK_CHAT_RESPONSES = [
+  "갤럭시 S25 시뮬레이션 결과, 테크 얼리어답터 세그먼트에서 구매 의향이 가장 높게 나타났습니다(평균 4.2점). AI 카메라 기능이 핵심 구매 동기로 확인됐습니다.",
+  "가성비 추구형 세그먼트는 139만원의 출시 가격에 민감하게 반응했습니다. 할부 프로그램 도입 시 구매 의향이 약 23%p 상승할 것으로 예측됩니다.",
+  "브랜드 충성고객 세그먼트는 갤럭시 생태계(워치, 버즈, 탭) 연동을 높이 평가하며 경쟁사 대비 우위를 인정했습니다. NPS 점수는 67로 산업 평균을 상회합니다.",
+  "시뮬레이션 응답 681건을 분석한 결과, '야간모드'와 'AI 카메라'가 키워드 빈도 1·2위를 차지했습니다. 콘텐츠 마케팅에서 해당 기능을 전면에 내세울 것을 권장합니다.",
+];
+let _mockChatIdx = 0;
+
 export const assistantApi = {
   chat: async (
     message: string,
     messages: { role: string; message: string }[],
     projectId?: string | null
   ): Promise<AssistantChatResponse | null> => {
+    if (IS_MOCK) {
+      await new Promise((r) => setTimeout(r, 900));
+      return {
+        answer: MOCK_CHAT_RESPONSES[_mockChatIdx++ % MOCK_CHAT_RESPONSES.length],
+        evidence: [
+          { label: "시뮬레이션 응답 수", value: "681건" },
+          { label: "신뢰도", value: "94%" },
+        ],
+        confidence: 0.94,
+      };
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const { data } = await apiClient.post("/assistant/chat", {
