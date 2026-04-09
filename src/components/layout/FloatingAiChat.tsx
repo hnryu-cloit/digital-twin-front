@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Send, User, X, RotateCcw } from "lucide-react";
 import { assistantApi } from "@/lib/api";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
 import { cn } from "@/lib/utils";
 import favicon from "@/assets/favicon.svg";
 import { useProject } from "@/hooks/useProject";
@@ -90,7 +91,19 @@ export const FloatingAiChat: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    <>
+      <AiLoadingModal
+        open={loading}
+        title="답변 생성"
+        steps={[
+          "질문과 현재 대화 맥락을 분석하고 있습니다…",
+          "관련 데이터와 근거를 정리하고 있습니다…",
+          "질문의 의도에 맞는 답변 방향을 구성하고 있습니다…",
+          "필요한 핵심 포인트를 간결하게 정리하고 있습니다…",
+          "답변을 생성해 전달하고 있습니다…",
+        ]}
+      />
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {/* Chat Window */}
       {isOpen && (
         <div className="mb-5 flex h-[640px] w-[390px] flex-col overflow-hidden rounded-[32px] border border-[#DCE4F3] bg-card shadow-[var(--shadow-lg)] animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -233,6 +246,7 @@ export const FloatingAiChat: React.FC = () => {
           </div>
         )}
       </button>
-    </div>
+      </div>
+    </>
   );
 };

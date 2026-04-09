@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import favicon from "@/assets/favicon.svg";
 import { FloatingAiChat } from "@/components/layout/FloatingAiChat";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
+import { readNavigationLoading, subscribeNavigationLoading } from "@/lib/navigationLoading";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
   Activity,
@@ -11,7 +13,6 @@ import {
   ChevronRight,
   FileText,
   Home,
-  Layers3,
   Lock,
   LogOut,
   Menu,
@@ -36,7 +37,6 @@ const NAV_ITEMS: NavItem[] = [
   { icon: <Radio size={16} />, path: "/live", label: "실시간 응답 분석", section: "워크플로우" },
   { icon: <FileText size={16} />, path: "/report", label: "분석 결과 리포트", section: "워크플로우" },
   { icon: <Users size={16} />, path: "/persona", label: "페르소나 관리", section: "운영" },
-  { icon: <Layers3 size={16} />, path: "/jobs", label: "AI 작업 허브", section: "운영" },
   { icon: <Activity size={16} />, path: "/reports", label: "리포트 히스토리 관리", section: "운영" },
 ];
 
@@ -62,30 +62,76 @@ export const Layout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [projectName, setProjectName] = useState<string>("");
+  const [navigationLoading, setNavigationLoading] = useState(() => readNavigationLoading());
+  const [navigationLoadingSnapshot, setNavigationLoadingSnapshot] = useState(() => readNavigationLoading());
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isWorkflowPage = WORKFLOW_PATHS.includes(location.pathname);
   const [furthestStepIndex, setFurthestStepIndex] = useState<number>(() => {
     return parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
   });
+  const [pendingStepIndex, setPendingStepIndex] = useState<number>(() => {
+    return parseInt(sessionStorage.getItem("workflowPendingStep") ?? "-1");
+  });
+  const [reportReady, setReportReady] = useState<boolean>(() => {
+    return sessionStorage.getItem(STORAGE_KEYS.WORKFLOW_REPORT_READY) === "true";
+  });
+
+  useEffect(() => {
+    return subscribeNavigationLoading(() => {
+      const next = readNavigationLoading();
+      setNavigationLoading(next);
+      if (next) {
+        setNavigationLoadingSnapshot(next);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const syncWorkflowState = () => {
+      const pending = parseInt(sessionStorage.getItem("workflowPendingStep") ?? "-1");
+      const stored = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+      setPendingStepIndex(pending);
+      setFurthestStepIndex(stored);
+      setProjectName(sessionStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_NAME) ?? "");
+      setReportReady(sessionStorage.getItem(STORAGE_KEYS.WORKFLOW_REPORT_READY) === "true");
+    };
+
+    window.addEventListener("workflow-state-changed", syncWorkflowState);
+    return () => window.removeEventListener("workflow-state-changed", syncWorkflowState);
+  }, []);
 
   useEffect(() => {
     const stepIndex = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname);
+    const pending = parseInt(sessionStorage.getItem("workflowPendingStep") ?? "-1");
+    setPendingStepIndex(pending);
     if (stepIndex >= 0) {
       setProjectName(sessionStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_NAME) ?? "");
       const stored = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
       if (stepIndex > stored) {
         sessionStorage.setItem("workflowFurthestStep", String(stepIndex));
         setFurthestStepIndex(stepIndex);
+        window.dispatchEvent(new Event("workflow-state-changed"));
       } else {
         setFurthestStepIndex(stored);
       }
+
+      if (stepIndex === pending) {
+        sessionStorage.removeItem("workflowPendingStep");
+        setPendingStepIndex(-1);
+        window.dispatchEvent(new Event("workflow-state-changed"));
+      }
     } else if (location.pathname === "/") {
       sessionStorage.removeItem("workflowFurthestStep");
+      sessionStorage.removeItem("workflowPendingStep");
       sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_NAME);
       sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
+      sessionStorage.removeItem(STORAGE_KEYS.WORKFLOW_REPORT_READY);
       setFurthestStepIndex(-1);
+      setPendingStepIndex(-1);
+      setReportReady(false);
       setProjectName("");
+      window.dispatchEvent(new Event("workflow-state-changed"));
     }
   }, [location.pathname]);
 
@@ -106,6 +152,13 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
+      {navigationLoadingSnapshot?.title && navigationLoadingSnapshot.steps.length > 0 ? (
+        <AiLoadingModal
+          open={!!navigationLoading}
+          title={navigationLoadingSnapshot.title}
+          steps={navigationLoadingSnapshot.steps}
+        />
+      ) : null}
       {/* ── Top Header ── */}
       <header className="fixed inset-x-0 top-0 z-30 h-14 border-b border-[var(--border)] bg-card/80 backdrop-blur-md shadow-[var(--shadow-sm)]">
         <div className="flex h-full items-center">
@@ -211,7 +264,10 @@ export const Layout: React.FC = () => {
                       const isActive = location.pathname === item.path;
                       const workflowIndex = WORKFLOW_PATHS.indexOf(item.path);
                       const isWorkflowItem = workflowIndex >= 0;
-                      const isLocked = isWorkflowItem && workflowIndex > furthestStepIndex;
+                      const isLocked =
+                        (isWorkflowItem && workflowIndex > furthestStepIndex) ||
+                        (item.path === "/report" && !reportReady);
+                      const isPendingNext = isWorkflowItem && workflowIndex === pendingStepIndex && !isActive;
 
                       const handleClick = () => {
                         if (isLocked) return;
@@ -234,6 +290,8 @@ export const Layout: React.FC = () => {
                             } ${isLocked ? "cursor-not-allowed opacity-40" : "active:scale-[0.97]"} ${
                               isActive
                                 ? "bg-[var(--primary-light-bg)] text-primary shadow-sm"
+                                : isPendingNext
+                                  ? "bg-[var(--primary-light-bg)]/60 text-primary shadow-sm ring-1 ring-[var(--primary-light-border)]"
                                 : isLocked
                                   ? "text-[var(--secondary-foreground)]"
                                   : "text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] hover:text-primary"
@@ -241,20 +299,29 @@ export const Layout: React.FC = () => {
                           >
                             <span
                               className={`flex shrink-0 items-center justify-center transition-colors ${
-                                isActive ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"
+                                isActive || isPendingNext
+                                  ? "text-primary"
+                                  : "text-[var(--subtle-foreground)] group-hover:text-primary"
                               }`}
                             >
                               {item.icon}
                             </span>
                             {!collapsed && (
                               <span
-                                className={`flex-1 truncate text-[13px] tracking-tight ${isActive ? "font-bold" : "font-semibold"}`}
+                                className={`flex-1 truncate text-[13px] tracking-tight ${
+                                  isActive || isPendingNext ? "font-bold" : "font-semibold"
+                                }`}
                               >
                                 {item.label}
                               </span>
                             )}
                             {!collapsed && isLocked && (
                               <Lock size={10} className="shrink-0 text-[var(--subtle-foreground)]" />
+                            )}
+                            {!collapsed && isPendingNext && (
+                              <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[9px] font-black text-white">
+                                준비
+                              </span>
                             )}
                             {isActive && (
                               <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary" />

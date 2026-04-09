@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRight, ChevronRight, Loader, Search, Trash2, X } from "lucide-react";
 import { projectApi, type Project } from "@/lib/api";
+import { startNavigationLoading } from "@/lib/navigationLoading";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import { ProjectCard, WORKFLOW_STAGE_META } from "@/components/home/ProjectCard";
 import { WizardModal } from "@/components/home/WizardModal";
@@ -417,7 +418,17 @@ export function HomePage() {
       setSubmitError(null);
       sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.name);
       sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
-      navigate("/analytics", { state: { projectId: project.id } });
+      startNavigationLoading({
+        title: "세그먼트 분석 준비",
+        steps: [
+          "프로젝트 정보를 확인하고 있습니다…",
+          "분석 데이터를 불러오고 있습니다…",
+          "기본 조건과 설정을 확인하고 있습니다…",
+          "세그먼트 구성을 준비하고 있습니다…",
+          "세그먼트 분석 화면을 준비하고 있습니다…",
+        ],
+      });
+      navigate("/analytics", { state: { projectId: project.id, showEntryLoading: true } });
     },
     onError: () => {
       setSubmitError("프로젝트 생성 요청 중 오류가 발생했습니다.");
@@ -452,7 +463,17 @@ export function HomePage() {
     sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title);
     sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
     setAllOpen(false);
-    navigate("/analytics", { state: { projectId: project.id } });
+    startNavigationLoading({
+      title: "세그먼트 분석 준비",
+      steps: [
+        "프로젝트 정보를 확인하고 있습니다…",
+        "분석 데이터를 불러오고 있습니다…",
+        "기본 조건과 설정을 확인하고 있습니다…",
+        "세그먼트 구성을 준비하고 있습니다…",
+        "세그먼트 분석 화면을 준비하고 있습니다…",
+      ],
+    });
+    navigate("/analytics", { state: { projectId: project.id, showEntryLoading: true } });
   };
 
   return (
@@ -551,12 +572,22 @@ export function HomePage() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  onClick={() => {
-                    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title);
-                    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
-                    navigate("/analytics", { state: { projectId: project.id } });
-                  }}
-                />
+                    onClick={() => {
+                      sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_NAME, project.title);
+                      sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, project.id);
+                      startNavigationLoading({
+                        title: "세그먼트 분석 준비",
+                        steps: [
+                          "프로젝트 정보를 확인하고 있습니다…",
+                          "분석 데이터를 불러오고 있습니다…",
+                          "기본 조건과 설정을 확인하고 있습니다…",
+                          "세그먼트 구성을 준비하고 있습니다…",
+                          "세그먼트 분석 화면을 준비하고 있습니다…",
+                        ],
+                      });
+                      navigate("/analytics", { state: { projectId: project.id, showEntryLoading: true } });
+                    }}
+                  />
               ))
             )}
           </div>

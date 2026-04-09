@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Send,
@@ -19,8 +19,11 @@ import {
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import { AppPagination } from "@/components/ui/AppPagination";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
 import { buttonVariants } from "@/components/ui/button";
+import { startNavigationLoading, stopNavigationLoading } from "@/lib/navigationLoading";
 import { cn } from "@/lib/utils";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import favicon from "@/assets/favicon.svg";
 import {
   aiJobApi,
@@ -74,6 +77,29 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   },
 ];
 
+function normalizeQuestionType(value?: string): QuestionType {
+  switch (value) {
+    case "single_choice":
+    case "radio":
+    case "단일선택":
+      return "단일선택";
+    case "multiple_choice":
+    case "checkbox":
+    case "복수선택":
+      return "복수선택";
+    case "scale":
+    case "likert":
+    case "리커트척도":
+      return "리커트척도";
+    case "text":
+    case "subjective":
+    case "주관식":
+      return "주관식";
+    default:
+      return "단일선택";
+  }
+}
+
 function TypeBadge({ type }: { type: QuestionType }) {
   const c = TYPE_COLORS[type];
   return (
@@ -85,6 +111,88 @@ function TypeBadge({ type }: { type: QuestionType }) {
       {type}
     </span>
   );
+}
+
+interface ValidationRow {
+  id: number | string;
+  questionNo: string;
+  text: string;
+  type: QuestionType;
+  score: number;
+  tone: "high" | "medium" | "low";
+  reasons: string[];
+}
+
+function buildValidationRows(questions: Question[]): ValidationRow[] {
+  const normalizedTexts = questions.map((question) =>
+    question.text
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase()
+  );
+
+  return questions.map((question, index) => {
+    let score = 100;
+    const reasons: string[] = [];
+    const trimmedText = question.text.trim();
+    const options = (question.options ?? []).filter((option) => option.trim().length > 0);
+    const duplicateCount = normalizedTexts.filter((text) => text === normalizedTexts[index]).length;
+
+    if (trimmedText.length < 12) {
+      score -= 18;
+      reasons.push("문항 텍스트가 짧아 의도가 충분히 드러나지 않습니다.");
+    }
+
+    if (trimmedText.length > 90) {
+      score -= 8;
+      reasons.push("문항 문장이 길어 응답 피로를 유발할 수 있습니다.");
+    }
+
+    if (duplicateCount > 1) {
+      score -= 22;
+      reasons.push("유사하거나 중복된 문항이 포함되어 있습니다.");
+    }
+
+    if ((question.type === "단일선택" || question.type === "복수선택") && options.length < 2) {
+      score -= 24;
+      reasons.push("선택형 문항인데 선택지가 부족합니다.");
+    }
+
+    if ((question.type === "단일선택" || question.type === "복수선택") && options.length > 7) {
+      score -= 10;
+      reasons.push("선택지가 많아 응답 판단이 분산될 수 있습니다.");
+    }
+
+    if (question.type === "리커트척도" && options.length > 0 && options.length !== 5) {
+      score -= 14;
+      reasons.push("리커트 척도는 5점 구조가 가장 안정적입니다.");
+    }
+
+    if (question.type === "주관식" && options.length > 0) {
+      score -= 20;
+      reasons.push("주관식 문항에는 선택지가 없어야 합니다.");
+    }
+
+    if (!/[?？]|다음|얼마나|어느 정도|무엇|어떻게|왜|가장/.test(trimmedText)) {
+      score -= 8;
+      reasons.push("질문형 표현이 약해 응답자가 문항 의도를 바로 이해하기 어려울 수 있습니다.");
+    }
+
+    if (reasons.length === 0) {
+      reasons.push("문항 구조와 응답 형식이 안정적으로 설계되었습니다.");
+    }
+
+    const boundedScore = Math.max(48, Math.min(100, score));
+    return {
+      id: question.id,
+      questionNo: `Q${index + 1}`,
+      text: trimmedText,
+      type: question.type,
+      score: boundedScore,
+      tone: boundedScore >= 85 ? "high" : boundedScore >= 70 ? "medium" : "low",
+      reasons: reasons.slice(0, 2),
+    };
+  });
 }
 
 interface TooltipMenuProps {
@@ -125,7 +233,6 @@ function TooltipMenu({ onClose }: TooltipMenuProps) {
       {[
         { icon: <Settings size={13} />, label: "상세 설정" },
         { icon: <Sparkles size={13} />, label: "문항 품질체크" },
-        { icon: <ChevronRight size={13} />, label: "로직 설정" },
         { icon: <CheckSquare size={13} />, label: "필수 응답" },
       ].map((item) => (
         <button
@@ -304,23 +411,25 @@ const QUESTIONS_PER_PAGE = 5;
 export const SurveyChatPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const segmentFilter =
-    (
-      location.state as {
-        segmentFilter?: {
-          totalMatched: number;
-          totalPopulation: number;
-          hasFilters: boolean;
-          segments: Array<{ name: string; count: number }>;
-          personaIds: string[];
-          filterSummary: string;
-        };
-      } | null
-    )?.segmentFilter ?? null;
+  const routeState = (location.state as {
+    projectId?: string;
+    showEntryLoading?: boolean;
+    segmentFilter?: {
+      totalMatched: number;
+      totalPopulation: number;
+      hasFilters: boolean;
+      segments: Array<{ name: string; count: number }>;
+      personaIds: string[];
+      filterSummary: string;
+    };
+  } | null) ?? null;
+  const routeProjectId = routeState?.projectId ?? null;
+  const segmentFilter = routeState?.segmentFilter ?? null;
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [input, setInput] = useState("");
-  const { projectId } = useProject();
+  const { projectId } = useProject(routeProjectId);
+  const [entryLoading, setEntryLoading] = useState(Boolean(routeState?.showEntryLoading));
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [openMenu, setOpenMenu] = useState<number | string | null>(null);
   const [editingId, setEditingId] = useState<number | string | null>(null);
@@ -332,12 +441,19 @@ export const SurveyChatPage: React.FC = () => {
   const [confirming, setConfirming] = useState(false);
   const [qualityCheck, setQualityCheck] = useState<SurveyQualityCheckResponse | null>(null);
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
+  const [qualityCheckLoading, setQualityCheckLoading] = useState(false);
   const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("tpl_concept_test_v1");
+  const [initialDataReady, setInitialDataReady] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
   const pagedQuestions = questions.slice(currentPage * QUESTIONS_PER_PAGE, (currentPage + 1) * QUESTIONS_PER_PAGE);
+  const validationRows = useMemo(() => buildValidationRows(questions), [questions]);
+  const validationAverageScore =
+    validationRows.length > 0
+      ? Math.round(validationRows.reduce((sum, row) => sum + row.score, 0) / validationRows.length)
+      : qualityCheck?.score ?? 0;
   const generationStatus =
     activeJob?.status === "running" || activeJob?.status === "queued"
       ? "Generating"
@@ -349,26 +465,39 @@ export const SurveyChatPage: React.FC = () => {
   useEffect(() => {
     if (!projectId) return;
     const loadQuestions = async () => {
-      const [apiQuestions, apiTemplates] = await Promise.all([
-        surveyApi.getQuestions(projectId),
-        surveyApi.getTemplates(),
-      ]);
-      setTemplates(apiTemplates);
-      if (apiTemplates.length > 0) {
-        setSelectedTemplateId((current) =>
-          apiTemplates.some((item) => item.template_id === current) ? current : apiTemplates[0].template_id
-        );
-      }
-      if (apiQuestions.length > 0) {
-        setQuestions(
-          apiQuestions.map((q) => ({
-            id: q.id,
-            text: q.text,
-            type: q.type as QuestionType,
-            options: q.options ?? [],
-            status: q.status,
-          }))
-        );
+      try {
+        const [apiQuestions, apiTemplates] = await Promise.all([
+          surveyApi.getQuestions(projectId),
+          surveyApi.getTemplates(),
+        ]);
+        setTemplates(apiTemplates);
+        if (apiTemplates.length > 0) {
+          setSelectedTemplateId((current) =>
+            apiTemplates.some((item) => item.template_id === current) ? current : apiTemplates[0].template_id
+          );
+        }
+        if (apiQuestions.length > 0) {
+          setQuestions(
+            apiQuestions.map((q) => ({
+              id: q.id,
+              text: q.text,
+              type: normalizeQuestionType(q.type),
+              options: q.options ?? [],
+              status: q.status,
+            }))
+          );
+        }
+      } finally {
+        setInitialDataReady(true);
+        if (routeState?.showEntryLoading) {
+          window.setTimeout(() => {
+            setEntryLoading(false);
+            stopNavigationLoading();
+          }, 1200);
+        } else {
+          setEntryLoading(false);
+          stopNavigationLoading();
+        }
       }
     };
     void loadQuestions();
@@ -400,7 +529,7 @@ export const SurveyChatPage: React.FC = () => {
           apiQuestions.map((q) => ({
             id: q.id,
             text: q.text,
-            type: q.type as QuestionType,
+            type: normalizeQuestionType(q.type),
             options: q.options ?? [],
             status: q.status,
           }))
@@ -543,7 +672,7 @@ export const SurveyChatPage: React.FC = () => {
       saved.map((q) => ({
         id: q.id,
         text: q.text,
-        type: q.type as QuestionType,
+        type: normalizeQuestionType(q.type),
         options: q.options ?? [],
         status: q.status,
       }))
@@ -569,9 +698,14 @@ export const SurveyChatPage: React.FC = () => {
     if (!projectId) return;
     const synced = await syncQuestions();
     if (!synced) return;
-    const result = await geminiApi.checkSurveyQuality(projectId);
-    setQualityCheck(result);
-    setQualityCheckOpen(true);
+    setQualityCheckLoading(true);
+    try {
+      const result = await geminiApi.checkSurveyQuality(projectId);
+      setQualityCheck(result);
+      setQualityCheckOpen(true);
+    } finally {
+      setQualityCheckLoading(false);
+    }
   };
 
   const confirmSurvey = async () => {
@@ -596,7 +730,7 @@ export const SurveyChatPage: React.FC = () => {
         nextPreview.questions.map((q) => ({
           id: q.id,
           text: q.text,
-          type: q.type as QuestionType,
+          type: normalizeQuestionType(q.type),
           options: q.options ?? [],
           status: q.status,
         }))
@@ -612,16 +746,75 @@ export const SurveyChatPage: React.FC = () => {
     ]);
     setSyncStatus("saved");
     setConfirming(false);
+    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, projectId);
+    startNavigationLoading({
+      title: "실시간 응답 시뮬레이션 시작",
+      steps: [
+        "확정된 설문 구성을 반영하고 있습니다…",
+        "응답 대상과 세그먼트 조건을 불러오고 있습니다…",
+        "문항 데이터와 분석 구성을 연결하고 있습니다…",
+        "응답 피드와 모니터링을 초기화하고 있습니다…",
+        "실시간 응답 시뮬레이션을 시작하고 있습니다…",
+      ],
+    });
     navigate("/live", {
       state: {
         projectId,
         segmentFilter,
+        autoStartSimulation: true,
       },
     });
   };
 
+  const initialScreenLoading = entryLoading || !initialDataReady;
+
+  if (initialScreenLoading) {
+    if (routeState?.showEntryLoading) {
+      return <div className="flex h-full w-full flex-col overflow-hidden bg-background" />;
+    }
+
+    return (
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+        <AiLoadingModal
+          open
+          title="설문 디자인 준비"
+          steps={[
+            "선택한 세그먼트와 프로젝트 정보를 불러오고 있습니다…",
+            "설문 설계에 필요한 조건을 정리하고 있습니다…",
+            "추천 템플릿과 기존 문항을 확인하고 있습니다…",
+            "타겟 세그먼트에 맞는 질문 방향을 정리하고 있습니다…",
+            "설문 디자인 화면을 준비하고 있습니다…",
+          ]}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full w-full flex-col bg-background overflow-hidden">
+    <>
+      <AiLoadingModal
+        open={activeJob?.status === "queued" || activeJob?.status === "running"}
+        title="설문 생성"
+        steps={[
+          "입력한 요구사항과 세그먼트 조건을 분석하고 있습니다…",
+          "조사 목적에 맞는 문항 구조를 설계하고 있습니다…",
+          "질문 흐름과 응답 방식을 구성하고 있습니다…",
+          "핵심 문항과 선택지를 구체화하고 있습니다…",
+          "설문 초안을 생성해 화면에 반영하고 있습니다…",
+        ]}
+      />
+      <AiLoadingModal
+        open={qualityCheckLoading}
+        title="문항 품질 점검"
+        steps={[
+          "현재 설문 문항 구성을 검토하고 있습니다…",
+          "문항 중복과 응답 편향 가능성을 점검하고 있습니다…",
+          "질문 순서와 응답 흐름의 자연스러움을 확인하고 있습니다…",
+          "표현이 모호한 문항과 누락 항목을 확인하고 있습니다…",
+          "설문 품질 개선 포인트를 정리하고 있습니다…",
+        ]}
+      />
+      <div className="flex h-full w-full flex-col bg-background overflow-hidden">
       <WorkflowStepper currentPath="/survey" />
 
       {/* ── 페이지 헤더 ── */}
@@ -762,13 +955,22 @@ export const SurveyChatPage: React.FC = () => {
                 </p>
               </div>
             </div>
-            <button
-              onClick={addQuestion}
-              className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-[var(--shadow-sm)])] active:scale-95 text-[13px]"
-            >
-              <Plus size={15} strokeWidth={2.5} />
-              문항 추가
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-2 text-[12px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+              >
+                <ChevronRight size={14} />
+                전체 로직 설정
+              </button>
+              <button
+                onClick={addQuestion}
+                className="flex items-center gap-2 bg-primary text-white px-5 py-2 rounded-xl font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-[var(--shadow-sm)])] active:scale-95 text-[13px]"
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                문항 추가
+              </button>
+            </div>
           </div>
 
           {/* Questions List */}
@@ -937,7 +1139,9 @@ export const SurveyChatPage: React.FC = () => {
                 미리보기
               </button>
               <button
-                onClick={openQualityCheck}
+                onClick={() => {
+                  void confirmSurvey();
+                }}
                 disabled={!projectId || syncStatus === "saving" || confirming}
                 className="px-8 py-2.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary-hover transition-colors shadow-[var(--shadow-sm)] active:scale-95 text-[13px] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -958,44 +1162,111 @@ export const SurveyChatPage: React.FC = () => {
         ) : null}
         {qualityCheckOpen && (
           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-            <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-[28px] bg-card shadow-2xl animate-in zoom-in-95 duration-300">
-              <div className="border-b border-[var(--border)] px-7 py-6">
+            <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-card shadow-2xl animate-in zoom-in-95 duration-300">
+              <div className="border-b border-[var(--border)] px-8 py-6">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-white">
                     <ShieldCheck size={20} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary">AI Quality Review</p>
-                    <h2 className="text-[18px] font-black text-foreground">설문 품질 검토 결과</h2>
+                    <h2 className="text-[22px] font-black text-foreground">설문 구조 검증 결과</h2>
                   </div>
                 </div>
               </div>
-              <div className="space-y-5 px-7 py-6">
+              <div className="overflow-y-auto px-8 py-6">
                 {qualityCheck ? (
                   <>
-                    <div className="flex items-center gap-4">
-                      <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 border-primary bg-[var(--primary-light-bg)]">
-                        <span className="text-[20px] font-black text-primary">{qualityCheck.score}</span>
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
-                          품질 점수
-                        </p>
-                        <p className="text-[13px] font-bold text-foreground">
-                          {qualityCheck.score >= 85
-                            ? "우수한 설문 구성입니다."
-                            : qualityCheck.score >= 70
-                              ? "양호한 설문 구성입니다."
-                              : "개선이 필요합니다."}
-                        </p>
+                    <div className="mb-6 rounded-[28px] border border-[var(--border)] bg-[linear-gradient(135deg,var(--panel-soft),rgba(255,255,255,0.92))] px-6 py-6">
+                      <div className="flex items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                          <div className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-primary bg-[var(--primary-light-bg)]">
+                            <span className="text-[24px] font-black text-primary">{validationAverageScore}</span>
+                          </div>
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                              전체 평균 점수
+                            </p>
+                            <p className="mt-1 text-[15px] font-bold text-foreground">
+                              {validationAverageScore >= 85
+                                ? "설문 항목 구성이 전반적으로 안정적입니다."
+                                : validationAverageScore >= 70
+                                  ? "전체 구조는 양호하지만 일부 문항은 다듬는 편이 좋습니다."
+                                  : "문항 구성의 구조 보완이 필요합니다."}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+                            검증 대상
+                          </p>
+                          <p className="mt-1 text-[22px] font-black text-foreground">{validationRows.length}개 문항</p>
+                        </div>
                       </div>
                     </div>
-                    {qualityCheck.strengths.length > 0 && (
+
+                    <div className="mb-6 overflow-hidden rounded-[24px] border border-[var(--border)]">
+                      <table className="w-full text-left text-[13px]">
+                        <thead className="bg-[var(--panel-soft)]">
+                          <tr className="border-b border-[var(--border)]">
+                            <th className="px-5 py-3.5 font-black uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                              문항
+                            </th>
+                            <th className="px-5 py-3.5 font-black uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                              항목 설명
+                            </th>
+                            <th className="w-[120px] px-5 py-3.5 text-center font-black uppercase tracking-[0.14em] text-[var(--muted-foreground)]">
+                              점수
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border)] bg-card">
+                          {validationRows.map((row) => (
+                            <tr key={row.id} className="align-top">
+                              <td className="whitespace-nowrap px-5 py-4">
+                                <div className="space-y-2">
+                                  <span className="inline-flex rounded-lg bg-[var(--panel-soft)] px-2.5 py-1 text-[11px] font-black text-foreground">
+                                    {row.questionNo}
+                                  </span>
+                                  <div>
+                                    <TypeBadge type={row.type} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-4">
+                                <div className="space-y-1.5">
+                                  <p className="font-bold leading-relaxed text-foreground">{row.text}</p>
+                                  {row.reasons.map((reason) => (
+                                    <p key={`${row.id}-${reason}`} className="text-[12px] font-medium text-[var(--muted-foreground)]">
+                                      {reason}
+                                    </p>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="px-5 py-4 text-center">
+                                <span
+                                  className={cn(
+                                    "inline-flex min-w-[78px] items-center justify-center rounded-lg px-3 py-2 text-[13px] font-black",
+                                    row.tone === "high" && "bg-[var(--success-light)] text-[var(--success)]",
+                                    row.tone === "medium" && "bg-amber-50 text-amber-700",
+                                    row.tone === "low" && "bg-red-50 text-[var(--destructive)]"
+                                  )}
+                                >
+                                  {row.score}/100
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="grid gap-5 md:grid-cols-2">
                       <div>
                         <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--muted-foreground)]">
                           강점
                         </p>
-                        <ul className="space-y-1">
+                        <ul className="space-y-1.5">
                           {qualityCheck.strengths.map((s) => (
                             <li
                               key={s}
@@ -1007,13 +1278,11 @@ export const SurveyChatPage: React.FC = () => {
                           ))}
                         </ul>
                       </div>
-                    )}
-                    {qualityCheck.issues.length > 0 && (
                       <div>
                         <p className="mb-2 text-[11px] font-black uppercase tracking-wider text-[var(--muted-foreground)]">
                           개선 필요
                         </p>
-                        <ul className="space-y-1">
+                        <ul className="space-y-1.5">
                           {qualityCheck.issues.map((issue) => (
                             <li
                               key={issue}
@@ -1025,14 +1294,14 @@ export const SurveyChatPage: React.FC = () => {
                           ))}
                         </ul>
                       </div>
-                    )}
-                    {qualityCheck.suggestion && (
-                      <div className="rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
-                        <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">
-                          💡 {qualityCheck.suggestion}
-                        </p>
-                      </div>
-                    )}
+                      {qualityCheck.suggestion && (
+                        <div className="md:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] px-4 py-3">
+                          <p className="text-[12px] font-bold text-[var(--secondary-foreground)]">
+                            💡 {qualityCheck.suggestion}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </>
                 ) : (
                   <p className="text-[13px] font-medium text-[var(--muted-foreground)]">
@@ -1040,7 +1309,7 @@ export const SurveyChatPage: React.FC = () => {
                   </p>
                 )}
               </div>
-              <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] px-7 py-4">
+              <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] px-8 py-4">
                 <button
                   onClick={() => setQualityCheckOpen(false)}
                   className="rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-semibold text-[var(--secondary-foreground)] hover:bg-[var(--surface-hover)] transition-colors"
@@ -1059,6 +1328,7 @@ export const SurveyChatPage: React.FC = () => {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 };

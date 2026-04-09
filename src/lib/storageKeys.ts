@@ -7,4 +7,6 @@ export const STORAGE_KEYS = {
   CURRENT_PROJECT_NAME: "currentProjectName",
   /** 현재 선택된 프로젝트 ID (워크플로우 네비게이션용) */
   CURRENT_PROJECT_ID: "currentProjectId",
+  /** 분석 결과 리포트 진입 가능 여부 */
+  WORKFLOW_REPORT_READY: "workflowReportReady",
 } as const;
