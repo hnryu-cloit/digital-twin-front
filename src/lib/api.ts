@@ -1,5 +1,8 @@
 import axios from "axios";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
+import * as MOCK from "@/lib/mockData";
+
+const IS_MOCK = import.meta.env.VITE_MOCK_MODE === "true";
 
 // 백엔드 FastAPI 기본 URL (로컬 개발 환경 기준)
 export const apiClient = axios.create({
@@ -188,6 +191,7 @@ export interface DataTableSummary {
 }
 
 export async function resolveDefaultProjectId(): Promise<string | null> {
+  if (IS_MOCK) return MOCK.MOCK_PROJECT_ID;
   if (!_defaultProjectIdPromise) {
     _defaultProjectIdPromise = (async () => {
       try {
@@ -268,6 +272,10 @@ function mapProject(raw: any): Project {
 
 export const projectApi = {
   getProjects: async (page = 1, size = 10): Promise<ProjectListResponse> => {
+    if (IS_MOCK) {
+      const start = (page - 1) * size;
+      return { items: MOCK.MOCK_PROJECTS.slice(start, start + size), page, size, total: MOCK.MOCK_PROJECTS.length };
+    }
     try {
       const { data } = await apiClient.get(`/projects?page=${page}&size=${size}`);
       const items: Project[] = (data.items ?? []).map(mapProject);
@@ -278,6 +286,7 @@ export const projectApi = {
     }
   },
   createProject: async (payload: ProjectCreatePayload): Promise<ProjectDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_PROJECT_DETAIL, name: payload.name, type: payload.type };
     try {
       const { data } = await apiClient.post("/projects", payload);
       _defaultProjectIdPromise = Promise.resolve(data.id ?? null);
@@ -288,6 +297,7 @@ export const projectApi = {
     }
   },
   getProject: async (projectId: string): Promise<ProjectDetail | null> => {
+    if (IS_MOCK) return MOCK.MOCK_PROJECT_DETAIL;
     try {
       const { data } = await apiClient.get(`/projects/${projectId}`);
       return data;
@@ -297,6 +307,7 @@ export const projectApi = {
     }
   },
   getProjectOptions: async (): Promise<ProjectOption[]> => {
+    if (IS_MOCK) return MOCK.MOCK_PROJECT_OPTIONS;
     try {
       const { data } = await apiClient.get("/projects?page=1&size=100");
       return (data.items ?? []).map((item: { id: string; name?: string; title?: string }) => ({
@@ -357,6 +368,7 @@ export const personaApi = {
     size = 12,
     search = ""
   ): Promise<PersonaListResponse> => {
+    if (IS_MOCK) return MOCK.getMockPersonaPage(page, size, search);
     try {
       const query = new URLSearchParams({ page: String(page), size: String(size) });
       if (projectId) query.set("project_id", projectId);
@@ -369,6 +381,7 @@ export const personaApi = {
     }
   },
   getPersona: async (personaId: string): Promise<PersonaDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_PERSONA_DETAIL, id: personaId };
     try {
       const { data } = await apiClient.get(`/personas/${personaId}`);
       return data;
@@ -407,6 +420,7 @@ export const personaApi = {
 
 export const segmentApi = {
   getFilterOptions: async (projectId?: string): Promise<SegmentFilterOptions | null> => {
+    if (IS_MOCK) return MOCK.MOCK_SEGMENT_FILTER_OPTIONS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const query = resolvedProjectId ? `?project_id=${resolvedProjectId}` : "";
@@ -498,6 +512,7 @@ export interface AIJob {
 
 export const surveyApi = {
   getTemplates: async (): Promise<SurveyTemplate[]> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_TEMPLATES;
     try {
       const { data } = await apiClient.get("/surveys/templates");
       return data.items ?? [];
@@ -507,6 +522,7 @@ export const surveyApi = {
     }
   },
   getQuestions: async (projectId?: string): Promise<SurveyQuestion[]> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_QUESTIONS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -518,6 +534,7 @@ export const surveyApi = {
     }
   },
   getPreview: async (projectId?: string): Promise<SurveyDraftPreview | null> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_PREVIEW;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -573,6 +590,10 @@ export const surveyApi = {
 
 export const aiJobApi = {
   listJobs: async (params?: { projectId?: string; jobType?: string }): Promise<{ items: AIJob[]; total: number }> => {
+    if (IS_MOCK) {
+      const jobs = params?.jobType ? MOCK.MOCK_AI_JOBS.filter((j) => j.job_type === params.jobType) : MOCK.MOCK_AI_JOBS;
+      return { items: jobs, total: jobs.length };
+    }
     try {
       const query = new URLSearchParams();
       const resolvedProjectId = params?.projectId ?? (await resolveDefaultProjectId());
@@ -591,6 +612,7 @@ export const aiJobApi = {
     }
   },
   getJob: async (jobId: string): Promise<AIJob | null> => {
+    if (IS_MOCK) return MOCK.MOCK_AI_JOBS.find((j) => j.id === jobId) ?? null;
     try {
       const { data } = await apiClient.get(`/ai/jobs/${jobId}`);
       return data;
@@ -600,6 +622,7 @@ export const aiJobApi = {
     }
   },
   cancelJob: async (jobId: string): Promise<AIJob | null> => {
+    if (IS_MOCK) return MOCK.MOCK_AI_JOBS.find((j) => j.id === jobId) ?? null;
     try {
       const { data } = await apiClient.post(`/ai/jobs/${jobId}/cancel`);
       return data;
@@ -685,6 +708,7 @@ export interface KeywordTrendItem {
 
 export const simulationApi = {
   getProgress: async (projectId?: string): Promise<SimulationProgress | null> => {
+    if (IS_MOCK) return MOCK.MOCK_SIMULATION_PROGRESS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -696,6 +720,7 @@ export const simulationApi = {
     }
   },
   getFeed: async (projectId?: string, limit = 20): Promise<SimulationFeedItem[]> => {
+    if (IS_MOCK) return MOCK.MOCK_SIMULATION_FEED.slice(0, limit);
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -707,6 +732,7 @@ export const simulationApi = {
     }
   },
   getDistribution: async (projectId: string | undefined, questionId: string): Promise<ResponseDistributionItem[]> => {
+    if (IS_MOCK) return MOCK.MOCK_RESPONSE_DISTRIBUTIONS[questionId] ?? MOCK.MOCK_RESPONSE_DISTRIBUTIONS["q-001"];
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -720,6 +746,7 @@ export const simulationApi = {
     }
   },
   getInsight: async (projectId: string | undefined, questionId: string): Promise<InsightResponse | null> => {
+    if (IS_MOCK) return MOCK.MOCK_INSIGHT;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -733,6 +760,7 @@ export const simulationApi = {
     }
   },
   getKeywords: async (projectId?: string): Promise<KeywordTrendItem[]> => {
+    if (IS_MOCK) return MOCK.MOCK_KEYWORDS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -750,6 +778,7 @@ export const simulationApi = {
     page = 1,
     size = 20
   ): Promise<ResponseListResponse> => {
+    if (IS_MOCK) return MOCK.MOCK_RESPONSES;
     try {
       const params = new URLSearchParams({ project_id: projectId, page: String(page), size: String(size) });
       if (questionId) params.set("question_id", questionId);
@@ -762,6 +791,7 @@ export const simulationApi = {
     }
   },
   control: async (projectId: string | undefined, action: "start" | "stop"): Promise<void> => {
+    if (IS_MOCK) return;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return;
@@ -866,6 +896,7 @@ export interface ReportDownloadInfo {
 
 export const reportApi = {
   generateJob: async (payload: { project_id: string; report_type?: string }): Promise<AIJob | null> => {
+    if (IS_MOCK) return MOCK.MOCK_AI_JOBS[3];
     try {
       const { data } = await apiClient.post("/reports/generate-job", payload);
       return data;
@@ -875,6 +906,7 @@ export const reportApi = {
     }
   },
   getReport: async (reportId: string): Promise<ReportDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_REPORT_DETAIL, id: reportId };
     try {
       const { data } = await apiClient.get(`/reports/${reportId}`);
       return data;
@@ -889,6 +921,12 @@ export const reportApi = {
     size = 10,
     search?: string
   ): Promise<{ items: ReportSummary[]; total: number }> => {
+    if (IS_MOCK) {
+      const filtered = search
+        ? MOCK.MOCK_REPORT_SUMMARIES.filter((r) => r.title.includes(search))
+        : MOCK.MOCK_REPORT_SUMMARIES;
+      return { items: filtered, total: filtered.length };
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return { items: [], total: 0 };
@@ -906,6 +944,13 @@ export const reportApi = {
     }
   },
   getDownloadInfo: async (reportId: string, format = "pdf"): Promise<ReportDownloadInfo | null> => {
+    if (IS_MOCK)
+      return {
+        report_id: reportId,
+        format,
+        download_url: "#",
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      };
     try {
       const { data } = await apiClient.get(`/reports/${reportId}/download?format=${format}`);
       return data;
