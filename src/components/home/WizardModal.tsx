@@ -147,6 +147,12 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    // step 2(데이터 연결)에서만 프로젝트를 생성한다.
+    // 검색창 Enter 등 브라우저 암묵적 submit이 이전 단계에서 발생해도 무시.
+    if (step !== 2) {
+      handleNext();
+      return;
+    }
     const combinedDataSources = [
       ...form.data_sources,
       ...form.custom_data_sources
