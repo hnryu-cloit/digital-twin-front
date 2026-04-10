@@ -7,6 +7,7 @@ import react from '@vitejs/plugin-react'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
+  base: '/digital-twin-front/',
   plugins: [
     react(),
     tailwindcss(),

@@ -80,6 +80,9 @@ npm run preview
 
 # 린트
 npm run lint
+
+# GitHub Pages 배포
+npm run deploy
 ```
 
 ### 사전 요구사항
@@ -93,9 +96,36 @@ source .venv/bin/activate
 uvicorn app.main:app --reload
 ```
 
+### GitHub Pages 배포
+
+- 이 저장소는 GitHub Pages의 프로젝트 페이지 경로인 `/digital-twin-front/`를 기준으로 빌드됩니다.
+- `vite.config.ts`의 `base`와 `src/main.tsx`의 `BrowserRouter basename`이 같은 경로를 사용하도록 맞춰져 있습니다.
+- 최초 배포 시 `npm run deploy`를 실행하면 `dist` 내용이 `gh-pages` 브랜치로 배포됩니다.
+- 이후 GitHub 저장소의 `Settings > Pages`에서 배포 브랜치를 `gh-pages`로 지정하면 됩니다.
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  base: "/digital-twin-front/",
+});
+```
+
+```tsx
+// src/main.tsx
+<BrowserRouter basename={import.meta.env.BASE_URL}>
+  <App />
+</BrowserRouter>
+```
+
+```bash
+npm install -D gh-pages
+npm run deploy
+```
+
 ### 환경변수 (`.env`)
 
-현재 코드에서 `import.meta.env` 사용이 없어 **필수 환경변수가 없습니다**.
+현재 프런트엔드는 GitHub Pages 경로 처리를 위해 `import.meta.env.BASE_URL`을 사용합니다.
 API Base URL 변경이 필요하면 `src/lib/api.ts`의 `baseURL`을 수정하세요.
 
 ---

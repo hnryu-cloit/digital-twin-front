@@ -1,6 +1,6 @@
 import type React from "react";
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   fetchIndividualPersonas,
   geminiApi,
@@ -38,6 +38,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
+import { startNavigationLoading, stopNavigationLoading } from "@/lib/navigationLoading";
 
 /* ─── Persona Pool ─── */
 type PersonaSegment = string; // AI가 동적으로 생성하므로 고정 목록 없음
@@ -224,6 +226,20 @@ const SEGMENT_SPEND: Record<string, SpendingLevel> = {
   "콘텐츠 크리에이터": "실용형",
 };
 
+const SEGMENT_PURCHASE_INTENT: Record<string, PurchaseIntent> = {
+  "MZ 얼리어답터": "높음",
+  "게이밍 성향군": "높음",
+  "프리미엄 구매자": "높음",
+  "비즈니스 프로": "보통",
+  "실용 중시 가족형": "보통",
+  "콘텐츠 크리에이터": "보통",
+  "테크 얼리어답터": "높음",
+  "브랜드 충성고객": "높음",
+  "실용주의 소비자": "보통",
+  "가성비 추구형": "보통",
+  "신중한 비교구매자": "낮음",
+};
+
 const CHANNEL_MAP: Record<string, string> = {
   YouTube: "YouTube",
   Instagram: "Instagram",
@@ -238,13 +254,22 @@ const BUY_CHANNEL_MAP: Record<string, string> = {
   LinkedIn: "오프라인 유통",
 };
 
+const ASSUMED_TOTAL_POPULATION = 30000;
+const ASSUMED_ANALYZED_POPULATION = 18740;
+
 /* ─── Main Component ─── */
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const routeState =
+    (location.state as {
+      showEntryLoading?: boolean;
+    } | null) ?? null;
   const { project, projectId } = useProject();
   const [allPersonas, setAllPersonas] = useState<FilterPersona[]>([]);
   const [filterOptions, setFilterOptions] = useState<SegmentFilterOptions | null>(null);
   const [loading, setLoading] = useState(true);
+  const [entryLoading, setEntryLoading] = useState(Boolean(routeState?.showEntryLoading));
 
   useEffect(() => {
     if (projectId === null) return; // useProject가 아직 resolve 중
@@ -276,10 +301,13 @@ export const DashboardPage: React.FC = () => {
           interests: item.interests?.length ? item.interests : ["스마트폰"],
           keywords: item.keywords?.length ? item.keywords : ["성능"],
           spendingLevel: (SEGMENT_SPEND[item.segment] ?? "실용형") as SpendingLevel,
-          purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as
-            | "높음"
-            | "보통"
-            | "낮음",
+          purchaseIntent:
+            typeof item.purchase_intent === "number"
+              ? ((item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as
+                  | "높음"
+                  | "보통"
+                  | "낮음")
+              : ((SEGMENT_PURCHASE_INTENT[item.segment] ?? "보통") as PurchaseIntent),
           brandLoyalty: (item.brand_attitude >= 80
             ? "높음"
             : item.brand_attitude >= 65
@@ -326,7 +354,17 @@ export const DashboardPage: React.FC = () => {
       } catch (error) {
         console.error("Dashboard data load failed:", error);
       } finally {
-        setLoading(false);
+        if (routeState?.showEntryLoading) {
+          window.setTimeout(() => {
+            setLoading(false);
+            setEntryLoading(false);
+            stopNavigationLoading();
+          }, 1200);
+        } else {
+          setLoading(false);
+          setEntryLoading(false);
+          stopNavigationLoading();
+        }
       }
     };
     void loadData();
@@ -557,30 +595,34 @@ export const DashboardPage: React.FC = () => {
     ].reduce((s, a) => s + a.length, 0) + (gender.male && gender.female ? 0 : 1);
 
   const displayedPersonas = hasFilters ? matchedPersonas : allPersonas;
-  const totalPopulation = allPersonas.length;
-  const analyzedPopulation = displayedPersonas.length;
+  const displayedSampleCount = displayedPersonas.length;
+  const mockSampleSize = Math.max(allPersonas.length, 1);
+  const scaleToAnalyzedPopulation = (count: number) =>
+    Math.round((count / mockSampleSize) * ASSUMED_ANALYZED_POPULATION);
+  const totalPopulation = ASSUMED_TOTAL_POPULATION;
+  const analyzedPopulation = hasFilters ? scaleToAnalyzedPopulation(displayedSampleCount) : ASSUMED_ANALYZED_POPULATION;
   const averageAge =
-    analyzedPopulation > 0
-      ? (displayedPersonas.reduce((sum, persona) => sum + persona.age, 0) / analyzedPopulation).toFixed(1)
+    displayedSampleCount > 0
+      ? (displayedPersonas.reduce((sum, persona) => sum + persona.age, 0) / displayedSampleCount).toFixed(1)
       : "0.0";
   const maleRatio =
-    analyzedPopulation > 0
-      ? Math.round((displayedPersonas.filter((persona) => persona.gender === "남성").length / analyzedPopulation) * 100)
+    displayedSampleCount > 0
+      ? Math.round((displayedPersonas.filter((persona) => persona.gender === "남성").length / displayedSampleCount) * 100)
       : 0;
   const averagePurchaseIntent =
-    analyzedPopulation > 0
+    displayedSampleCount > 0
       ? Math.round(
-          (displayedPersonas.filter((persona) => persona.purchaseIntent === "높음").length / analyzedPopulation) * 100
+          (displayedPersonas.filter((persona) => persona.purchaseIntent === "높음").length / displayedSampleCount) * 100
         )
       : 0;
 
   const donutData = useMemo(() => {
-    const base = derivedSegments.slice(0, 5);
-    return base.map((segment) => ({
-      name: segment.name,
-      value: analyzedPopulation > 0 ? Math.round((segment.members.length / analyzedPopulation) * 100) : 0,
-    }));
-  }, [derivedSegments, analyzedPopulation]);
+      const base = derivedSegments.slice(0, 5);
+      return base.map((segment) => ({
+        name: segment.name,
+        value: displayedSampleCount > 0 ? Math.round((segment.members.length / displayedSampleCount) * 100) : 0,
+      }));
+  }, [derivedSegments, displayedSampleCount]);
 
   const channelData = useMemo(() => {
     const counts = displayedPersonas.reduce<Record<string, number>>((acc, persona) => {
@@ -592,10 +634,10 @@ export const DashboardPage: React.FC = () => {
       .slice(0, 4)
       .map(([label, count], index) => ({
         label,
-        value: analyzedPopulation > 0 ? Math.round((count / analyzedPopulation) * 100) : 0,
+        value: displayedSampleCount > 0 ? Math.round((count / displayedSampleCount) * 100) : 0,
         color: DONUT_COLORS[index % DONUT_COLORS.length],
       }));
-  }, [displayedPersonas, analyzedPopulation]);
+  }, [displayedPersonas, displayedSampleCount]);
 
   const regionOptions = filterOptions?.regions.map((item) => item.label) ?? [];
   const householdOptions = filterOptions?.households.map((item) => item.label) ?? [];
@@ -604,19 +646,42 @@ export const DashboardPage: React.FC = () => {
   const contentChannelOptions = filterOptions?.content_channels.map((item) => item.label) ?? [];
   const productOptions = filterOptions?.product_groups ?? [];
 
-  if (loading) {
+  if (loading || entryLoading) {
+    if (routeState?.showEntryLoading) {
+      return <div className="flex h-full w-full flex-col overflow-hidden bg-background" />;
+    }
+
     return (
-      <div className="flex h-screen items-center justify-center bg-[var(--background)]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
-          <p className="text-sm font-medium text-[var(--muted-foreground)]">실시간 디지털 트윈 데이터를 분석 중..</p>
-        </div>
+      <div className="relative flex h-screen items-center justify-center overflow-hidden bg-background">
+        <AiLoadingModal
+        open
+        title="세그먼트 분석 준비"
+        steps={[
+          "프로젝트와 세그먼트 데이터를 불러오고 있습니다…",
+          "디지털 트윈 모집단을 정렬하고 있습니다…",
+          "분석 필터와 기준 조건을 구성하고 있습니다…",
+          "주요 세그먼트 분포와 기준값을 계산하고 있습니다…",
+          "세그먼트 분석 화면을 준비하고 있습니다…",
+        ]}
+      />
       </div>
     );
   }
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+    <>
+      <AiLoadingModal
+        open={recommendationLoading}
+        title="추천 필터 분석"
+        steps={[
+          "현재 프로젝트와 세그먼트 데이터를 검토하고 있습니다…",
+          "타겟 조건별 차이를 비교하고 있습니다…",
+          "유의미한 필터 조합을 추리고 있습니다…",
+          "적용 우선순위가 높은 조건을 정리하고 있습니다…",
+          "추천 근거와 활용 포인트를 정리하고 있습니다…",
+        ]}
+      />
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
       <WorkflowStepper currentPath="/analytics" />
 
       <div className="flex flex-1 overflow-hidden">
@@ -1281,9 +1346,9 @@ export const DashboardPage: React.FC = () => {
                 <p
                   className={`text-[20px] font-bold leading-none mt-0.5 ${displayedPersonas.length > 0 ? "text-foreground" : "text-red-400"}`}
                 >
-                  {displayedPersonas.length.toLocaleString()}
+                  {analyzedPopulation.toLocaleString()}
                   <span className="text-[13px] font-semibold ml-1 text-[var(--muted-foreground)]">
-                    명 / {allPersonas.length.toLocaleString()}명
+                    명 / {ASSUMED_ANALYZED_POPULATION.toLocaleString()}명
                   </span>
                 </p>
               </div>
@@ -1339,14 +1404,25 @@ export const DashboardPage: React.FC = () => {
                   );
                 }
 
+                startNavigationLoading({
+                  title: "설문 디자인 준비",
+                  steps: [
+                    "세그먼트와 프로젝트 정보를 전달하고 있습니다…",
+                    "설문 설계 조건을 정리하고 있습니다…",
+                    "타겟 요약과 필터 정보를 연결하고 있습니다…",
+                    "설문 구성을 준비하고 있습니다…",
+                    "설문 디자인 화면을 준비하고 있습니다…",
+                  ],
+                });
                 navigate("/survey", {
                   state: {
+                    showEntryLoading: true,
                     projectId: project?.id ?? null,
                     segmentFilter: {
-                      totalMatched: displayedPersonas.length,
-                      totalPopulation: allPersonas.length,
+                      totalMatched: analyzedPopulation,
+                      totalPopulation,
                       hasFilters,
-                      segments: derivedSegments.map((s) => ({ name: s.name, count: s.members.length })),
+                      segments: derivedSegments.map((s) => ({ name: s.name, count: scaleToAnalyzedPopulation(s.members.length) })),
                       personaIds: displayedPersonas.map((p) => p.id),
                       filterSummary: filterSummaryParts.length > 0 ? filterSummaryParts.join(" · ") : "전체 모집단",
                     },
@@ -1378,8 +1454,8 @@ export const DashboardPage: React.FC = () => {
             </h1>
             <p className="app-page-description">
               {hasFilters
-                ? `설정된 필터 조건에 부합하는 페르소나 ${matchedPersonas.length.toLocaleString()}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
-                : `${project?.name ?? "현재 프로젝트"}의 실제 API 응답 기준 분석 데이터입니다. 전체 모집단 ${totalPopulation.toLocaleString()}명 중 현재 분석 대상은 ${analyzedPopulation.toLocaleString()}명입니다.`}
+                ? `설정된 필터 조건에 부합하는 페르소나 ${analyzedPopulation.toLocaleString()}명 기준으로 ${derivedSegments.length}개의 세그먼트 그룹이 도출되었습니다.`
+                : `전체 모집단 ${totalPopulation.toLocaleString()}명 가정 중 분석 대상 ${ASSUMED_ANALYZED_POPULATION.toLocaleString()}명을 기준으로 한 목업 데이터입니다.`}
             </p>
           </div>
 
@@ -1465,7 +1541,7 @@ export const DashboardPage: React.FC = () => {
                     ].map((s) => (
                       <div
                         key={s.label}
-                        className="bg-[var(--panel-soft)] rounded-xl p-3.5 border border-[var(--border)] hover:bg-[var(--surface-hover)] transition-all group/stat min-w-0"
+                        className="rounded-xl border border-[var(--border)] bg-white p-3.5 transition-all hover:bg-[var(--surface-hover)] group/stat min-w-0"
                       >
                         <p className="text-[10px] text-[var(--subtle-foreground)] font-bold uppercase flex items-center gap-1 whitespace-nowrap overflow-hidden">
                           {s.icon}
@@ -1478,7 +1554,7 @@ export const DashboardPage: React.FC = () => {
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-8 bg-[var(--panel-soft)] p-8 rounded-3xl border border-[var(--border)] shadow-inner relative z-10 shrink-0">
+                <div className="relative z-10 flex shrink-0 items-center gap-8 rounded-3xl border border-[var(--border)] bg-white p-8 shadow-inner">
                   <div style={{ width: 180, height: 180 }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
@@ -1578,8 +1654,8 @@ export const DashboardPage: React.FC = () => {
                   <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
                   <span className="text-[10px] font-semibold text-[var(--subtle-foreground)] uppercase tracking-tight">
                     {hasFilters
-                      ? `${matchedPersonas.length.toLocaleString()}명 매칭`
-                      : `전체 ${allPersonas.length.toLocaleString()}명`}
+                      ? `${analyzedPopulation.toLocaleString()}명 매칭`
+                      : `전체 ${ASSUMED_ANALYZED_POPULATION.toLocaleString()}명`}
                   </span>
                 </div>
               </div>
@@ -1626,7 +1702,7 @@ export const DashboardPage: React.FC = () => {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-[22px] font-black leading-none" style={{ color: segText }}>
-                              {seg.members.length.toLocaleString()}
+                              {scaleToAnalyzedPopulation(seg.members.length).toLocaleString()}
                               <span className="text-[12px] font-semibold text-[var(--muted-foreground)] ml-0.5">
                                 명
                               </span>
@@ -1728,6 +1804,7 @@ export const DashboardPage: React.FC = () => {
           </main>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };

@@ -5,11 +5,14 @@ import {
   personaApi,
   projectApi,
   type AIJob,
+  type Persona as ApiPersona,
+  type PersonaDetail as ApiPersonaDetail,
   type PersonaIndividualStory,
   type ProjectDetail,
   type ProjectOption,
 } from "@/lib/api";
 import { AppPagination } from "@/components/ui/AppPagination";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,25 +76,31 @@ interface Persona {
   purchaseHistory: string[];
   individualStories: PersonaIndividualStory[];
   userLogs: string[];
+  cotSteps: string[];
   brandAttitude: number;
 }
 
 const SEGMENT_COLORS: Record<Segment, { bg: string; text: string; border: string }> = {
   "MZ 얼리어답터": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
-  "프리미엄 구매자": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
-  "실용 중시 가족형": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
-  "게이밍 성향군": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
-  "비즈니스 프로": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
+  "프리미엄 구매자": { bg: "#fff3e8", text: "#c76b00", border: "#ffd7a8" },
+  "실용 중시 가족형": { bg: "#eefaf1", text: "#22804f", border: "#c4e8d0" },
+  "게이밍 성향군": { bg: "#f6efff", text: "#7a44d1", border: "#dac8ff" },
+  "비즈니스 프로": { bg: "#eef8f7", text: "#1c7f79", border: "#bee7e2" },
+  "테크 얼리어답터": { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" },
+  "실용주의 소비자": { bg: "#eefaf1", text: "#22804f", border: "#c4e8d0" },
+  "가성비 추구형": { bg: "#fff8e8", text: "#b7791f", border: "#f2d59d" },
+  "브랜드 충성고객": { bg: "#fff1f5", text: "#cc4b78", border: "#f3c2d4" },
+  "신중한 비교구매자": { bg: "#f3f4f6", text: "#4b5563", border: "#d7dbe2" },
 };
 
 const DEFAULT_SEGMENT_COLOR = { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" };
 
 const ICON_META = [
   { bg: "#eef3ff", color: "#2f66ff" },
-  { bg: "#eef3ff", color: "#2f66ff" },
-  { bg: "#eef3ff", color: "#2f66ff" },
-  { bg: "#eef3ff", color: "#2f66ff" },
-  { bg: "#eef3ff", color: "#2f66ff" },
+  { bg: "#fff3e8", color: "#c76b00" },
+  { bg: "#eefaf1", color: "#22804f" },
+  { bg: "#f6efff", color: "#7a44d1" },
+  { bg: "#eef8f7", color: "#1c7f79" },
 ];
 const CARD_PAGE_SIZE = 9;
 const LIST_PAGE_SIZE = 20;
@@ -108,9 +117,65 @@ function PersonaIcon({ iconKey, size = 20 }: { iconKey: number; size?: number })
   return <span style={{ color: ICON_META[iconKey % 5].color }}>{icons[iconKey % 5]}</span>;
 }
 
+function CotModal({ persona, onClose }: { persona: Persona; onClose: () => void }) {
+  return (
+    <div className="app-modal-overlay z-[160]">
+      <div className="app-modal max-w-3xl animate-in zoom-in-95 duration-300">
+        <div className="app-modal-header">
+          <div className="flex items-center gap-4">
+            <div
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[var(--border)]"
+              style={{ backgroundColor: persona.iconBg, color: persona.color }}
+            >
+              <Brain size={22} />
+            </div>
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Chain Of Thought</p>
+              <h2 className="mt-1 text-[20px] font-black tracking-tight text-foreground">{persona.name} CoT 전체보기</h2>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={onClose}
+            className="h-10 w-10 text-[var(--subtle-foreground)] border-[var(--border)] hover:bg-[var(--surface-hover)] hover:text-foreground active:scale-95"
+          >
+            <X size={18} />
+          </Button>
+        </div>
+
+        <div className="app-modal-body space-y-4">
+          {persona.cotSteps.length > 0 ? (
+            persona.cotSteps.map((step, index) => (
+              <div key={`${persona.id}-cot-${index}`} className="flex gap-4 rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-black text-primary border border-[var(--border)]">
+                  {index + 1}
+                </div>
+                <p className="pt-1 text-[13px] font-semibold leading-relaxed text-[var(--secondary-foreground)]">{step}</p>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-2xl border border-[var(--border)] bg-[var(--panel-soft)] p-5 text-[13px] font-medium text-[var(--muted-foreground)]">
+              표시할 CoT 데이터가 없습니다.
+            </div>
+          )}
+        </div>
+
+        <div className="app-modal-footer bg-[var(--panel-soft)]">
+          <p className="text-[12px] font-semibold text-[var(--muted-foreground)]">AI 추론 흐름 전체 단계</p>
+          <Button onClick={onClose} className="px-8 text-[13px] font-bold active:scale-95">
+            닫기
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Detail Modal ─── */
 function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => void }) {
   const [detailTab, setDetailTab] = useState<"summary" | "activity" | "campaign">("summary");
+  const [cotModalOpen, setCotModalOpen] = useState(false);
   const engagementScore = Math.round(
     persona.purchaseIntent * 0.35 + persona.marketingAcceptance * 0.3 + persona.brandAttitude * 0.35
   );
@@ -397,6 +462,14 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
                         데이터 종합 진단
                       </p>
                       <p className="text-[13px] font-semibold leading-relaxed text-foreground">{insightText}</p>
+                      <button
+                        type="button"
+                        onClick={() => setCotModalOpen(true)}
+                        className="mt-4 inline-flex items-center gap-1.5 rounded-xl border border-[var(--primary-light-border)] bg-[var(--primary-light-bg)] px-3.5 py-2 text-[12px] font-bold text-primary transition-colors hover:bg-card"
+                      >
+                        CoT 전체보기
+                        <ChevronRight size={13} />
+                      </button>
                     </div>
                   </div>
                   {persona.individualStories.length > 0 && (
@@ -575,6 +648,7 @@ function DetailModal({ persona, onClose }: { persona: Persona; onClose: () => vo
           </Button>
         </div>
       </div>
+      {cotModalOpen && <CotModal persona={persona} onClose={() => setCotModalOpen(false)} />}
     </div>
   );
 }
@@ -596,33 +670,53 @@ const SPEND_MAP: Record<string, string> = {
   "콘텐츠 크리에이터": "15-25만원",
 };
 
-function mapPersonaItems(items: Record<string, unknown>[]): Persona[] {
-  return (items || []).map((item: Record<string, unknown>, idx: number) => ({
-    id: item.id,
-    projectId: item.project_id,
-    name: item.name || "이름 없음",
-    age: item.age || 0,
-    gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
-    occupation: item.occupation || "직업 미상",
-    device: item.purchase_history?.[0] || item.product_group || "Galaxy S24",
-    segments: [item.segment || "MZ 얼리어답터"] as Segment[],
-    keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
-    purchaseIntent: item.purchase_intent ?? 70,
-    color: "var(--primary)",
-    iconBg: "#eef3ff",
-    iconKey: idx % 5,
-    description: item.profile || "디지털 트윈 페르소나입니다.",
-    techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
-    monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
-    interests: item.interests?.length ? item.interests : ["스마트폰", "테크"],
-    competitorPerception: item.cot?.join(", ") || "브랜드 경험 정보가 없습니다.",
-    marketingAcceptance: item.marketing_acceptance ?? 80,
-    futureValue: item.future_value ?? 85,
-    purchaseHistory: item.purchase_history?.length ? item.purchase_history : [item.product_group || "Galaxy S24"],
-    individualStories: item.individual_stories?.length ? item.individual_stories : [],
-    userLogs: item.activity_logs?.length ? item.activity_logs : ["앱 사용 기록 없음"],
-    brandAttitude: item.brand_attitude ?? 80,
-  }));
+function mapPersonaItems(items: Array<ApiPersona | ApiPersonaDetail>): Persona[] {
+  return items.map((item, idx) => {
+    const primarySegment = (item.segment || "MZ 얼리어답터") as Segment;
+    const palette = SEGMENT_COLORS[primarySegment] ?? DEFAULT_SEGMENT_COLOR;
+    const detailItem = item as Partial<ApiPersonaDetail>;
+    const purchaseHistory = Array.isArray(detailItem.purchase_history)
+      ? detailItem.purchase_history
+      : [item.product_group || "Galaxy S24"];
+    const interests = Array.isArray((detailItem as { interests?: string[] }).interests)
+      ? ((detailItem as { interests?: string[] }).interests ?? [])
+      : ["스마트폰", "테크"];
+    const activityLogs = Array.isArray(detailItem.activity_logs) ? detailItem.activity_logs : ["앱 사용 기록 없음"];
+    const cotSteps = Array.isArray(detailItem.cot) ? detailItem.cot : [];
+    const individualStories = Array.isArray(detailItem.individual_stories) ? detailItem.individual_stories : [];
+    const purchaseIntent = typeof detailItem.purchase_intent === "number" ? detailItem.purchase_intent : 70;
+    const marketingAcceptance = typeof detailItem.marketing_acceptance === "number" ? detailItem.marketing_acceptance : 80;
+    const brandAttitude = typeof detailItem.brand_attitude === "number" ? detailItem.brand_attitude : 80;
+    const futureValue = typeof detailItem.score?.future_value === "number" ? detailItem.score.future_value : 85;
+
+    return {
+      id: item.id,
+      projectId: item.project_id,
+      name: item.name || "이름 없음",
+      age: item.age || 0,
+      gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as Gender,
+      occupation: item.occupation || "직업 미상",
+      device: purchaseHistory[0] || item.product_group || "Galaxy S24",
+      segments: [primarySegment] as Segment[],
+      keywords: item.keywords?.length ? item.keywords : ["성능", "디자인"],
+      purchaseIntent,
+      color: palette.text,
+      iconBg: palette.bg,
+      iconKey: idx % ICON_META.length,
+      description: detailItem.profile || "디지털 트윈 페르소나입니다.",
+      techLevel: (TECH_LEVEL_MAP[item.segment] ?? "중급") as TechLevel,
+      monthlyTechSpend: SPEND_MAP[item.segment] ?? "20-30만원",
+      interests: interests.length > 0 ? interests : ["스마트폰", "테크"],
+      competitorPerception: cotSteps.join(", ") || "브랜드 경험 정보가 없습니다.",
+      marketingAcceptance,
+      futureValue,
+      purchaseHistory,
+      individualStories,
+      userLogs: activityLogs.length > 0 ? activityLogs : ["앱 사용 기록 없음"],
+      cotSteps,
+      brandAttitude,
+    };
+  });
 }
 
 export const PersonaManagerPage: React.FC = () => {
@@ -736,6 +830,7 @@ export const PersonaManagerPage: React.FC = () => {
           purchaseHistory: detail.purchase_history?.length ? detail.purchase_history : current.purchaseHistory,
           individualStories: detail.individual_stories ?? current.individualStories,
           userLogs: detail.activity_logs?.length ? detail.activity_logs : current.userLogs,
+          cotSteps: detail.cot?.length ? detail.cot : current.cotSteps,
           competitorPerception: detail.cot?.join(", ") || current.competitorPerception,
           purchaseIntent: detail.purchase_intent ?? current.purchaseIntent,
           marketingAcceptance: detail.marketing_acceptance ?? current.marketingAcceptance,
@@ -796,7 +891,19 @@ export const PersonaManagerPage: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full w-full flex-col bg-background overflow-hidden">
+    <>
+      <AiLoadingModal
+        open={activeJob?.status === "queued" || activeJob?.status === "running"}
+        title="페르소나 업데이트"
+        steps={[
+          "기존 프로젝트와 페르소나 데이터를 확인하고 있습니다…",
+          "세그먼트 변화를 반영해 페르소나를 업데이트하고 있습니다…",
+          "프로필과 행동 패턴을 다시 정리하고 있습니다…",
+          "구매 성향과 반응 특성을 다시 계산하고 있습니다…",
+          "업데이트 결과를 검토해 화면에 반영하고 있습니다…",
+        ]}
+      />
+      <div className="flex h-full w-full flex-col bg-background overflow-hidden">
       {/* ── 페이지 헤더 ── */}
       <div className="app-page-header shrink-0 flex items-start justify-between gap-8 border-b border-[var(--border)]">
         <div>
@@ -1129,6 +1236,7 @@ export const PersonaManagerPage: React.FC = () => {
       </div>
 
       {detailTarget && <DetailModal persona={detailTarget} onClose={() => setDetailTarget(undefined)} />}
-    </div>
+      </div>
+    </>
   );
 };

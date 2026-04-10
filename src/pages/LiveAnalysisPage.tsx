@@ -17,12 +17,18 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelList } from "recharts";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
+import { stopNavigationLoading } from "@/lib/navigationLoading";
+import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
+  aiJobApi,
   geminiApi,
+  reportApi,
   simulationApi,
   surveyApi,
+  type AIJob,
   type CrossSegmentSummaryResponse,
   type KeywordTrendItem,
   type ResponseDistributionItem,
@@ -175,20 +181,22 @@ function mapFeedItem(item: SimulationFeedItem): ChatResponse {
 }
 
 export const LiveAnalysisPage: React.FC = () => {
+  const navigate = useNavigate();
   const location = useLocation();
-  const segmentFilter =
-    (
-      location.state as {
-        segmentFilter?: {
-          totalMatched: number;
-          totalPopulation: number;
-          segments: Array<{ name: string; count: number }>;
-          filterSummary: string;
-        };
-      } | null
-    )?.segmentFilter ?? null;
+  const routeState =
+    (location.state as {
+      projectId?: string;
+      autoStartSimulation?: boolean;
+      segmentFilter?: {
+        totalMatched: number;
+        totalPopulation: number;
+        segments: Array<{ name: string; count: number }>;
+        filterSummary: string;
+      };
+    } | null) ?? null;
+  const segmentFilter = routeState?.segmentFilter ?? null;
 
-  const { project, projectId } = useProject();
+  const { project, projectId, loading: projectLoading } = useProject(routeState?.projectId);
   const [activeQuestion, setActiveQuestion] = useState("");
   const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
   const [chatFeed, setChatFeed] = useState<ChatResponse[]>([]);
@@ -201,7 +209,29 @@ export const LiveAnalysisPage: React.FC = () => {
   const [completedResponses, setCompletedResponses] = useState(0);
   const [targetResponses, setTargetResponses] = useState(0);
   const [crossSegmentSummary, setCrossSegmentSummary] = useState<CrossSegmentSummaryResponse | null>(null);
+  const [baseDataLoading, setBaseDataLoading] = useState(false);
+  const [, setLiveDataLoading] = useState(false);
+  const [baseDataReady, setBaseDataReady] = useState(false);
+  const [liveDataReady, setLiveDataReady] = useState(false);
+  const [reportTransitionLoading, setReportTransitionLoading] = useState(false);
+  const [activeReportJob, setActiveReportJob] = useState<AIJob | null>(null);
   const streamAbortRef = React.useRef<AbortController | null>(null);
+  const autoStartedRef = React.useRef(false);
+  const reportRequestedRef = React.useRef(false);
+
+  const unlockReportStep = React.useCallback(() => {
+    const current = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+    if (current < 3) {
+      sessionStorage.setItem("workflowFurthestStep", "3");
+    }
+    sessionStorage.setItem(STORAGE_KEYS.WORKFLOW_REPORT_READY, "true");
+    window.dispatchEvent(new Event("workflow-state-changed"));
+  }, []);
+
+  const lockReportStep = React.useCallback(() => {
+    sessionStorage.setItem(STORAGE_KEYS.WORKFLOW_REPORT_READY, "false");
+    window.dispatchEvent(new Event("workflow-state-changed"));
+  }, []);
 
   const activeResult = questionResults.find((question) => question.id === activeQuestion) ?? questionResults[0];
   const totalPopulation = segmentFilter?.totalMatched ?? project?.target_responses ?? targetResponses;
@@ -219,21 +249,29 @@ export const LiveAnalysisPage: React.FC = () => {
     let cancelled = false;
 
     const loadBaseData = async () => {
-      const surveyQuestions = await surveyApi.getQuestions(projectId);
-      if (cancelled) return;
+      setBaseDataLoading(true);
+      try {
+        const surveyQuestions = await surveyApi.getQuestions(projectId);
+        if (cancelled) return;
 
-      const results = await Promise.all(
-        surveyQuestions.map(async (question) => ({
-          id: question.id,
-          text: question.text,
-          data: await simulationApi.getDistribution(projectId, question.id),
-        }))
-      );
+        const results = await Promise.all(
+          surveyQuestions.map(async (question) => ({
+            id: question.id,
+            text: question.text,
+            data: await simulationApi.getDistribution(projectId, question.id),
+          }))
+        );
 
-      if (cancelled) return;
-      setQuestionResults(results);
-      if (results[0]?.id) {
-        setActiveQuestion((current) => current || results[0].id);
+        if (cancelled) return;
+        setQuestionResults(results);
+        if (results[0]?.id) {
+          setActiveQuestion((current) => current || results[0].id);
+        }
+      } finally {
+        if (!cancelled) {
+          setBaseDataLoading(false);
+          setBaseDataReady(true);
+        }
       }
     };
 
@@ -246,18 +284,29 @@ export const LiveAnalysisPage: React.FC = () => {
 
   const refreshLiveData = async () => {
     if (!projectId) return;
-    const [progress, feedItems, keywordItems] = await Promise.all([
-      simulationApi.getProgress(projectId),
-      simulationApi.getFeed(projectId, 20),
-      simulationApi.getKeywords(projectId),
-    ]);
-    setKeywords(keywordItems);
-    setChatFeed(feedItems.map(mapFeedItem));
-    if (progress) {
-      setCompletionRate(Math.round(progress.progress));
-      setCompletedResponses(progress.completed_responses);
-      setTargetResponses(progress.target_responses);
-      setIsLive(progress.status === "running");
+    setLiveDataLoading(true);
+    try {
+      const [progress, feedItems, keywordItems] = await Promise.all([
+        simulationApi.getProgress(projectId),
+        simulationApi.getFeed(projectId, 20),
+        simulationApi.getKeywords(projectId),
+      ]);
+      setKeywords(keywordItems);
+      setChatFeed(feedItems.map(mapFeedItem));
+      if (progress) {
+        setCompletionRate(Math.round(progress.progress));
+        setCompletedResponses(progress.completed_responses);
+        setTargetResponses(progress.target_responses);
+        setIsLive(progress.status === "running");
+        if (progress.status !== "running" && Math.round(progress.progress) >= 100) {
+          unlockReportStep();
+        } else {
+          lockReportStep();
+        }
+      }
+    } finally {
+      setLiveDataLoading(false);
+      setLiveDataReady(true);
     }
   };
 
@@ -288,17 +337,76 @@ export const LiveAnalysisPage: React.FC = () => {
     };
   }, [projectId, activeQuestion]);
 
-  const handleToggle = async () => {
-    if (isLive) {
-      // 중지
-      streamAbortRef.current?.abort();
-      streamAbortRef.current = null;
-      setIsLive(false);
+  const startReportTransition = async () => {
+    if (!projectId || reportRequestedRef.current) return;
+
+    reportRequestedRef.current = true;
+    setReportTransitionLoading(true);
+    unlockReportStep();
+    sessionStorage.setItem("workflowPendingStep", "3");
+    sessionStorage.setItem(STORAGE_KEYS.CURRENT_PROJECT_ID, projectId);
+    window.dispatchEvent(new Event("workflow-state-changed"));
+
+    const job = await reportApi.generateJob({
+      project_id: projectId,
+      report_type: "strategy",
+    });
+
+    if (!job) {
+      reportRequestedRef.current = false;
+      setReportTransitionLoading(false);
       return;
     }
 
+    setActiveReportJob(job);
+  };
+
+  useEffect(() => {
+    if (!activeReportJob) return;
+    if (activeReportJob.status !== "queued" && activeReportJob.status !== "running") return;
+
+    let cancelled = false;
+
+    const pollJob = async () => {
+      const latest = await aiJobApi.getJob(activeReportJob.id);
+      if (!latest || cancelled) return;
+
+      setActiveReportJob(latest);
+
+      if (latest.status === "completed") {
+        sessionStorage.removeItem("workflowPendingStep");
+        window.dispatchEvent(new Event("workflow-state-changed"));
+        navigate("/report", {
+          state: {
+            projectId,
+          },
+        });
+        setReportTransitionLoading(false);
+      }
+
+      if (latest.status === "failed" || latest.status === "cancelled") {
+        reportRequestedRef.current = false;
+        setReportTransitionLoading(false);
+        sessionStorage.removeItem("workflowPendingStep");
+        window.dispatchEvent(new Event("workflow-state-changed"));
+      }
+    };
+
+    void pollJob();
+    const timer = window.setInterval(() => {
+      void pollJob();
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeReportJob, navigate, projectId]);
+
+  const startSimulation = () => {
     if (!projectId) return;
     setIsLive(true);
+    lockReportStep();
 
     // 스트리밍 시뮬레이션 시작
     const batchSize = segmentFilter ? Math.min(5, segmentFilter.totalMatched || 5) : 5;
@@ -366,6 +474,7 @@ export const LiveAnalysisPage: React.FC = () => {
               })
             );
           }
+          void startReportTransition();
         }
       },
       () => {
@@ -379,8 +488,53 @@ export const LiveAnalysisPage: React.FC = () => {
     streamAbortRef.current = ctrl;
   };
 
+  const handleToggle = async () => {
+    if (isLive) {
+      streamAbortRef.current?.abort();
+      streamAbortRef.current = null;
+      setIsLive(false);
+      return;
+    }
+
+    startSimulation();
+  };
+
+  useEffect(() => {
+    if (!projectId || autoStartedRef.current || isLive) return;
+    autoStartedRef.current = true;
+    startSimulation();
+  }, [isLive, projectId]);
+
+  const initialScreenLoading =
+    projectLoading ||
+    !projectId ||
+    !baseDataReady ||
+    !liveDataReady ||
+    (baseDataLoading && questionResults.length === 0);
+
+  useEffect(() => {
+    if (!initialScreenLoading) {
+      stopNavigationLoading();
+    }
+  }, [initialScreenLoading]);
+
+  if (initialScreenLoading) {
+    return <div className="flex h-full w-full flex-col overflow-hidden bg-background" />;
+  }
+
   return (
     <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+      <AiLoadingModal
+        open={reportTransitionLoading}
+        title="분석 결과 리포트 생성"
+        steps={[
+          "시뮬레이션 결과를 수집하고 있습니다…",
+          "응답 분포와 세그먼트 패턴을 정리하고 있습니다…",
+          "핵심 인사이트를 구조화하고 있습니다…",
+          "분석 결과 리포트를 생성하고 있습니다…",
+          "리포트 화면으로 이동할 준비를 하고 있습니다…",
+        ]}
+      />
       <WorkflowStepper currentPath="/live" />
 
       <div className="app-page-header flex shrink-0 items-center justify-between">

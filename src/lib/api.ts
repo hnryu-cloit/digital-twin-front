@@ -1,5 +1,136 @@
 import axios from "axios";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
+import * as MOCK from "@/lib/mockData";
+
+const IS_MOCK = import.meta.env.VITE_MOCK_MODE === "true";
+
+type MockJobType = AIJob["job_type"];
+
+const MOCK_JOB_DURATIONS: Record<string, number> = {
+  simulation: 90_000,
+  survey_generation: 18_000,
+  persona_generation: 26_000,
+  report_generation: 22_000,
+};
+
+const MOCK_JOB_RESULT_FACTORIES: Record<MockJobType, (job: AIJob) => Record<string, unknown>> = {
+  simulation: (job) => ({
+    completed_responses: job.payload.target_responses ?? 1000,
+  }),
+  survey_generation: (job) => ({
+    question_count: job.payload.question_count ?? MOCK.MOCK_SURVEY_QUESTIONS.length,
+  }),
+  persona_generation: (job) => ({
+    persona_count: job.payload.n_personas ?? MOCK.MOCK_PERSONAS.length,
+  }),
+  report_generation: () => ({
+    report_id: MOCK.MOCK_REPORT_DETAIL.id,
+  }),
+};
+
+let _mockJobs: AIJob[] | null = null;
+let _mockSimulationStartedAt = Date.now() - 61_000;
+let _mockSimulationStopped = false;
+
+function cloneMockJob(job: AIJob): AIJob {
+  return {
+    ...job,
+    payload: { ...job.payload },
+    result_ref: job.result_ref ? { ...job.result_ref } : job.result_ref,
+  };
+}
+
+function ensureMockJobs(): AIJob[] {
+  if (_mockJobs) return _mockJobs;
+  _mockJobs = MOCK.MOCK_AI_JOBS.map(cloneMockJob);
+  return _mockJobs;
+}
+
+function getMockJobDuration(jobType: string): number {
+  return MOCK_JOB_DURATIONS[jobType] ?? 20_000;
+}
+
+function getMockJobTypeLabel(jobType: string): string {
+  switch (jobType) {
+    case "survey_generation":
+      return "survey";
+    case "persona_generation":
+      return "persona";
+    case "report_generation":
+      return "report";
+    case "simulation":
+      return "simulation";
+    default:
+      return "job";
+  }
+}
+
+function completeMockJob(job: AIJob, now: number): AIJob {
+  const completedAt = new Date(now).toISOString();
+  return {
+    ...job,
+    status: "completed",
+    progress: 100,
+    completed_at: job.completed_at ?? completedAt,
+    result_ref: job.result_ref ?? MOCK_JOB_RESULT_FACTORIES[job.job_type]?.(job) ?? null,
+  };
+}
+
+function advanceMockJob(job: AIJob, now: number): AIJob {
+  if (job.status !== "queued" && job.status !== "running") return job;
+
+  const startedAt = job.started_at ? new Date(job.started_at).getTime() : new Date(job.created_at).getTime();
+  const elapsed = Math.max(0, now - startedAt);
+  const duration = getMockJobDuration(job.job_type);
+
+  if (elapsed >= duration) {
+    return completeMockJob(job, now);
+  }
+
+  const progress = Math.max(job.status === "queued" ? 6 : 12, Math.min(96, Math.round((elapsed / duration) * 100)));
+  return {
+    ...job,
+    status: "running",
+    progress,
+    started_at: job.started_at ?? new Date(startedAt).toISOString(),
+  };
+}
+
+function getLiveMockJobs(): AIJob[] {
+  const now = Date.now();
+  const jobs = ensureMockJobs();
+  _mockJobs = jobs.map((job) => advanceMockJob(job, now));
+  return _mockJobs.map(cloneMockJob);
+}
+
+function createMockJob(jobType: MockJobType, projectId: string, payload: Record<string, unknown>): AIJob {
+  const now = Date.now();
+  const startedAt = now + 1200;
+  const base = getMockJobTypeLabel(jobType);
+  return {
+    id: `job-${base}-${Math.floor(now / 1000)}`,
+    project_id: projectId,
+    job_type: jobType,
+    status: "queued",
+    progress: 0,
+    payload,
+    result_ref: null,
+    created_by: "admin@samsung.com",
+    created_at: new Date(now).toISOString(),
+    started_at: new Date(startedAt).toISOString(),
+  };
+}
+
+function getMockSimulationTarget(): number {
+  return MOCK.MOCK_SIMULATION_PROGRESS.target_responses;
+}
+
+function getMockSimulationCompleted(): number {
+  if (_mockSimulationStopped) return MOCK.MOCK_SIMULATION_PROGRESS.completed_responses;
+  const elapsed = Math.max(0, Date.now() - _mockSimulationStartedAt);
+  const ratio = Math.min(1, elapsed / MOCK_JOB_DURATIONS.simulation);
+  return Math.min(getMockSimulationTarget(), Math.round(getMockSimulationTarget() * ratio));
+}
 
 // 백엔드 FastAPI 기본 URL (로컬 개발 환경 기준)
 export const apiClient = axios.create({
@@ -188,6 +319,7 @@ export interface DataTableSummary {
 }
 
 export async function resolveDefaultProjectId(): Promise<string | null> {
+  if (IS_MOCK) return MOCK.MOCK_PROJECT_ID;
   if (!_defaultProjectIdPromise) {
     _defaultProjectIdPromise = (async () => {
       try {
@@ -209,6 +341,7 @@ export async function resolveDefaultProjectId(): Promise<string | null> {
  * 안정성을 위해 목업 데이터를 반환하거나 백엔드 연동을 시도함
  */
 export const fetchIndividualPersonas = async (projectId?: string | null): Promise<Persona[]> => {
+  if (IS_MOCK) return MOCK.MOCK_PERSONAS;
   try {
     const query = new URLSearchParams({
       page: "1",
@@ -268,6 +401,10 @@ function mapProject(raw: any): Project {
 
 export const projectApi = {
   getProjects: async (page = 1, size = 10): Promise<ProjectListResponse> => {
+    if (IS_MOCK) {
+      const start = (page - 1) * size;
+      return { items: MOCK.MOCK_PROJECTS.slice(start, start + size), page, size, total: MOCK.MOCK_PROJECTS.length };
+    }
     try {
       const { data } = await apiClient.get(`/projects?page=${page}&size=${size}`);
       const items: Project[] = (data.items ?? []).map(mapProject);
@@ -278,6 +415,7 @@ export const projectApi = {
     }
   },
   createProject: async (payload: ProjectCreatePayload): Promise<ProjectDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_PROJECT_DETAIL, name: payload.name, type: payload.type };
     try {
       const { data } = await apiClient.post("/projects", payload);
       _defaultProjectIdPromise = Promise.resolve(data.id ?? null);
@@ -288,6 +426,7 @@ export const projectApi = {
     }
   },
   getProject: async (projectId: string): Promise<ProjectDetail | null> => {
+    if (IS_MOCK) return MOCK.MOCK_PROJECT_DETAIL;
     try {
       const { data } = await apiClient.get(`/projects/${projectId}`);
       return data;
@@ -297,6 +436,7 @@ export const projectApi = {
     }
   },
   getProjectOptions: async (): Promise<ProjectOption[]> => {
+    if (IS_MOCK) return MOCK.MOCK_PROJECT_OPTIONS;
     try {
       const { data } = await apiClient.get("/projects?page=1&size=100");
       return (data.items ?? []).map((item: { id: string; name?: string; title?: string }) => ({
@@ -313,6 +453,12 @@ export const projectApi = {
     personaFilter: Record<string, unknown>,
     selectedPersonaIds: string[]
   ): Promise<{ project_id: string; selected_count: number } | null> => {
+    if (IS_MOCK) {
+      return {
+        project_id: projectId,
+        selected_count: selectedPersonaIds.length,
+      };
+    }
     try {
       const { data } = await apiClient.post(`/projects/${projectId}/segment-filter`, {
         persona_filter: personaFilter,
@@ -331,6 +477,13 @@ export const projectApi = {
     selected_persona_ids: string[];
     selected_count: number;
   } | null> => {
+    if (IS_MOCK) {
+      return {
+        persona_filter: null,
+        selected_persona_ids: [],
+        selected_count: 0,
+      };
+    }
     try {
       const { data } = await apiClient.get(`/projects/${projectId}/segment-filter`);
       return data;
@@ -357,6 +510,7 @@ export const personaApi = {
     size = 12,
     search = ""
   ): Promise<PersonaListResponse> => {
+    if (IS_MOCK) return MOCK.getMockPersonaPage(page, size, search);
     try {
       const query = new URLSearchParams({ page: String(page), size: String(size) });
       if (projectId) query.set("project_id", projectId);
@@ -369,6 +523,7 @@ export const personaApi = {
     }
   },
   getPersona: async (personaId: string): Promise<PersonaDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_PERSONA_DETAIL, id: personaId };
     try {
       const { data } = await apiClient.get(`/personas/${personaId}`);
       return data;
@@ -386,6 +541,14 @@ export const personaApi = {
     output_dir?: string;
     overwrite_existing?: boolean;
   }): Promise<AIJob | null> => {
+    if (IS_MOCK) {
+      const job = createMockJob("persona_generation", payload.project_id, {
+        n_personas: payload.n_personas ?? 7,
+        n_synthetic_customers: payload.n_synthetic_customers ?? 1000,
+      });
+      ensureMockJobs().unshift(job);
+      return cloneMockJob(job);
+    }
     try {
       const { data } = await apiClient.post("/personas/generate-job", payload);
       return data;
@@ -407,6 +570,7 @@ export const personaApi = {
 
 export const segmentApi = {
   getFilterOptions: async (projectId?: string): Promise<SegmentFilterOptions | null> => {
+    if (IS_MOCK) return MOCK.MOCK_SEGMENT_FILTER_OPTIONS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const query = resolvedProjectId ? `?project_id=${resolvedProjectId}` : "";
@@ -498,6 +662,7 @@ export interface AIJob {
 
 export const surveyApi = {
   getTemplates: async (): Promise<SurveyTemplate[]> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_TEMPLATES;
     try {
       const { data } = await apiClient.get("/surveys/templates");
       return data.items ?? [];
@@ -507,6 +672,7 @@ export const surveyApi = {
     }
   },
   getQuestions: async (projectId?: string): Promise<SurveyQuestion[]> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_QUESTIONS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -518,6 +684,7 @@ export const surveyApi = {
     }
   },
   getPreview: async (projectId?: string): Promise<SurveyDraftPreview | null> => {
+    if (IS_MOCK) return MOCK.MOCK_SURVEY_PREVIEW;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -532,6 +699,23 @@ export const surveyApi = {
     projectId: string | undefined,
     questions: Array<{ text: string; type: string; options?: string[] }>
   ): Promise<SurveyQuestion[]> => {
+    if (IS_MOCK) {
+      return questions.map((question, index) => ({
+        id: `mock-q-${index + 1}`,
+        text: question.text,
+        type:
+          question.type === "단일선택"
+            ? "single_choice"
+            : question.type === "복수선택"
+              ? "multiple_choice"
+              : question.type === "리커트척도"
+                ? "scale"
+                : "text",
+        order: index + 1,
+        options: question.options ?? [],
+        status: "draft",
+      }));
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -543,6 +727,7 @@ export const surveyApi = {
     }
   },
   confirm: async (projectId?: string): Promise<boolean> => {
+    if (IS_MOCK) return true;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return false;
@@ -561,6 +746,14 @@ export const surveyApi = {
     template?: Record<string, unknown>;
     segment_context?: Record<string, unknown>;
   }): Promise<AIJob | null> => {
+    if (IS_MOCK) {
+      const job = createMockJob("survey_generation", payload.project_id, {
+        question_count: payload.question_count,
+        survey_type: payload.survey_type,
+      });
+      ensureMockJobs().unshift(job);
+      return cloneMockJob(job);
+    }
     try {
       const { data } = await apiClient.post("/surveys/generate-job", payload);
       return data;
@@ -573,6 +766,14 @@ export const surveyApi = {
 
 export const aiJobApi = {
   listJobs: async (params?: { projectId?: string; jobType?: string }): Promise<{ items: AIJob[]; total: number }> => {
+    if (IS_MOCK) {
+      const jobs = getLiveMockJobs().filter((j) => {
+        if (params?.projectId && j.project_id !== params.projectId) return false;
+        if (params?.jobType && j.job_type !== params.jobType) return false;
+        return true;
+      });
+      return { items: jobs, total: jobs.length };
+    }
     try {
       const query = new URLSearchParams();
       const resolvedProjectId = params?.projectId ?? (await resolveDefaultProjectId());
@@ -591,6 +792,7 @@ export const aiJobApi = {
     }
   },
   getJob: async (jobId: string): Promise<AIJob | null> => {
+    if (IS_MOCK) return getLiveMockJobs().find((j) => j.id === jobId) ?? null;
     try {
       const { data } = await apiClient.get(`/ai/jobs/${jobId}`);
       return data;
@@ -600,6 +802,18 @@ export const aiJobApi = {
     }
   },
   cancelJob: async (jobId: string): Promise<AIJob | null> => {
+    if (IS_MOCK) {
+      const jobs = ensureMockJobs();
+      const index = jobs.findIndex((j) => j.id === jobId);
+      if (index === -1) return null;
+      jobs[index] = {
+        ...jobs[index],
+        status: "cancelled",
+        progress: jobs[index].progress,
+        completed_at: new Date().toISOString(),
+      };
+      return cloneMockJob(jobs[index]);
+    }
     try {
       const { data } = await apiClient.post(`/ai/jobs/${jobId}/cancel`);
       return data;
@@ -685,6 +899,17 @@ export interface KeywordTrendItem {
 
 export const simulationApi = {
   getProgress: async (projectId?: string): Promise<SimulationProgress | null> => {
+    if (IS_MOCK) {
+      const completed = getMockSimulationCompleted();
+      const target = getMockSimulationTarget();
+      return {
+        ...MOCK.MOCK_SIMULATION_PROGRESS,
+        completed_responses: completed,
+        target_responses: target,
+        progress: Math.round((completed / Math.max(target, 1)) * 100),
+        status: _mockSimulationStopped ? "paused" : completed >= target ? "completed" : "running",
+      };
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -696,6 +921,10 @@ export const simulationApi = {
     }
   },
   getFeed: async (projectId?: string, limit = 20): Promise<SimulationFeedItem[]> => {
+    if (IS_MOCK) {
+      const visibleCount = Math.max(3, Math.min(MOCK.MOCK_SIMULATION_FEED.length, Math.ceil(getMockSimulationCompleted() / 40)));
+      return MOCK.MOCK_SIMULATION_FEED.slice(0, visibleCount).slice(-limit);
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -707,6 +936,7 @@ export const simulationApi = {
     }
   },
   getDistribution: async (projectId: string | undefined, questionId: string): Promise<ResponseDistributionItem[]> => {
+    if (IS_MOCK) return MOCK.MOCK_RESPONSE_DISTRIBUTIONS[questionId] ?? MOCK.MOCK_RESPONSE_DISTRIBUTIONS["q-001"];
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -720,6 +950,7 @@ export const simulationApi = {
     }
   },
   getInsight: async (projectId: string | undefined, questionId: string): Promise<InsightResponse | null> => {
+    if (IS_MOCK) return MOCK.MOCK_INSIGHT;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return null;
@@ -733,6 +964,7 @@ export const simulationApi = {
     }
   },
   getKeywords: async (projectId?: string): Promise<KeywordTrendItem[]> => {
+    if (IS_MOCK) return MOCK.MOCK_KEYWORDS;
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return [];
@@ -750,6 +982,7 @@ export const simulationApi = {
     page = 1,
     size = 20
   ): Promise<ResponseListResponse> => {
+    if (IS_MOCK) return MOCK.MOCK_RESPONSES;
     try {
       const params = new URLSearchParams({ project_id: projectId, page: String(page), size: String(size) });
       if (questionId) params.set("question_id", questionId);
@@ -762,6 +995,15 @@ export const simulationApi = {
     }
   },
   control: async (projectId: string | undefined, action: "start" | "stop"): Promise<void> => {
+    if (IS_MOCK) {
+      if (action === "start") {
+        _mockSimulationStartedAt = Date.now();
+        _mockSimulationStopped = false;
+      } else {
+        _mockSimulationStopped = true;
+      }
+      return;
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return;
@@ -783,6 +1025,50 @@ export const simulationApi = {
     onError?: (err: unknown) => void
   ): AbortController => {
     const controller = new AbortController();
+
+    if (IS_MOCK) {
+      _mockSimulationStartedAt = Date.now();
+      _mockSimulationStopped = false;
+      let idx = 0;
+      const feed = MOCK.MOCK_SIMULATION_FEED;
+      const total = feed.length;
+      const tick = () => {
+        if (controller.signal.aborted) {
+          _mockSimulationStopped = true;
+          onDone();
+          return;
+        }
+        if (idx >= feed.length) {
+          _mockSimulationStartedAt = Date.now() - MOCK_JOB_DURATIONS.simulation;
+          _mockSimulationStopped = false;
+          onDone();
+          return;
+        }
+        const f = feed[idx++];
+        const done = idx;
+        onEvent({
+          type: "result",
+          persona_name: f.persona_name,
+          segment: f.segment,
+          answers: [
+            {
+              question_id: f.question_id,
+              question_text: f.question_text,
+              selected_option: f.selected_option,
+              rationale: f.rationale,
+            },
+          ],
+        });
+        onEvent({
+          type: "progress",
+          done,
+          total,
+        });
+        setTimeout(tick, 1200);
+      };
+      setTimeout(tick, 600);
+      return controller;
+    }
     const token =
       localStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? sessionStorage.getItem(STORAGE_KEYS.SESSION_TOKEN) ?? "";
 
@@ -866,6 +1152,13 @@ export interface ReportDownloadInfo {
 
 export const reportApi = {
   generateJob: async (payload: { project_id: string; report_type?: string }): Promise<AIJob | null> => {
+    if (IS_MOCK) {
+      const job = createMockJob("report_generation", payload.project_id, {
+        report_type: payload.report_type ?? "strategy",
+      });
+      ensureMockJobs().unshift(job);
+      return cloneMockJob(job);
+    }
     try {
       const { data } = await apiClient.post("/reports/generate-job", payload);
       return data;
@@ -875,6 +1168,7 @@ export const reportApi = {
     }
   },
   getReport: async (reportId: string): Promise<ReportDetail | null> => {
+    if (IS_MOCK) return { ...MOCK.MOCK_REPORT_DETAIL, id: reportId };
     try {
       const { data } = await apiClient.get(`/reports/${reportId}`);
       return data;
@@ -889,6 +1183,12 @@ export const reportApi = {
     size = 10,
     search?: string
   ): Promise<{ items: ReportSummary[]; total: number }> => {
+    if (IS_MOCK) {
+      const filtered = search
+        ? MOCK.MOCK_REPORT_SUMMARIES.filter((r) => r.title.includes(search))
+        : MOCK.MOCK_REPORT_SUMMARIES;
+      return { items: filtered, total: filtered.length };
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       if (!resolvedProjectId) return { items: [], total: 0 };
@@ -906,6 +1206,13 @@ export const reportApi = {
     }
   },
   getDownloadInfo: async (reportId: string, format = "pdf"): Promise<ReportDownloadInfo | null> => {
+    if (IS_MOCK)
+      return {
+        report_id: reportId,
+        format,
+        download_url: "#",
+        expires_at: new Date(Date.now() + 3600000).toISOString(),
+      };
     try {
       const { data } = await apiClient.get(`/reports/${reportId}/download?format=${format}`);
       return data;
@@ -924,12 +1231,31 @@ export interface AssistantChatResponse {
   session_id?: string;
 }
 
+const MOCK_CHAT_RESPONSES = [
+  "갤럭시 S25 시뮬레이션 결과, 테크 얼리어답터 세그먼트에서 구매 의향이 가장 높게 나타났습니다(평균 4.2점). AI 카메라 기능이 핵심 구매 동기로 확인됐습니다.",
+  "가성비 추구형 세그먼트는 139만원의 출시 가격에 민감하게 반응했습니다. 할부 프로그램 도입 시 구매 의향이 약 23%p 상승할 것으로 예측됩니다.",
+  "브랜드 충성고객 세그먼트는 갤럭시 생태계(워치, 버즈, 탭) 연동을 높이 평가하며 경쟁사 대비 우위를 인정했습니다. NPS 점수는 67로 산업 평균을 상회합니다.",
+  "시뮬레이션 응답 681건을 분석한 결과, '야간모드'와 'AI 카메라'가 키워드 빈도 1·2위를 차지했습니다. 콘텐츠 마케팅에서 해당 기능을 전면에 내세울 것을 권장합니다.",
+];
+let _mockChatIdx = 0;
+
 export const assistantApi = {
   chat: async (
     message: string,
     messages: { role: string; message: string }[],
     projectId?: string | null
   ): Promise<AssistantChatResponse | null> => {
+    if (IS_MOCK) {
+      await new Promise((r) => setTimeout(r, 900));
+      return {
+        answer: MOCK_CHAT_RESPONSES[_mockChatIdx++ % MOCK_CHAT_RESPONSES.length],
+        evidence: [
+          { label: "시뮬레이션 응답 수", value: "681건" },
+          { label: "신뢰도", value: "94%" },
+        ],
+        confidence: 0.94,
+      };
+    }
     try {
       const resolvedProjectId = projectId ?? (await resolveDefaultProjectId());
       const { data } = await apiClient.post("/assistant/chat", {
@@ -970,6 +1296,11 @@ export const geminiApi = {
     segments: { name: string; count: number }[];
     target_count: number;
   }): Promise<SegmentNarrativeResponse | null> => {
+    if (IS_MOCK) {
+      return {
+        narrative: `${payload.filter_summary} 조건에서 ${payload.target_count.toLocaleString()}명 규모의 타깃 풀이 형성되며, 상위 세그먼트 중심으로 메시지 반응 차이가 뚜렷하게 나타납니다.`,
+      };
+    }
     try {
       const { data } = await apiClient.post("/segments/narrative", payload);
       return data;
@@ -988,6 +1319,7 @@ export const geminiApi = {
     }
   },
   getCrossSegmentSummary: async (projectId: string): Promise<CrossSegmentSummaryResponse | null> => {
+    if (IS_MOCK) return MOCK.MOCK_CROSS_SEGMENT_SUMMARY;
     try {
       const { data } = await apiClient.get(`/simulations/cross-segment-summary?project_id=${projectId}`);
       return data;
@@ -997,6 +1329,7 @@ export const geminiApi = {
     }
   },
   recommendFilters: async (projectId: string): Promise<ResearchRecommendationResponse | null> => {
+    if (IS_MOCK) return MOCK.MOCK_RESEARCH_RECOMMENDATION;
     try {
       const { data } = await apiClient.get(`/segments/recommend-filters?project_id=${projectId}`);
       return data;
@@ -1006,6 +1339,7 @@ export const geminiApi = {
     }
   },
   getMarketingActionPlan: async (reportId: string): Promise<ActionPlanResponse | null> => {
+    if (IS_MOCK) return MOCK.MOCK_ACTION_PLAN;
     try {
       const { data } = await apiClient.post(`/reports/${reportId}/action-plan`);
       return data;

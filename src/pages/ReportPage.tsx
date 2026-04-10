@@ -49,6 +49,8 @@ import {
   geminiApi,
 } from "@/lib/api";
 import { useProject } from "@/hooks/useProject";
+import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
+import { stopNavigationLoading } from "@/lib/navigationLoading";
 
 const SECTIONS = [
   { id: "summary", label: "종합 분석 요약", icon: "01" },
@@ -72,7 +74,7 @@ interface FindingCardData {
   label: string;
   value: string;
   desc: string;
-  evidence: { label: string; value: string }[];
+  evidence: { label: string; value: string; source_question_id?: string | null }[];
   action: string;
   tone: "primary" | "neutral";
 }
@@ -101,6 +103,19 @@ function topEntry(values: string[]): string {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   });
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "데이터 없음";
+}
+
+function parseBudgetAllocation(value?: string) {
+  if (!value) return [];
+  return value
+    .split("/")
+    .map((item) => item.trim())
+    .map((item) => {
+      const match = item.match(/(.+?)\s+(\d+)%/);
+      if (!match) return null;
+      return { label: match[1].trim(), percent: Number(match[2]) };
+    })
+    .filter((item): item is { label: string; percent: number } => item !== null);
 }
 
 function KpiCard({
@@ -253,6 +268,12 @@ export const ReportPage: React.FC = () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      stopNavigationLoading();
+    }
   }, [projectId]);
 
   useEffect(() => {
@@ -415,6 +436,10 @@ export const ReportPage: React.FC = () => {
       | Array<{ question_id: string; question_text: string; distribution: ResponseDistributionItem[] }>
       | undefined) ?? [];
   const reportDominantQuestion = reportDistributionData[0];
+  const budgetAllocationItems = useMemo(
+    () => parseBudgetAllocation(actionPlan?.budget_allocation),
+    [actionPlan?.budget_allocation]
+  );
 
   const openSourceDrawer = async (questionId: string) => {
     if (!projectId) return;
@@ -500,8 +525,31 @@ export const ReportPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-background">
-      <div className="app-page-header flex shrink-0 items-center justify-between">
+    <>
+      <AiLoadingModal
+        open={activeReportJob?.status === "queued" || activeReportJob?.status === "running"}
+        title="리포트 재분석"
+        steps={[
+          "설문 결과와 세그먼트 데이터를 다시 읽고 있습니다…",
+          "핵심 인사이트와 패턴을 재분석하고 있습니다…",
+          "전략적 요약과 리포트 구조를 재구성하고 있습니다…",
+          "시사점과 우선 과제를 다시 정리하고 있습니다…",
+          "재분석 결과를 리포트에 반영하고 있습니다…",
+        ]}
+      />
+      <AiLoadingModal
+        open={actionPlanLoading}
+        title="액션 플랜 생성"
+        steps={[
+          "리포트 핵심 결과를 해석하고 있습니다…",
+          "우선순위가 높은 실행 과제를 도출하고 있습니다…",
+          "세그먼트별 실행 전략을 정리하고 있습니다…",
+          "채널과 메시지 우선순위를 조정하고 있습니다…",
+          "마케팅 액션 플랜을 생성하고 있습니다…",
+        ]}
+      />
+      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
+      <div className="app-page-header relative z-30 flex shrink-0 items-center justify-between">
         <div>
           <p className="app-page-eyebrow">Insight Report</p>
           <h1 className="app-page-title mt-1">
@@ -520,7 +568,7 @@ export const ReportPage: React.FC = () => {
               ? "리포트 생성 중"
               : "재분석 실행"}
           </button>
-          <div className="relative" ref={downloadRef}>
+          <div className="relative z-40" ref={downloadRef}>
             <button
               onClick={() => setDownloadOpen(!downloadOpen)}
               className="flex items-center gap-3 rounded-xl bg-primary px-7 py-2.5 text-[14px] font-black text-white shadow-[var(--shadow-lg)] transition-all hover:bg-primary-hover active:scale-95"
@@ -1044,16 +1092,45 @@ export const ReportPage: React.FC = () => {
                           </div>
                         </div>
 
-                        <div className="app-card border-amber-200/50 bg-amber-50/30 p-6">
-                          <h4 className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-amber-700 mb-4">
+                        <div className="app-card border-[var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-6 shadow-sm">
+                          <h4 className="mb-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-[var(--secondary-foreground)]">
                             <Target size={14} />
                             Budget Allocation
                           </h4>
-                          <p className="text-[14px] font-bold text-amber-900 leading-relaxed">
-                            {actionPlan?.budget_allocation}
-                          </p>
-                          <div className="mt-4 pt-4 border-t border-amber-200/50 flex items-center gap-2 text-[11px] font-bold text-amber-700/60">
-                            <ShieldCheck size={12} />
+                          <div className="rounded-2xl border border-[var(--primary-light-border)] bg-white px-4 py-4 shadow-[var(--shadow-sm)]">
+                            {budgetAllocationItems.length > 0 ? (
+                              <div className="space-y-3">
+                                {budgetAllocationItems.map((item, index) => (
+                                  <div key={item.label} className="space-y-1.5">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-[13px] font-bold text-foreground">{item.label}</span>
+                                      <span className="text-[12px] font-black tabular-nums text-primary">
+                                        {item.percent}%
+                                      </span>
+                                    </div>
+                                    <div className="h-2.5 overflow-hidden rounded-full bg-[var(--panel-soft)]">
+                                      <div
+                                        className={
+                                          index === 0
+                                            ? "h-full rounded-full bg-primary"
+                                            : index === 1
+                                              ? "h-full rounded-full bg-[rgba(47,102,255,0.68)]"
+                                              : "h-full rounded-full bg-[rgba(47,102,255,0.4)]"
+                                        }
+                                        style={{ width: `${item.percent}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[14px] font-bold leading-relaxed text-foreground">
+                                {actionPlan?.budget_allocation}
+                              </p>
+                            )}
+                          </div>
+                          <div className="mt-4 flex items-center gap-2 border-t border-[var(--border)] pt-4 text-[11px] font-bold text-[var(--muted-foreground)]">
+                            <ShieldCheck size={12} className="text-primary" />
                             Recommended based on ROI data
                           </div>
                         </div>
@@ -1197,6 +1274,7 @@ export const ReportPage: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 };
