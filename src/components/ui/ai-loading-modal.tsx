@@ -8,12 +8,7 @@ interface AiLoadingModalProps {
   stepIntervalMs?: number;
 }
 
-export const AiLoadingModal: React.FC<AiLoadingModalProps> = ({
-  open,
-  title,
-  steps,
-  stepIntervalMs = 1750,
-}) => {
+export const AiLoadingModal: React.FC<AiLoadingModalProps> = ({ open, title, steps, stepIntervalMs = 1750 }) => {
   const stepsKey = useMemo(() => steps.join("__ai_step__"), [steps]);
 
   const normalizedSteps = useMemo(() => {

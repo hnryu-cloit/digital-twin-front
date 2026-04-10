@@ -20,7 +20,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, LabelL
 import { useLocation, useNavigate } from "react-router-dom";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import { AiLoadingModal } from "@/components/ui/ai-loading-modal";
-import { startNavigationLoading, stopNavigationLoading } from "@/lib/navigationLoading";
+import { stopNavigationLoading } from "@/lib/navigationLoading";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 import {
   aiJobApi,
@@ -183,16 +183,17 @@ function mapFeedItem(item: SimulationFeedItem): ChatResponse {
 export const LiveAnalysisPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const routeState = (location.state as {
-    projectId?: string;
-    autoStartSimulation?: boolean;
-    segmentFilter?: {
-      totalMatched: number;
-      totalPopulation: number;
-      segments: Array<{ name: string; count: number }>;
-      filterSummary: string;
-    };
-  } | null) ?? null;
+  const routeState =
+    (location.state as {
+      projectId?: string;
+      autoStartSimulation?: boolean;
+      segmentFilter?: {
+        totalMatched: number;
+        totalPopulation: number;
+        segments: Array<{ name: string; count: number }>;
+        filterSummary: string;
+      };
+    } | null) ?? null;
   const segmentFilter = routeState?.segmentFilter ?? null;
 
   const { project, projectId, loading: projectLoading } = useProject(routeState?.projectId);
@@ -373,24 +374,14 @@ export const LiveAnalysisPage: React.FC = () => {
       setActiveReportJob(latest);
 
       if (latest.status === "completed") {
-        setReportTransitionLoading(false);
         sessionStorage.removeItem("workflowPendingStep");
         window.dispatchEvent(new Event("workflow-state-changed"));
-        startNavigationLoading({
-          title: "분석 결과 리포트 생성",
-          steps: [
-            "시뮬레이션 결과를 수집하고 있습니다…",
-            "응답 분포와 세그먼트 패턴을 정리하고 있습니다…",
-            "핵심 인사이트를 구조화하고 있습니다…",
-            "분석 결과 리포트를 생성하고 있습니다…",
-            "리포트 화면으로 이동할 준비를 하고 있습니다…",
-          ],
-        });
         navigate("/report", {
           state: {
             projectId,
           },
         });
+        setReportTransitionLoading(false);
       }
 
       if (latest.status === "failed" || latest.status === "cancelled") {
@@ -515,7 +506,11 @@ export const LiveAnalysisPage: React.FC = () => {
   }, [isLive, projectId]);
 
   const initialScreenLoading =
-    projectLoading || !projectId || !baseDataReady || !liveDataReady || (baseDataLoading && questionResults.length === 0);
+    projectLoading ||
+    !projectId ||
+    !baseDataReady ||
+    !liveDataReady ||
+    (baseDataLoading && questionResults.length === 0);
 
   useEffect(() => {
     if (!initialScreenLoading) {
@@ -524,21 +519,7 @@ export const LiveAnalysisPage: React.FC = () => {
   }, [initialScreenLoading]);
 
   if (initialScreenLoading) {
-    return (
-      <div className="flex h-full w-full flex-col overflow-hidden bg-background">
-        <AiLoadingModal
-          open
-          title="실시간 응답 분석 준비 중"
-          steps={[
-            "프로젝트와 설문 구성을 확인하고 있습니다…",
-            "문항별 응답 분포를 불러오고 있습니다…",
-            "실시간 응답 피드와 키워드를 연결하고 있습니다…",
-            "응답 분석 화면 구성을 정리하고 있습니다…",
-            "실시간 시뮬레이션 환경을 준비하고 있습니다…",
-          ]}
-        />
-      </div>
-    );
+    return <div className="flex h-full w-full flex-col overflow-hidden bg-background" />;
   }
 
   return (
