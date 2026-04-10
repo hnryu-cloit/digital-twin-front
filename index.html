@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/digital-twin-front/assets/favicon-BY5CTTEv.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Twin Analytics</title>
+    <script>
+      // GitHub Pages SPA 라우팅: ?p= 쿼리를 실제 경로로 복원
+      (function () {
+        var p = new URLSearchParams(window.location.search).get('p');
+        if (p) {
+          window.history.replaceState(null, '', p + window.location.hash);
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/digital-twin-front/assets/index-BesvOF8P.js"></script>
+    <link rel="stylesheet" crossorigin href="/digital-twin-front/assets/index-C5oXAntr.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
