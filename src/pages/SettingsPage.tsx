@@ -1947,6 +1947,33 @@ const VAL_LOGS = [
     answer: "별로 중요하지 않아요. 저는 그냥 카메라랑 배터리 보면 돼요.",
     persona: "P19 · 19세 / 고등학생",
     cot: "19세 고등학생 페르소나는 엔터프라이즈 보안 솔루션에 대한 실질적 경험이나 의사결정 권한이 없음. 질문 자체가 해당 페르소나의 사용 맥락과 불일치하여 응답 신뢰도 저하 판정.",
+    cotFull: [
+      {
+        step: "페르소나 프로파일 분석",
+        content:
+          "P19는 19세 고등학생으로 설정되어 있음. 주요 디바이스 사용 목적은 SNS, 동영상 시청, 게임으로 파악됨. 직업적 맥락이 없으며 기업용 소프트웨어에 대한 실질적 노출이 제한적임.",
+      },
+      {
+        step: "질문 맥락 적합성 평가",
+        content:
+          "Samsung Knox 엔터프라이즈 솔루션은 기업 IT 관리자 또는 구매 결정권자 대상 기능임. 고등학생이 이 기능의 가치를 판단하거나 구매 결정에 반영할 현실적 시나리오가 존재하지 않음.",
+      },
+      {
+        step: "응답 패턴 분석",
+        content:
+          "응답자는 카메라와 배터리 중심의 관심사를 표명함. 이는 페르소나 프로파일과는 일치하나, Knox 관련 질문에 대한 답변으로서는 페르소나-질문 간 맥락 불일치를 드러냄.",
+      },
+      {
+        step: "신뢰도 리스크 판정",
+        content:
+          "페르소나와 질문 간 도메인 불일치로 인해 이 응답은 실제 고등학생 소비자 인사이트를 반영하지 못함. 기업용 보안 관련 문항은 해당 페르소나 풀에서 제외하거나 소비자 관점으로 재설계 필요.",
+      },
+      {
+        step: "최종 판정",
+        content:
+          "Score 45 / Flagged — 페르소나-질문 맥락 불일치로 응답 유효성 저하. 해당 문항의 페르소나 타겟 재검토를 권고함.",
+      },
+    ],
     score: 45,
     result: "Flagged",
     date: "2026-03-13 13:50",
@@ -1961,6 +1988,32 @@ const VAL_LOGS = [
       "게임 중 백그라운드 자원을 잡아먹을 수 있어서 신경 쓰이죠. 성능 모드로 전환하면 카메라 기능이 제한되는지 궁금합니다.",
     persona: "P12 · 28세 / 게임 개발자",
     cot: "게임 개발자는 GPU 성능과 발열 관리에 민감한 페르소나. 카메라 AI 기능의 시스템 자원 점유가 게임 프레임에 미치는 영향을 인식하고 있어 응답 일관성·신뢰도 높음.",
+    cotFull: [
+      {
+        step: "페르소나 프로파일 분석",
+        content:
+          "P12는 28세 게임 개발자로, GPU 부하·발열·프레임 드롭 등 성능 지표에 민감한 직군. 개인 사용자이자 개발자 관점에서 하드웨어 자원 관리에 높은 이해도를 보유.",
+      },
+      {
+        step: "질문 맥락 적합성 평가",
+        content:
+          "카메라 AI 보정 기능이 게임 플레이에 미치는 영향은 시스템 자원 경합 관점에서 평가 가능한 질문. 게임 개발자 페르소나의 전문성 범위와 충분히 겹침.",
+      },
+      {
+        step: "응답 내용 일관성 검토",
+        content:
+          "백그라운드 프로세스로 인한 자원 점유 우려 표명, 성능 모드와 카메라 기능 간 상충 가능성 질의. 두 요소 모두 실제 게임 개발자가 가질 법한 관심사이며 페르소나 행동 모델과 일치.",
+      },
+      {
+        step: "할루시네이션 리스크 평가",
+        content:
+          "응답이 페르소나의 도메인 지식 범위 내에 있으며, 과도하게 기술적이거나 비현실적인 주장 없음. 구체적 수치 없이 정성적 우려를 표명한 것이 오히려 자연스러운 소비자 응답에 부합.",
+      },
+      {
+        step: "최종 판정",
+        content: "Score 98 / Pass — 페르소나-질문 맥락 정합, 응답 내용 일관성·신뢰도 모두 높음. 인사이트로 활용 가능.",
+      },
+    ],
     score: 98,
     result: "Pass",
     date: "2026-03-13 14:20",
@@ -1975,6 +2028,32 @@ const VAL_LOGS = [
       "업무용 문서를 분리 보관할 수 있어 유용합니다. 다만 폴더 진입 시 생체인증 단계가 한 번 더 있으면 좋겠습니다.",
     persona: "P05 · 45세 / 금융 컨설턴트",
     cot: "금융 컨설턴트는 기밀 문서 보안에 높은 관심을 가지며 기업용 보안 솔루션 사용 경험이 있을 가능성 높음. 실용적 관점에서 보안 폴더를 평가한 응답 패턴이 페르소나 프로파일과 일치.",
+    cotFull: [
+      {
+        step: "페르소나 프로파일 분석",
+        content:
+          "P05는 45세 금융 컨설턴트로, 기밀 계약서·투자 제안서 등 민감 문서를 일상적으로 다루는 직군. 기업 보안 정책 준수에 대한 인식이 높을 것으로 예측됨.",
+      },
+      {
+        step: "질문 맥락 적합성 평가",
+        content:
+          "보안 폴더 사용 편의성은 업무용 보안 기능에 관심이 높은 직장인 페르소나에게 적합한 질문. 금융 컨설턴트의 직무 특성과 높은 연관성 보임.",
+      },
+      {
+        step: "응답 내용 일관성 검토",
+        content:
+          "'업무용 문서 분리 보관' 언급은 직무 맥락에서 자연스러움. 생체인증 추가 요청은 보안을 편의성보다 우선시하는 금융권 종사자 성향과 일치. 응답이 기능 마케팅 문구를 그대로 반복하지 않고 실제 사용 시나리오를 제시함.",
+      },
+      {
+        step: "할루시네이션 리스크 평가",
+        content:
+          "과장되거나 비현실적인 기능 주장 없음. 기존 보안 폴더 UX에 대한 합리적 개선 제안이며 검증 가능한 사용 맥락 내에 있음.",
+      },
+      {
+        step: "최종 판정",
+        content: "Score 95 / Pass — 페르소나·질문·응답 간 3방향 일관성 확인. 고품질 인사이트로 분류.",
+      },
+    ],
     score: 95,
     result: "Pass",
     date: "2026-03-13 14:15",
@@ -1988,6 +2067,33 @@ const VAL_LOGS = [
     answer: "저는 주로 네이버 블로그를 써서 잘 모르겠어요.",
     persona: "P33 · 52세 / 소상공인",
     cot: "52세 소상공인 페르소나는 릴스 편집 세부 기능 사용 빈도가 낮을 것으로 예측됨. MZ세대 대상 조사에 고령층 페르소나를 적용한 설계 오류로 판정. 페르소나-설문 매핑 재검토 필요.",
+    cotFull: [
+      {
+        step: "페르소나 프로파일 분석",
+        content:
+          "P33은 52세 소상공인으로, 주요 디지털 채널은 네이버 블로그·카카오채널로 파악됨. 인스타그램 사용 빈도는 낮고 릴스 편집 기능에 대한 숙련도가 없을 가능성이 높음.",
+      },
+      {
+        step: "질문 맥락 적합성 평가",
+        content:
+          "해당 질문은 MZ세대 SNS 헤비유저를 주 대상으로 설계된 문항. 릴스 AI 필터 사용 빈도는 플랫폼 이용 자체가 전제되어야 의미 있는 응답이 가능함.",
+      },
+      {
+        step: "응답 패턴 분석",
+        content:
+          "응답자는 질문 전제(인스타그램 릴스 사용)를 충족하지 못하며 대체 플랫폼(네이버 블로그)을 언급. 이는 페르소나의 실제 행동 패턴을 반영한 것이나, 조사 목적에서 벗어난 데이터임.",
+      },
+      {
+        step: "설계 오류 판정",
+        content:
+          "페르소나-설문 매핑 오류로 판단. P33 페르소나를 MZ세대 SNS 행태 조사에 포함한 것은 표본 설계 단계의 문제이며, 데이터 품질 저하의 원인.",
+      },
+      {
+        step: "최종 판정",
+        content:
+          "Score 62 / Flagged — 설문 설계 오류(페르소나-문항 불일치). 해당 응답은 인사이트 집계에서 제외하고 페르소나 풀 재설계를 권고함.",
+      },
+    ],
     score: 62,
     result: "Flagged",
     date: "2026-03-12 16:30",
@@ -2001,6 +2107,32 @@ const VAL_LOGS = [
     answer: "해외 클라이언트와 영어로 통화할 때 주 1~2회 정도 씁니다. 발음 인식률이 개선되면 더 자주 쓸 것 같아요.",
     persona: "P07 · 34세 / UX 디자이너",
     cot: "UX 디자이너는 다국어 협업 도구에 대한 필요성이 있으며 해외 클라이언트와의 소통에서 번역 기능을 활용할 구체적 맥락이 존재함. 사용 빈도·이유가 페르소나 직무와 일관됨.",
+    cotFull: [
+      {
+        step: "페르소나 프로파일 분석",
+        content:
+          "P07은 34세 UX 디자이너로, 글로벌 IT 에이전시 또는 외국계 기업 근무 가능성 있음. 영어 커뮤니케이션 빈도가 높고 협업 도구 활용에 적극적인 직군.",
+      },
+      {
+        step: "질문 맥락 적합성 평가",
+        content:
+          "Galaxy AI 통화 번역 기능은 국제 업무 커뮤니케이션 맥락에서 가치 있는 기능. UX 디자이너 페르소나의 직무 특성상 해외 클라이언트 커뮤니케이션 시나리오가 현실적.",
+      },
+      {
+        step: "응답 내용 일관성 검토",
+        content:
+          "'주 1~2회' 구체적 사용 빈도 제시, '발음 인식률 개선' 요청은 실제 사용 경험 기반의 피드백으로 보임. 기능 홍보 문구 반복 없이 실용적 사용 사례와 개선 희망 사항을 균형 있게 표현.",
+      },
+      {
+        step: "할루시네이션 리스크 평가",
+        content:
+          "응답 내용이 검증 가능한 기능 범위 내에 있으며 과장된 성능 주장 없음. 사용 빈도와 불만족 포인트가 공존하는 응답 구조는 실제 사용자 응답 패턴에 부합.",
+      },
+      {
+        step: "최종 판정",
+        content: "Score 91 / Pass — 페르소나·맥락·응답 일관성 우수. 통화 번역 기능 개선 인사이트로 활용 권장.",
+      },
+    ],
     score: 91,
     result: "Pass",
     date: "2026-03-12 10:05",
@@ -2095,110 +2227,120 @@ function ProjectPickerDialog({
         {/* 프로젝트 목록 */}
         <div className="min-h-0 flex-1 overflow-y-auto bg-white/60 px-5 py-5">
           <div className="overflow-hidden rounded-[32px] border border-[var(--border)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
-          <table className="w-full text-left text-[12px]">
-            <thead className="sticky top-0 z-10 overflow-hidden border-b border-[var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] shadow-[inset_0_1px_0_rgba(226,232,240,1)] backdrop-blur-sm">
-              <tr>
-                <th className="w-10 rounded-tl-[32px] border-t border-l border-[var(--border)] px-6 py-3" />
-                <th className="min-w-[360px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                  프로젝트명
-                </th>
-                <th className="min-w-[96px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                  담당자
-                </th>
-                <th className="min-w-[108px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                  생성일
-                </th>
-                <th className="min-w-[84px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                  상태
-                </th>
-                <th className="min-w-[72px] rounded-tr-[32px] border-t border-r border-[var(--border)] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
-                  접근
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)] bg-white">
-              {filtered.map((p) => (
-                <tr
-                  key={p.id}
-                  onClick={() => p.accessible && toggle(p.id)}
-                  className={cn(
-                    "transition-all",
-                    p.accessible
-                      ? "cursor-pointer hover:bg-[rgba(248,250,252,0.95)]"
-                      : "cursor-not-allowed bg-[var(--panel-soft)]/60 opacity-50",
-                    temp.has(p.id) && "bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,255,255,0.98))]"
-                  )}
-                >
-                  <td className={cn("px-6 py-3.5", filtered[filtered.length - 1]?.id === p.id && "rounded-bl-[32px]")}>
-                    <div
-                      className={cn(
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all",
-                        temp.has(p.id)
-                          ? "border-primary bg-primary shadow-[0_8px_18px_rgba(47,102,255,0.24)]"
-                          : "border-[var(--border)] bg-white"
-                      )}
+            <table className="w-full text-left text-[12px]">
+              <thead className="sticky top-0 z-10 overflow-hidden border-b border-[var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(241,245,249,0.98))] shadow-[inset_0_1px_0_rgba(226,232,240,1)] backdrop-blur-sm">
+                <tr>
+                  <th className="w-10 rounded-tl-[32px] border-t border-l border-[var(--border)] px-6 py-3" />
+                  <th className="min-w-[360px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                    프로젝트명
+                  </th>
+                  <th className="min-w-[96px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                    담당자
+                  </th>
+                  <th className="min-w-[108px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                    생성일
+                  </th>
+                  <th className="min-w-[84px] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                    상태
+                  </th>
+                  <th className="min-w-[72px] rounded-tr-[32px] border-t border-r border-[var(--border)] whitespace-nowrap px-4 py-3.25 font-black text-[10px] uppercase tracking-[0.16em] text-[var(--muted-foreground)]">
+                    접근
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)] bg-white">
+                {filtered.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => p.accessible && toggle(p.id)}
+                    className={cn(
+                      "transition-all",
+                      p.accessible
+                        ? "cursor-pointer hover:bg-[rgba(248,250,252,0.95)]"
+                        : "cursor-not-allowed bg-[var(--panel-soft)]/60 opacity-50",
+                      temp.has(p.id) && "bg-[linear-gradient(90deg,rgba(238,243,255,0.95),rgba(255,255,255,0.98))]"
+                    )}
+                  >
+                    <td
+                      className={cn("px-6 py-3.5", filtered[filtered.length - 1]?.id === p.id && "rounded-bl-[32px]")}
                     >
-                      {temp.has(p.id) && (
-                        <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
-                          <path
-                            d="M1.5 4L4 6.5L8.5 1.5"
-                            stroke="white"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          "h-2.5 w-2.5 rounded-full",
-                          p.accessible ? "bg-primary shadow-[0_0_0_4px_rgba(47,102,255,0.10)]" : "bg-[var(--border-strong)]"
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition-all",
+                          temp.has(p.id)
+                            ? "border-primary bg-primary shadow-[0_8px_18px_rgba(47,102,255,0.24)]"
+                            : "border-[var(--border)] bg-white"
                         )}
-                      />
-                      <span className="font-black text-foreground">{p.name}</span>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--secondary-foreground)]">{p.owner}</td>
-                  <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--muted-foreground)]">{p.created}</td>
-                  <td className="whitespace-nowrap px-4 py-3.5">
-                    <span className={cn("rounded-full px-2.5 py-1 text-[10px] font-black border", statusCls(p.status))}>
-                      {p.status}
-                    </span>
-                  </td>
-                  <td
-                    className={cn(
-                      "whitespace-nowrap px-4 py-3.5",
-                      filtered[filtered.length - 1]?.id === p.id && "rounded-br-[32px]"
-                    )}
-                  >
-                    {p.accessible ? (
-                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--success)]/20 bg-[var(--success-light)] px-2.5 py-1 text-[11px] font-bold text-[var(--success)]">
-                        <CheckCircle2 size={11} /> 허용
+                      >
+                        {temp.has(p.id) && (
+                          <svg width="9" height="7" viewBox="0 0 10 8" fill="none">
+                            <path
+                              d="M1.5 4L4 6.5L8.5 1.5"
+                              stroke="white"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            "h-2.5 w-2.5 rounded-full",
+                            p.accessible
+                              ? "bg-primary shadow-[0_0_0_4px_rgba(47,102,255,0.10)]"
+                              : "bg-[var(--border-strong)]"
+                          )}
+                        />
+                        <span className="font-black text-foreground">{p.name}</span>
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--secondary-foreground)]">
+                      {p.owner}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5 font-bold text-[var(--muted-foreground)]">
+                      {p.created}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3.5">
+                      <span
+                        className={cn("rounded-full px-2.5 py-1 text-[10px] font-black border", statusCls(p.status))}
+                      >
+                        {p.status}
                       </span>
-                    ) : (
-                      <span className="inline-flex whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--muted-foreground)]">
-                        제한
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-[13px] font-bold text-[var(--muted-foreground)]"
-                  >
-                    검색 결과가 없습니다
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    </td>
+                    <td
+                      className={cn(
+                        "whitespace-nowrap px-4 py-3.5",
+                        filtered[filtered.length - 1]?.id === p.id && "rounded-br-[32px]"
+                      )}
+                    >
+                      {p.accessible ? (
+                        <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--success)]/20 bg-[var(--success-light)] px-2.5 py-1 text-[11px] font-bold text-[var(--success)]">
+                          <CheckCircle2 size={11} /> 허용
+                        </span>
+                      ) : (
+                        <span className="inline-flex whitespace-nowrap rounded-full border border-[var(--border)] bg-[var(--panel-soft)] px-2.5 py-1 text-[11px] font-bold text-[var(--muted-foreground)]">
+                          제한
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-4 py-8 text-center text-[13px] font-bold text-[var(--muted-foreground)]"
+                    >
+                      검색 결과가 없습니다
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -2207,10 +2349,20 @@ function ProjectPickerDialog({
             {temp.size > 0 ? `${temp.size}개 프로젝트 선택됨` : "선택 없음 · 전체 프로젝트 표시"}
           </span>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="rounded-xl border-[var(--border)] bg-white px-4" onClick={() => setTemp(new Set())}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-[var(--border)] bg-white px-4"
+              onClick={() => setTemp(new Set())}
+            >
               선택 초기화
             </Button>
-            <Button variant="outline" size="sm" className="rounded-xl border-[var(--border)] bg-white px-4" onClick={onClose}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-[var(--border)] bg-white px-4"
+              onClick={onClose}
+            >
               취소
             </Button>
             <Button
@@ -2235,12 +2387,104 @@ function ProjectPickerDialog({
   );
 }
 
+type ValLog = (typeof VAL_LOGS)[number];
+
+function CotModal({ log, onClose }: { log: ValLog; onClose: () => void }) {
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-2xl gap-3">
+        <DialogHeader className="pb-0">
+          <DialogTitle className="flex items-center gap-2 text-[14px]">
+            <FlaskConical size={13} className="text-primary" />
+            CoT 추론 전체 보기
+            <span className="ml-1 text-[11px] font-bold text-[var(--muted-foreground)]">{log.id}</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* 요약 헤더 */}
+        <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-bold text-[var(--muted-foreground)] flex items-center gap-1">
+              <Users size={9} /> {log.persona}
+            </span>
+            <span className="text-[var(--border)]">·</span>
+            <span className="text-[10px] font-bold text-[var(--muted-foreground)]">{log.project}</span>
+            <span className="text-[var(--border)]">·</span>
+            <span className="text-[10px] font-bold text-[var(--muted-foreground)]">
+              {log.questionNo} {log.questionLabel}
+            </span>
+          </div>
+          <div className="flex gap-1.5">
+            <span className="text-[10px] font-black text-[var(--muted-foreground)] shrink-0 mt-0.5">Q</span>
+            <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-snug">{log.q}</p>
+          </div>
+          <div className="flex gap-1.5 px-2 py-1.5 bg-background rounded-md border border-[var(--border)]">
+            <span className="text-[10px] font-black text-primary shrink-0 mt-0.5">A</span>
+            <p className="text-[12px] font-medium text-foreground leading-snug">{log.answer}</p>
+          </div>
+        </div>
+
+        {/* 추론 단계 */}
+        <div className="space-y-0">
+          {log.cotFull.map((step, i) => (
+            <div key={i} className="flex gap-2.5">
+              <div className="flex flex-col items-center">
+                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white text-[9px] font-black">
+                  {i + 1}
+                </div>
+                {i < log.cotFull.length - 1 && <div className="mt-0.5 w-px flex-1 min-h-[8px] bg-[var(--border)]" />}
+              </div>
+              <div className="pb-2 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-0.5">{step.step}</p>
+                <p className="text-[12px] font-medium text-[var(--secondary-foreground)] leading-snug">
+                  {step.content}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 최종 판정 */}
+        <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--panel-soft)] px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-black text-[var(--muted-foreground)]">최종 점수</span>
+            <span
+              className={cn(
+                "text-[15px] font-black tabular-nums",
+                log.score >= 80
+                  ? "text-primary"
+                  : log.score >= 60
+                    ? "text-[var(--warning)]"
+                    : "text-[var(--destructive)]"
+              )}
+            >
+              {log.score}
+            </span>
+            <span className="text-[10px] text-[var(--subtle-foreground)]">/ 100</span>
+          </div>
+          <span
+            className={cn(
+              "rounded-full border px-2.5 py-0.5 text-[10px] font-black",
+              log.result === "Pass"
+                ? "bg-[var(--success-light)] text-[var(--success)] border-[var(--success)]/30"
+                : "bg-red-50 text-[var(--destructive)] border-red-100"
+            )}
+          >
+            {log.result === "Flagged" ? "Hallucination Risk" : log.result}
+          </span>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ValidationSection() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set());
   const [resultFilter, setResultFilter] = useState<"전체" | "Pass" | "Flagged">("전체");
   const [searchQuery, setSearchQuery] = useState("");
   const [questionFilter, setQuestionFilter] = useState("전체");
+  const [cotLog, setCotLog] = useState<ValLog | null>(null);
 
   const selectedNames = VAL_PROJECTS.filter((p) => selectedProjects.has(p.id)).map((p) => p.name);
 
@@ -2257,6 +2501,7 @@ function ValidationSection() {
 
   return (
     <>
+      {cotLog && <CotModal log={cotLog} onClose={() => setCotLog(null)} />}
       <SectionTitle
         title="품질 검증 아카이브"
         desc="페르소나 응답 생성 시 AI가 거친 추론 과정과 품질 검증 이력을 기록하고 검토합니다"
@@ -2434,7 +2679,12 @@ function ValidationSection() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Button variant="outline" size="sm" className="text-[11px] gap-1.5 h-7">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[11px] gap-1.5 h-7"
+                        onClick={() => setCotLog(log)}
+                      >
                         <Eye size={12} /> CoT 전체 보기
                       </Button>
                       <div className="flex items-center gap-1.5">

@@ -109,15 +109,6 @@ const CONNECTION_PRESET: Record<string, string[]> = {
   custom: [],
 };
 
-const STATUS_STYLE = {
-  Healthy: { dot: "bg-green-500", badge: "bg-green-50 text-green-700 border-green-200" },
-  Warning: { dot: "bg-amber-400", badge: "bg-amber-50 text-amber-700 border-amber-200" },
-  Idle: {
-    dot: "bg-[var(--border)]",
-    badge: "bg-[var(--panel-soft)] text-[var(--muted-foreground)] border-[var(--border)]",
-  },
-};
-
 const defaultRange = () => {
   const to = new Date();
   const from = new Date();
@@ -542,7 +533,6 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                   <div className="flex flex-col gap-2">
                     {filteredDataSources.map((d) => {
                       const isSelected = selectedData.includes(d.id);
-                      const style = STATUS_STYLE[d.status];
                       return (
                         <button
                           key={d.id}
@@ -567,12 +557,6 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                             </p>
                             <p className="text-[11px] text-muted-foreground truncate">{d.connector}</p>
                           </div>
-                          <span
-                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 ${style.badge}`}
-                          >
-                            <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                            {d.status}
-                          </span>
                           {isSelected ? <Check size={15} className="shrink-0 text-primary" /> : null}
                         </button>
                       );
@@ -586,7 +570,6 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                         const isSelected = selectedData.includes(d.id);
                         const isExpanded = expandedData === d.id;
                         const range = dataRanges[d.id];
-                        const style = STATUS_STYLE[d.status];
                         return (
                           <div
                             key={d.id}
@@ -628,70 +611,59 @@ export function WizardModal({ initialTemplate, onClose, onSubmit, isSubmitting, 
                                   {d.connector}
                                 </p>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <span
-                                  className={`rounded-full border px-2 py-0.5 text-[10px] font-bold flex items-center gap-1 ${style.badge}`}
-                                >
-                                  <span className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
-                                  {d.status}
-                                </span>
-                                <span className="text-[10px] font-medium text-[var(--subtle-foreground)]">
-                                  {d.lastSync}
-                                </span>
-                              </div>
                             </button>
 
-                            {/* 선택 시: 날짜 범위 설정 */}
-                            {isSelected ? (
-                              <div className="px-5 pb-4">
-                                {isExpanded ? (
-                                  <div
-                                    className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200"
-                                    onClick={(e) => e.stopPropagation()}
+                            {/* 날짜 범위 설정 - 항상 공간 확보, 미선택 시 invisible */}
+                            <div className="px-5 pb-4">
+                              {isSelected && isExpanded ? (
+                                <div
+                                  className="flex items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <input
+                                    type="date"
+                                    value={range?.from ?? ""}
+                                    onChange={(e) => updateRange(d.id, "from", e.target.value)}
+                                    className="rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-semibold outline-none flex-1 focus:border-primary"
+                                  />
+                                  <span className="text-[10px] text-[var(--subtle-foreground)] shrink-0">~</span>
+                                  <input
+                                    type="date"
+                                    value={range?.to ?? ""}
+                                    onChange={(e) => updateRange(d.id, "to", e.target.value)}
+                                    className="rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-semibold outline-none flex-1 focus:border-primary"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedData(null);
+                                    }}
+                                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-[11px] font-bold transition-all hover:bg-primary-hover"
                                   >
-                                    <input
-                                      type="date"
-                                      value={range?.from ?? ""}
-                                      onChange={(e) => updateRange(d.id, "from", e.target.value)}
-                                      className="rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-semibold outline-none flex-1 focus:border-primary"
-                                    />
-                                    <span className="text-[10px] text-[var(--subtle-foreground)] shrink-0">~</span>
-                                    <input
-                                      type="date"
-                                      value={range?.to ?? ""}
-                                      onChange={(e) => updateRange(d.id, "to", e.target.value)}
-                                      className="rounded-xl border border-border bg-background px-2 py-1.5 text-[11px] font-semibold outline-none flex-1 focus:border-primary"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExpandedData(null);
-                                      }}
-                                      className="shrink-0 px-2.5 py-1.5 rounded-lg bg-primary text-white text-[11px] font-bold transition-all hover:bg-primary-hover"
-                                    >
-                                      확인
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[11px] font-medium text-[var(--primary-active-text)]">
-                                      {range?.from && range?.to ? `${range.from} ~ ${range.to}` : "기간 미설정"}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setExpandedData(d.id);
-                                      }}
-                                      className="text-[11px] font-semibold text-primary hover:underline underline-offset-2"
-                                    >
-                                      설정
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            ) : null}
+                                    확인
+                                  </button>
+                                </div>
+                              ) : (
+                                <div
+                                  className={`flex items-center justify-between ${!isSelected ? "invisible pointer-events-none" : ""}`}
+                                >
+                                  <span className="text-[11px] font-medium text-[var(--primary-active-text)]">
+                                    {range?.from && range?.to ? `${range.from} ~ ${range.to}` : "기간 미설정"}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setExpandedData(d.id);
+                                    }}
+                                    className="text-[11px] font-semibold text-primary hover:underline underline-offset-2"
+                                  >
+                                    설정
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         );
                       })}
