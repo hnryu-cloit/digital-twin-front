@@ -224,7 +224,7 @@ export const fetchIndividualPersonas = async (projectId?: string | null): Promis
   try {
     const query = new URLSearchParams({
       page: "1",
-      size: "100",
+      size: "2000",
     });
     if (projectId) {
       query.set("project_id", projectId);
