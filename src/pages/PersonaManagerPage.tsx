@@ -51,7 +51,6 @@ interface Persona {
 }
 
 const SEGMENT_COLORS: Record<Segment, { bg: string; text: string; border: string }> = {};
-
 const DEFAULT_SEGMENT_COLOR = { bg: "#eef3ff", text: "#2f66ff", border: "#c9d8ff" };
 
 const CARD_PAGE_SIZE = 9;
