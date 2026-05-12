@@ -80,6 +80,9 @@ npm run preview
 
 # 린트
 npm run lint
+
+# GitHub Pages 배포
+npm run deploy
 ```
 
 ### 사전 요구사항
@@ -92,6 +95,40 @@ cd ../digital-twin-backend
 source .venv/bin/activate
 uvicorn app.main:app --reload
 ```
+
+### GitHub Pages 배포
+
+- 이 저장소는 GitHub Pages의 프로젝트 페이지 경로인 `/digital-twin-front/`를 기준으로 빌드됩니다.
+- `vite.config.ts`의 `base`와 `src/main.tsx`의 `BrowserRouter basename`이 같은 경로를 사용하도록 맞춰져 있습니다.
+- 이 프로젝트는 GitHub Actions가 아니라 `gh-pages` 패키지로 로컬에서 배포합니다.
+- `npm run deploy`를 실행하면 `dist` 내용이 `gh-pages` 브랜치로 배포됩니다.
+- GitHub 저장소의 `Settings > Pages`에서 배포 브랜치를 `gh-pages`, 폴더를 `/(root)`로 지정하면 됩니다.
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  base: "/digital-twin-front/",
+});
+```
+
+```tsx
+// src/main.tsx
+<BrowserRouter basename={import.meta.env.BASE_URL}>
+  <App />
+</BrowserRouter>
+```
+
+```bash
+npm install -D gh-pages
+npm run deploy
+```
+
+1. 저장소를 `public`으로 변경합니다.
+2. `Settings > Pages`로 이동합니다.
+3. `Source`를 `Deploy from a branch`로 선택합니다.
+4. `Branch`를 `gh-pages`, 폴더를 `/(root)`로 선택하고 저장합니다.
+5. `https://hnryu-cloit.github.io/digital-twin-front/`에서 결과를 확인합니다.
 
 ### 환경변수 (`.env`)
 

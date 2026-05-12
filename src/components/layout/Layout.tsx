@@ -66,22 +66,22 @@ export const Layout: React.FC = () => {
 
   const isWorkflowPage = WORKFLOW_PATHS.includes(location.pathname);
   const [furthestStepIndex, setFurthestStepIndex] = useState<number>(() => {
-    return parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+    return parseInt(sessionStorage.getItem(STORAGE_KEYS.WORKFLOW_FURTHEST_STEP) ?? "-1");
   });
 
   useEffect(() => {
     const stepIndex = WORKFLOW_STEPS.findIndex((s) => s.path === location.pathname);
     if (stepIndex >= 0) {
       setProjectName(sessionStorage.getItem(STORAGE_KEYS.CURRENT_PROJECT_NAME) ?? "");
-      const stored = parseInt(sessionStorage.getItem("workflowFurthestStep") ?? "-1");
+      const stored = parseInt(sessionStorage.getItem(STORAGE_KEYS.WORKFLOW_FURTHEST_STEP) ?? "-1");
       if (stepIndex > stored) {
-        sessionStorage.setItem("workflowFurthestStep", String(stepIndex));
+        sessionStorage.setItem(STORAGE_KEYS.WORKFLOW_FURTHEST_STEP, String(stepIndex));
         setFurthestStepIndex(stepIndex);
       } else {
         setFurthestStepIndex(stored);
       }
     } else if (location.pathname === "/") {
-      sessionStorage.removeItem("workflowFurthestStep");
+      sessionStorage.removeItem(STORAGE_KEYS.WORKFLOW_FURTHEST_STEP);
       sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_NAME);
       sessionStorage.removeItem(STORAGE_KEYS.CURRENT_PROJECT_ID);
       setFurthestStepIndex(-1);

@@ -6,19 +6,17 @@ import {
   Sparkles,
   Pencil,
   Trash2,
-  Settings,
-  ChevronRight,
-  Plus,
   GripVertical,
-  CheckSquare,
-  AlignLeft,
-  Sliders,
   MoreHorizontal,
   ShieldCheck,
-  X,
+  AlignLeft,
+  Plus,
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
-import { AppPagination } from "@/components/ui/AppPagination";
+import { AppPagination } from "../components/AppPagination";
+import { TypeBadge } from "@/components/survey/TypeBadge";
+import { TooltipMenu } from "@/components/survey/TooltipMenu";
+import { SurveyPreviewModal as PreviewModal } from "@/components/survey/SurveyPreviewModal";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import favicon from "@/assets/favicon.svg";
@@ -43,261 +41,21 @@ interface Question {
   status?: string;
 }
 
-const TYPE_COLORS: Record<QuestionType, { bg: string; text: string; border: string }> = {
-  단일선택: { bg: "var(--tag-blue-bg)", text: "var(--tag-blue)", border: "var(--tag-blue-bg)" },
-  복수선택: { bg: "var(--tag-indigo-bg)", text: "var(--tag-indigo)", border: "var(--tag-indigo-bg)" },
-  리커트척도: { bg: "var(--tag-purple-bg)", text: "var(--tag-purple)", border: "var(--tag-purple-bg)" },
-  주관식: { bg: "var(--tag-teal-bg)", text: "var(--tag-teal)", border: "var(--tag-teal-bg)" },
-};
-
-const TYPE_ICONS: Record<QuestionType, React.ReactNode> = {
-  단일선택: <CheckSquare size={11} />,
-  복수선택: <CheckSquare size={11} />,
-  리커트척도: <Sliders size={11} />,
-  주관식: <AlignLeft size={11} />,
-};
-
-const INITIAL_QUESTIONS: Question[] = [];
-
-type ChatRole = "user" | "bot";
 interface ChatMessage {
-  id: number | string;
-  role: ChatRole;
+  id: number;
+  role: "bot" | "user";
   text: string;
 }
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
-    id: "msg-1",
+    id: 1,
     role: "bot",
-    text: "반갑습니다! 삼성 디지털 트윈 설문 설계 어시스턴트입니다. 어떤 조사를 도와드릴까요?",
+    text: "리서치 목적과 분석 대상에 맞춰 설문 초안을 생성할 수 있습니다.",
   },
 ];
 
-function TypeBadge({ type }: { type: QuestionType }) {
-  const c = TYPE_COLORS[type];
-  return (
-    <span
-      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border text-[10px] font-semibold"
-      style={{ backgroundColor: c.bg, color: c.text, borderColor: c.border }}
-    >
-      {TYPE_ICONS[type]}
-      {type}
-    </span>
-  );
-}
-
-interface TooltipMenuProps {
-  onClose: () => void;
-}
-
-function TooltipMenu({ onClose }: TooltipMenuProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<"top" | "bottom">("top");
-
-  useEffect(() => {
-    if (ref.current) {
-      const rect = ref.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.top;
-      if (spaceBelow < 250) {
-        // Enough space for menu
-        setPosition("bottom");
-      }
-    }
-
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [onClose]);
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "absolute right-0 z-50 bg-card border border-[var(--border)] rounded-xl shadow-[var(--shadow-[var(--shadow-lg)])] py-1.5 w-48 animate-in fade-in duration-200",
-        position === "top" ? "top-8 slide-in-from-top-2" : "bottom-8 slide-in-from-bottom-2"
-      )}
-    >
-      {[
-        { icon: <Settings size={13} />, label: "상세 설정" },
-        { icon: <Sparkles size={13} />, label: "문항 품질체크" },
-        { icon: <ChevronRight size={13} />, label: "로직 설정" },
-        { icon: <CheckSquare size={13} />, label: "필수 응답" },
-      ].map((item) => (
-        <button
-          key={item.label}
-          onClick={onClose}
-          className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--surface-hover)] text-left transition-colors group"
-        >
-          <span className="text-[var(--subtle-foreground)] group-hover:text-primary transition-colors">
-            {item.icon}
-          </span>
-          <span className="text-[12px] font-medium text-[var(--secondary-foreground)]">{item.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function PreviewModal({
-  preview,
-  onClose,
-  onConfirm,
-  confirming,
-}: {
-  preview: SurveyDraftPreview;
-  onClose: () => void;
-  onConfirm: () => void;
-  confirming: boolean;
-}) {
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm">
-      <div className="flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[32px] bg-card shadow-2xl">
-        <div className="flex items-start justify-between border-b border-[var(--border)] px-8 py-6">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Draft Preview</p>
-            <h2 className="mt-2 text-[24px] font-black text-foreground">설문 초안 미리보기</h2>
-            <p className="mt-2 text-[13px] font-medium leading-relaxed text-[var(--muted-foreground)]">
-              {preview.summary}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] text-[var(--muted-foreground)] transition-colors hover:text-foreground"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="grid flex-1 overflow-hidden md:grid-cols-[1fr_320px]">
-          <div className="overflow-y-auto px-8 py-6">
-            <div className="mb-5 grid gap-3 md:grid-cols-4">
-              <div className="rounded-2xl border border-[var(--border)] bg-background px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
-                  문항 수
-                </p>
-                <p className="mt-2 text-[20px] font-black text-foreground">{preview.generation_meta.question_count}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-background px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
-                  Draft
-                </p>
-                <p className="mt-2 text-[20px] font-black text-foreground">{preview.generation_meta.draft_count}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-background px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
-                  Confirmed
-                </p>
-                <p className="mt-2 text-[20px] font-black text-foreground">{preview.generation_meta.confirmed_count}</p>
-              </div>
-              <div className="rounded-2xl border border-[var(--border)] bg-background px-4 py-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
-                  템플릿
-                </p>
-                <p className="mt-2 text-[14px] font-black text-foreground">
-                  {preview.generation_meta.template_id ?? "직접 편집"}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-5">
-              {preview.questions.map((question, index) => (
-                <div key={question.id} className="rounded-3xl border border-[var(--border)] bg-background p-6">
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="rounded-xl bg-primary px-3 py-1 text-[11px] font-black text-white">
-                      Q{index + 1}
-                    </span>
-                    <TypeBadge type={question.type as QuestionType} />
-                    <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--subtle-foreground)]">
-                      {question.status ?? "draft"}
-                    </span>
-                  </div>
-                  <p className="text-[15px] font-bold leading-relaxed text-foreground">{question.text}</p>
-                  <p className="mt-3 text-[13px] font-medium leading-relaxed text-[var(--secondary-foreground)]">
-                    {question.rationale}
-                  </p>
-                  {question.options && question.options.length > 0 ? (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {question.options.map((option) => (
-                        <span
-                          key={`${question.id}-${option}`}
-                          className="rounded-full border border-[var(--border)] bg-card px-3 py-1 text-[12px] font-semibold text-[var(--secondary-foreground)]"
-                        >
-                          {option}
-                        </span>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="overflow-y-auto border-l border-[var(--border)] bg-[var(--panel-soft)]/35 px-6 py-6">
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-primary">Question Evidence</p>
-            <div className="mt-4 rounded-2xl border border-[var(--border)] bg-card p-4">
-              <p className="text-[13px] font-black text-foreground">생성 메타데이터</p>
-              <div className="mt-3 space-y-2 text-[12px] font-semibold text-[var(--secondary-foreground)]">
-                <div className="flex items-center justify-between gap-3">
-                  <span>최근 job</span>
-                  <span className="font-black text-primary">{preview.generation_meta.latest_job_id ?? "-"}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span>세그먼트 소스</span>
-                  <span className="font-black text-primary">{preview.generation_meta.segment_source ?? "-"}</span>
-                </div>
-                <div className="border-t border-[var(--border)] pt-2">
-                  <p className="mb-1 text-[11px] font-black uppercase tracking-[0.12em] text-[var(--subtle-foreground)]">
-                    사용자 요청
-                  </p>
-                  <p className="leading-relaxed">{preview.generation_meta.user_prompt ?? "기록 없음"}</p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4 space-y-4">
-              {preview.questions.map((question, index) => (
-                <div key={`evidence-${question.id}`} className="rounded-2xl border border-[var(--border)] bg-card p-4">
-                  <p className="mb-3 text-[13px] font-black text-foreground">Q{index + 1} 근거</p>
-                  <div className="space-y-2">
-                    {question.evidence.map((item) => (
-                      <div
-                        key={`${question.id}-${item.label}`}
-                        className="flex items-center justify-between gap-3 border-b border-[var(--border)]/60 py-2 last:border-b-0"
-                      >
-                        <span className="text-[12px] font-semibold text-[var(--secondary-foreground)]">
-                          {item.label}
-                        </span>
-                        <span className="text-[12px] font-black text-primary">{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-3 border-t border-[var(--border)] bg-[var(--panel-soft)]/35 px-8 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-[var(--border)] bg-card px-5 py-2.5 text-[13px] font-semibold text-[var(--secondary-foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-          >
-            닫기
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={confirming || preview.status === "confirmed"}
-            className="rounded-xl bg-primary px-6 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {preview.status === "confirmed" ? "이미 확정됨" : confirming ? "확정 중..." : "이 초안 확정"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const INITIAL_QUESTIONS: Question[] = [];
 
 const QUESTIONS_PER_PAGE = 5;
 

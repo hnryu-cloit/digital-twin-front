@@ -6,6 +6,7 @@ import {
   geminiApi,
   projectApi,
   segmentApi,
+  type DynamicInsight,
   type SegmentFilterOptions,
   type ResearchRecommendationResponse,
 } from "@/lib/api";
@@ -14,8 +15,6 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import {
   Users,
   Smartphone,
-  ChevronDown,
-  ChevronUp,
   ChevronRight,
   MapPin,
   ShoppingBag,
@@ -38,15 +37,18 @@ import {
   Sparkles,
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
+import { DashboardCheckbox as Checkbox } from "@/components/dashboard/DashboardCheckbox";
+import { DashboardSectionHeader as SectionHeader } from "@/components/dashboard/DashboardSectionHeader";
 
 /* ─── Persona Pool ─── */
 type PersonaSegment = string; // AI가 동적으로 생성하므로 고정 목록 없음
 
 type OccupationCat = "학생" | "직장인" | "전문직" | "자영업자" | "프리랜서";
-type SpendingLevel = "가성비형" | "실용형" | "프리미엄형";
+type SpendingLevel = "가성비형" | "실용형" | "프리미엄형" | "분석 중";
 type BrandLoyalty = "낮음" | "중간" | "높음";
 type SnsActivity = "낮음" | "보통" | "활발";
 type PurchaseIntent = "낮음" | "보통" | "높음";
+type TechLevel = "초보" | "중급" | "전문가" | "분석 중";
 
 interface FilterPersona {
   id: string;
@@ -59,7 +61,7 @@ interface FilterPersona {
   householdType: string;
   device: string;
   segments: PersonaSegment[];
-  techLevel: "초보" | "중급" | "전문가";
+  techLevel: TechLevel;
   interests: string[];
   keywords: string[];
   spendingLevel: SpendingLevel;
@@ -100,7 +102,7 @@ function deriveSegments(personas: FilterPersona[]) {
     .map(([name, members]) => {
       const avgAge = Math.round(members.reduce((s, p) => s + p.age, 0) / members.length);
       const maleRatio = Math.round((members.filter((p) => p.gender === "남성").length / members.length) * 100);
-      const techDist = ["초보", "중급", "전문가"].map((t) => ({
+      const techDist = ["초보", "중급", "전문가", "분석 중"].map((t) => ({
         label: t,
         count: members.filter((p) => p.techLevel === t).length,
       }));
@@ -132,74 +134,6 @@ const AGE_GROUPS = [
   { label: "50대+", min: 50, max: 99 },
 ];
 
-/* ─── UI Atoms ─── */
-function Checkbox({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <div
-      onClick={onChange}
-      className={`w-4 h-4 rounded-md flex items-center justify-center border transition-all cursor-pointer shrink-0 ${
-        checked
-          ? "bg-primary border-primary shadow-[0_2px_6px_rgba(47,102,255,0.2)]"
-          : "border-[var(--border)] bg-card hover:border-[var(--border-hover)]"
-      }`}
-    >
-      {checked && (
-        <svg width="10" height="8" viewBox="0 0 10 8" fill="none" className="block animate-in zoom-in-50 duration-200">
-          <path
-            d="M1.5 4L4 6.5L8.5 1.5"
-            stroke="white"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      )}
-    </div>
-  );
-}
-
-function SectionHeader({
-  icon,
-  title,
-  open,
-  onToggle,
-  count,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  open: boolean;
-  onToggle: () => void;
-  count?: number;
-}) {
-  return (
-    <button
-      onClick={onToggle}
-      className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--surface-hover)] transition-colors rounded-xl group"
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={`transition-colors ${open ? "text-primary" : "text-[var(--subtle-foreground)] group-hover:text-primary"}`}
-        >
-          {icon}
-        </span>
-        <span
-          className={`text-[12px] font-bold tracking-tight ${open ? "text-foreground" : "text-[var(--secondary-foreground)] group-hover:text-foreground"}`}
-        >
-          {title}
-        </span>
-        {!!count && count > 0 && (
-          <span className="bg-[var(--primary-light-bg)] text-primary px-2 py-0.5 rounded-full text-[9px] font-bold border border-[var(--primary-light-border)]">
-            {count}
-          </span>
-        )}
-      </div>
-      <div className="text-[var(--subtle-foreground)] group-hover:text-primary transition-all">
-        {open ? <ChevronUp size={14} strokeWidth={2.5} /> : <ChevronDown size={14} strokeWidth={2.5} />}
-      </div>
-    </button>
-  );
-}
-
 const CUSTOM_LABEL = ({ cx, cy, total }: { cx: number; cy: number; total: number }) => (
   <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
     <tspan
@@ -215,20 +149,31 @@ const CUSTOM_LABEL = ({ cx, cy, total }: { cx: number; cy: number; total: number
   </text>
 );
 
-const SEGMENT_SPEND: Record<string, SpendingLevel> = {
-  "MZ 얼리어답터": "프리미엄형",
-  "게이밍 성향군": "프리미엄형",
-  "프리미엄 구매자": "프리미엄형",
-  "비즈니스 프로": "실용형",
-  "실용 중시 가족형": "실용형",
-  "콘텐츠 크리에이터": "실용형",
-};
-
 const CHANNEL_MAP: Record<string, string> = {
   YouTube: "YouTube",
   Instagram: "Instagram",
   TikTok: "TikTok",
   LinkedIn: "뉴스/미디어",
+};
+
+const findInsightValue = (insights: DynamicInsight[] | undefined, labels: string[]) => {
+  if (!Array.isArray(insights)) return "";
+  const target = insights.find((insight) => labels.some((label) => insight.label.includes(label)));
+  return target?.value || "";
+};
+
+const normalizeTechLevel = (value: string): TechLevel => {
+  if (value.includes("전문가")) return "전문가";
+  if (value.includes("중급")) return "중급";
+  if (value.includes("초보")) return "초보";
+  return "분석 중";
+};
+
+const normalizeSpendingLevel = (value: string): SpendingLevel => {
+  if (value.includes("프리미엄")) return "프리미엄형";
+  if (value.includes("가성비")) return "가성비형";
+  if (value.includes("실용")) return "실용형";
+  return "분석 중";
 };
 
 const BUY_CHANNEL_MAP: Record<string, string> = {
@@ -269,13 +214,12 @@ export const DashboardPage: React.FC = () => {
           householdType: item.household_type || "1인 가구",
           device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
           segments: [item.segment || "기타"],
-          techLevel: (item.future_value >= 90 ? "전문가" : item.future_value >= 75 ? "중급" : "초보") as
-            | "전문가"
-            | "중급"
-            | "초보",
-          interests: item.interests?.length ? item.interests : ["스마트폰"],
-          keywords: item.keywords?.length ? item.keywords : ["성능"],
-          spendingLevel: (SEGMENT_SPEND[item.segment] ?? "실용형") as SpendingLevel,
+          techLevel: normalizeTechLevel(findInsightValue(item.dynamic_insights, ["기술 수준", "숙련도"])),
+          interests: item.interests?.length ? item.interests : [],
+          keywords: item.keywords?.length ? item.keywords : [],
+          spendingLevel: normalizeSpendingLevel(
+            findInsightValue(item.dynamic_insights, ["소비 성향", "지출", "구매 성향"])
+          ),
           purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as
             | "높음"
             | "보통"
@@ -313,7 +257,7 @@ export const DashboardPage: React.FC = () => {
           if (Array.isArray(f.purchaseIntent)) setSelectedPurchaseIntent(f.purchaseIntent as PurchaseIntent[]);
           if (Array.isArray(f.buyChannels)) setSelectedBuyChannels(f.buyChannels as string[]);
           if (f.products && typeof f.products === "object") setProducts(f.products as Record<string, boolean>);
-          if (Array.isArray(f.techLevels)) setSelectedTechLevels(f.techLevels as string[]);
+          if (Array.isArray(f.techLevels)) setSelectedTechLevels(f.techLevels as TechLevel[]);
           if (Array.isArray(f.sns)) setSelectedSns(f.sns as SnsActivity[]);
           if (Array.isArray(f.contentChannels)) setSelectedContentChannels(f.contentChannels as string[]);
           if (Array.isArray(f.brandLoyalty)) setSelectedBrandLoyalty(f.brandLoyalty as BrandLoyalty[]);
@@ -348,7 +292,7 @@ export const DashboardPage: React.FC = () => {
   const [products, setProducts] = useState<Record<string, boolean>>({});
 
   /* ── 디지털 특성 ── */
-  const [selectedTechLevels, setSelectedTechLevels] = useState<string[]>([]);
+  const [selectedTechLevels, setSelectedTechLevels] = useState<TechLevel[]>([]);
   const [selectedSns, setSelectedSns] = useState<SnsActivity[]>([]);
   const [selectedContentChannels, setSelectedContentChannels] = useState<string[]>([]);
   const [selectedBrandLoyalty, setSelectedBrandLoyalty] = useState<BrandLoyalty[]>([]);
@@ -937,7 +881,7 @@ export const DashboardPage: React.FC = () => {
                 />
                 {openSections.spending && (
                   <div className="px-4 pb-4 flex gap-2">
-                    {(["가성비형", "실용형", "프리미엄형"] as SpendingLevel[]).map((s) => {
+                    {(["가성비형", "실용형", "프리미엄형", "분석 중"] as SpendingLevel[]).map((s) => {
                       const active = selectedSpending.includes(s);
                       return (
                         <button
@@ -1062,7 +1006,7 @@ export const DashboardPage: React.FC = () => {
                 />
                 {openSections.tech && (
                   <div className="px-4 pb-4 flex gap-2">
-                    {["초보", "중급", "전문가"].map((t) => {
+                    {(["초보", "중급", "전문가", "분석 중"] as TechLevel[]).map((t) => {
                       const active = selectedTechLevels.includes(t);
                       return (
                         <button
@@ -1332,7 +1276,7 @@ export const DashboardPage: React.FC = () => {
                     customHouseholds,
                     customContentChannels,
                   };
-                  await projectApi.saveSegmentFilter(
+                  await projectApi.putSegmentFilter(
                     projectId,
                     personaFilter,
                     displayedPersonas.map((p) => p.id)

@@ -120,6 +120,8 @@ export interface ProjectDetail {
 export interface Persona {
   id: string;
   project_id?: string;
+  analysis_run_id?: string | null;
+  analysis_context?: Record<string, unknown>;
   name: string;
   segment: string;
   keywords: string[];
@@ -133,6 +135,16 @@ export interface Persona {
   buy_channel: string;
   product_group: string;
   churn_risk?: string;
+  dynamic_insights?: DynamicInsight[];
+}
+
+export interface DynamicInsight {
+  label: string;
+  value: string;
+  type?: string;
+  evidence?: string;
+  source_columns?: string[];
+  confidence?: number;
 }
 
 export interface PersonaIndividualStory {
@@ -308,7 +320,7 @@ export const projectApi = {
       return [];
     }
   },
-  saveSegmentFilter: async (
+  putSegmentFilter: async (
     projectId: string,
     personaFilter: Record<string, unknown>,
     selectedPersonaIds: string[]
@@ -320,7 +332,7 @@ export const projectApi = {
       });
       return data;
     } catch (error) {
-      console.warn("projectApi.saveSegmentFilter failed.", error);
+      console.warn("projectApi.putSegmentFilter failed.", error);
       return null;
     }
   },
@@ -1129,7 +1141,7 @@ export const settingsApi = {
       return null;
     }
   },
-  savePrompt: async (promptType: string, prompt: string): Promise<PromptSettingsResponse | null> => {
+  putPrompt: async (promptType: string, prompt: string): Promise<PromptSettingsResponse | null> => {
     try {
       const { data } = await apiClient.put("/settings/prompts", {
         prompt_type: promptType,
@@ -1137,7 +1149,7 @@ export const settingsApi = {
       });
       return data;
     } catch (error) {
-      console.warn("settingsApi.savePrompt failed.", error);
+      console.warn("settingsApi.putPrompt failed.", error);
       return null;
     }
   },
@@ -1150,12 +1162,12 @@ export const settingsApi = {
       return null;
     }
   },
-  saveLlmParameters: async (payload: LlmParameterResponse): Promise<LlmParameterResponse | null> => {
+  putLlmParameters: async (payload: LlmParameterResponse): Promise<LlmParameterResponse | null> => {
     try {
       const { data } = await apiClient.put("/settings/llm-parameters", payload);
       return data;
     } catch (error) {
-      console.warn("settingsApi.saveLlmParameters failed.", error);
+      console.warn("settingsApi.putLlmParameters failed.", error);
       return null;
     }
   },
@@ -1168,12 +1180,12 @@ export const settingsApi = {
       return null;
     }
   },
-  saveJsonSetting: async <T extends object>(key: string, value: T): Promise<T | null> => {
+  putJsonSetting: async <T extends object>(key: string, value: T): Promise<T | null> => {
     try {
       const { data } = await apiClient.put("/settings/kv", { key, value });
       return (data?.value ?? {}) as T;
     } catch (error) {
-      console.warn("settingsApi.saveJsonSetting failed.", error);
+      console.warn("settingsApi.putJsonSetting failed.", error);
       return null;
     }
   },
@@ -1181,11 +1193,11 @@ export const settingsApi = {
     settingsApi.getJsonSetting<SurveyTemplateSettingsBundle>("survey_template_settings"),
   saveSurveyTemplateSettings: async (
     value: SurveyTemplateSettingsBundle
-  ): Promise<SurveyTemplateSettingsBundle | null> => settingsApi.saveJsonSetting("survey_template_settings", value),
+  ): Promise<SurveyTemplateSettingsBundle | null> => settingsApi.putJsonSetting("survey_template_settings", value),
   getSeoSettings: async (): Promise<SeoSettings | null> => settingsApi.getJsonSetting<SeoSettings>("seo_policy"),
-  saveSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> =>
-    settingsApi.saveJsonSetting("seo_policy", value),
+  putSeoSettings: async (value: SeoSettings): Promise<SeoSettings | null> =>
+    settingsApi.putJsonSetting("seo_policy", value),
   getGeoSettings: async (): Promise<GeoSettings | null> => settingsApi.getJsonSetting<GeoSettings>("geo_policy"),
-  saveGeoSettings: async (value: GeoSettings): Promise<GeoSettings | null> =>
-    settingsApi.saveJsonSetting("geo_policy", value),
+  putGeoSettings: async (value: GeoSettings): Promise<GeoSettings | null> =>
+    settingsApi.putJsonSetting("geo_policy", value),
 };

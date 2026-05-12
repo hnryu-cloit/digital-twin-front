@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, Ban, BrainCircuit, CheckCircle2, Clock3, RefreshCcw, Search, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AppPagination } from "@/components/ui/AppPagination";
+import { AppPagination } from "@/components/AppPagination";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { aiJobApi, type AIJob } from "@/lib/api";
 import { useProject } from "@/hooks/useProject";

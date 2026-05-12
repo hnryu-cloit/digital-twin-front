@@ -12,7 +12,7 @@ import {
   FilePieChart,
   Presentation,
 } from "lucide-react";
-import { AppPagination } from "@/components/ui/AppPagination";
+import { AppPagination } from "@/components/AppPagination";
 import { cn } from "@/lib/utils";
 import { reportApi, type ReportSummary } from "@/lib/api";
 import { useProject } from "@/hooks/useProject";

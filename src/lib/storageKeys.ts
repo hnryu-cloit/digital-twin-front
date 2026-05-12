@@ -7,4 +7,6 @@ export const STORAGE_KEYS = {
   CURRENT_PROJECT_NAME: "currentProjectName",
   /** 현재 선택된 프로젝트 ID (워크플로우 네비게이션용) */
   CURRENT_PROJECT_ID: "currentProjectId",
+  /** 워크플로우에서 사용자가 도달한 가장 먼 단계 인덱스 */
+  WORKFLOW_FURTHEST_STEP: "workflowFurthestStep",
 } as const;
