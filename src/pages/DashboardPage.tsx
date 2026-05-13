@@ -70,6 +70,7 @@ interface FilterPersona {
   snsActivity: SnsActivity;
   contentChannels: string[];
   buyChannel: string;
+  dynamicInsights: DynamicInsight[];
 }
 
 // 세그먼트 이름은 AI가 동적으로 생성하므로 이름 기반 매핑 대신 인덱스 기반으로 스타일을 결정한다
@@ -102,10 +103,7 @@ function deriveSegments(personas: FilterPersona[]) {
     .map(([name, members]) => {
       const avgAge = Math.round(members.reduce((s, p) => s + p.age, 0) / members.length);
       const maleRatio = Math.round((members.filter((p) => p.gender === "남성").length / members.length) * 100);
-      const techDist = ["초보", "중급", "전문가", "분석 중"].map((t) => ({
-        label: t,
-        count: members.filter((p) => p.techLevel === t).length,
-      }));
+      const topInsights = (members[0]?.dynamicInsights ?? []).slice(0, 3);
       const topInterests = topN(
         members.flatMap((p) => p.interests),
         4
@@ -114,7 +112,7 @@ function deriveSegments(personas: FilterPersona[]) {
         members.flatMap((p) => p.keywords),
         4
       );
-      return { name, members, avgAge, maleRatio, techDist, topInterests, topKeywords };
+      return { name, members, avgAge, maleRatio, topInsights, topInterests, topKeywords };
     });
 }
 
@@ -238,6 +236,7 @@ export const DashboardPage: React.FC = () => {
             ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel]
             : ["YouTube"],
           buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",
+          dynamicInsights: Array.isArray(item.dynamic_insights) ? item.dynamic_insights : [],
         }));
         setAllPersonas(mapped);
         setFilterOptions(options ?? null);
@@ -1586,21 +1585,21 @@ export const DashboardPage: React.FC = () => {
                             style={{ width: `${ratio}%`, backgroundColor: "var(--primary)" }}
                           />
                         </div>
-                        <div className="flex gap-2 mb-4">
-                          {seg.techDist.map(
-                            (t) =>
-                              t.count > 0 && (
-                                <div
-                                  key={t.label}
-                                  className="flex items-center gap-1.5 rounded-lg bg-white/70 border border-white px-2.5 py-1.5 shadow-sm"
-                                >
-                                  <Cpu size={10} className="text-[var(--subtle-foreground)]" />
-                                  <span className="text-[10px] font-bold text-[var(--secondary-foreground)]">
-                                    {t.label}
-                                  </span>
-                                  <span className="text-[10px] font-black text-primary">{t.count}</span>
-                                </div>
-                              )
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {seg.topInsights.length > 0 ? (
+                            seg.topInsights.map((ins) => (
+                              <div
+                                key={ins.label}
+                                className="flex items-center gap-1.5 rounded-lg bg-white/70 border border-white px-2.5 py-1.5 shadow-sm"
+                              >
+                                <Sparkles size={10} className="text-[var(--subtle-foreground)] shrink-0" />
+                                <span className="text-[10px] font-bold text-[var(--secondary-foreground)] max-w-[96px] truncate">
+                                  {ins.label}
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-[var(--muted-foreground)]">인사이트 로딩 중</span>
                           )}
                         </div>
                         <div className="mb-3">
