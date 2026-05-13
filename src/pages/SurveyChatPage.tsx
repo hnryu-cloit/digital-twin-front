@@ -651,10 +651,47 @@ export const SurveyChatPage: React.FC = () => {
                               Mandatory Validation
                             </div>
                           </div>
-                          {q.rationale && (
-                            <p className="mt-3 text-[11px] text-[var(--muted-foreground)] leading-relaxed border-l-2 border-[var(--primary-light-border)] pl-3">
-                              {q.rationale}
-                            </p>
+                          {q.type === "리커트척도" && (
+                            <div className="mt-3 flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <div key={n} className="flex flex-col items-center gap-1 flex-1">
+                                  <div className="w-7 h-7 rounded-full border border-[var(--border)] bg-[var(--panel-soft)] flex items-center justify-center text-[11px] font-semibold text-[var(--secondary-foreground)]">
+                                    {n}
+                                  </div>
+                                  {n === 1 && (
+                                    <span className="text-[9px] text-[var(--subtle-foreground)] text-center leading-tight">
+                                      전혀
+                                      <br />
+                                      그렇지않다
+                                    </span>
+                                  )}
+                                  {n === 5 && (
+                                    <span className="text-[9px] text-[var(--subtle-foreground)] text-center leading-tight">
+                                      매우
+                                      <br />
+                                      그렇다
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {(q.type === "단일선택" || q.type === "복수선택") && q.options && q.options.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {q.options.map((opt, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2.5 py-1 rounded-lg bg-[var(--panel-soft)] border border-[var(--border)] text-[11px] font-medium text-[var(--secondary-foreground)]"
+                                >
+                                  {opt}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === "주관식" && (
+                            <div className="mt-3 px-3 py-2 rounded-lg border border-dashed border-[var(--border)] bg-[var(--panel-soft)]">
+                              <span className="text-[11px] text-[var(--subtle-foreground)]">자유 응답</span>
+                            </div>
                           )}
                         </div>
                       )}
