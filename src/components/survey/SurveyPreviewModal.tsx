@@ -1,8 +1,6 @@
 import { X } from "lucide-react";
 import type { SurveyDraftPreview } from "@/lib/api";
-import { TypeBadge } from "@/components/survey/TypeBadge";
-
-type QuestionType = "단일선택" | "복수선택" | "리커트척도" | "주관식";
+import { TypeBadge, type QuestionType } from "@/components/survey/TypeBadge";
 
 interface SurveyPreviewModalProps {
   preview: SurveyDraftPreview;

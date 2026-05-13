@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { WorkflowStepper } from "@/components/layout/WorkflowStepper";
 import { AppPagination } from "../components/AppPagination";
-import { TypeBadge } from "@/components/survey/TypeBadge";
+import { TypeBadge, type QuestionType } from "@/components/survey/TypeBadge";
 import { TooltipMenu } from "@/components/survey/TooltipMenu";
 import { SurveyPreviewModal as PreviewModal } from "@/components/survey/SurveyPreviewModal";
 import { buttonVariants } from "@/components/ui/button";
@@ -33,8 +33,6 @@ import {
   type SurveyTemplate,
 } from "@/lib/api";
 import { useProject } from "@/hooks/useProject";
-
-type QuestionType = "단일선택" | "복수선택" | "리커트척도" | "주관식";
 
 interface Question {
   id: number | string;
