@@ -23,8 +23,11 @@ import favicon from "@/assets/favicon.svg";
 import {
   aiJobApi,
   geminiApi,
+  projectApi,
   surveyApi,
   type AIJob,
+  type ProjectDetail,
+  type SurveyDraftEvidenceItem,
   type SurveyDraftPreview,
   type SurveyQualityCheckResponse,
   type SurveyTemplate,
@@ -39,6 +42,8 @@ interface Question {
   type: QuestionType;
   options?: string[];
   status?: string;
+  rationale?: string;
+  evidence?: SurveyDraftEvidenceItem[];
 }
 
 interface ChatMessage {
@@ -92,6 +97,9 @@ export const SurveyChatPage: React.FC = () => {
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
   const [templates, setTemplates] = useState<SurveyTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("tpl_concept_test_v1");
+  const [questionsLoaded, setQuestionsLoaded] = useState(false);
+  const [hasExistingQuestions, setHasExistingQuestions] = useState(false);
+  const autoGenTriggeredRef = useRef(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const totalPages = Math.max(1, Math.ceil(questions.length / QUESTIONS_PER_PAGE));
@@ -118,6 +126,10 @@ export const SurveyChatPage: React.FC = () => {
         );
       }
       if (apiQuestions.length > 0) {
+        const draftPreview = await surveyApi.getPreview(projectId);
+        const rationaleMap = new Map(
+          (draftPreview?.questions ?? []).map((dq) => [dq.id, { rationale: dq.rationale, evidence: dq.evidence }])
+        );
         setQuestions(
           apiQuestions.map((q) => ({
             id: q.id,
@@ -125,9 +137,12 @@ export const SurveyChatPage: React.FC = () => {
             type: q.type as QuestionType,
             options: q.options ?? [],
             status: q.status,
+            ...(rationaleMap.get(q.id) ?? {}),
           }))
         );
+        setHasExistingQuestions(true);
       }
+      setQuestionsLoaded(true);
     };
     void loadQuestions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,7 +168,13 @@ export const SurveyChatPage: React.FC = () => {
       setActiveJob(nextJob);
 
       if (nextJob.status === "completed" && projectId) {
-        const apiQuestions = await surveyApi.getQuestions(projectId);
+        const [apiQuestions, draftPreview] = await Promise.all([
+          surveyApi.getQuestions(projectId),
+          surveyApi.getPreview(projectId),
+        ]);
+        const rationaleMap = new Map(
+          (draftPreview?.questions ?? []).map((dq) => [dq.id, { rationale: dq.rationale, evidence: dq.evidence }])
+        );
         setQuestions(
           apiQuestions.map((q) => ({
             id: q.id,
@@ -161,8 +182,10 @@ export const SurveyChatPage: React.FC = () => {
             type: q.type as QuestionType,
             options: q.options ?? [],
             status: q.status,
+            ...(rationaleMap.get(q.id) ?? {}),
           }))
         );
+        setHasExistingQuestions(apiQuestions.length > 0);
         setMessages((prev) => [
           ...prev,
           {
@@ -188,17 +211,31 @@ export const SurveyChatPage: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [activeJob, projectId]);
 
-  const sendMessage = async () => {
-    const message = input.trim();
-    if (!message || !projectId || activeJob?.status === "queued" || activeJob?.status === "running") return;
-    const selectedTemplate = templates.find((item) => item.template_id === selectedTemplateId);
-    const newMsg: ChatMessage = { id: Date.now(), role: "user", text: message };
-    setMessages((prev) => [...prev, newMsg]);
-    setInput("");
+  const buildAutoPrompt = (proj: ProjectDetail) => {
+    const lines = [
+      `프로젝트 '${proj.name}'의 리서치 설문을 생성해주세요.`,
+      `목적: ${proj.purpose}`,
+    ];
+    if (segmentFilter) {
+      const segNames = segmentFilter.segments.map((s) => s.name).join(", ");
+      lines.push(`분석 대상: ${segmentFilter.filterSummary || segNames} (총 ${segmentFilter.totalMatched}명)`);
+    }
+    if (proj.data_sources?.length) {
+      lines.push(`연결 데이터: ${proj.data_sources.join(", ")}`);
+    }
+    lines.push(
+      "각 문항이 리서치 목적에 따라 전략적 순서로 배열되도록 해주세요. " +
+        "인지도 → 매력도 → 구매 의향 → 우려 → 자유 응답 흐름을 기준으로 단계별 의도가 드러나야 합니다."
+    );
+    return lines.join("\n");
+  };
 
+  const triggerGenerate = async (prompt: string) => {
+    if (!projectId || activeJob?.status === "queued" || activeJob?.status === "running") return;
+    const selectedTemplate = templates.find((item) => item.template_id === selectedTemplateId);
     const job = await surveyApi.generateJob({
       project_id: projectId,
-      user_prompt: message,
+      user_prompt: prompt,
       survey_type: selectedTemplate?.survey_type ?? "concept",
       question_count: selectedTemplate?.recommended_question_count ?? 5,
       template: selectedTemplate
@@ -220,28 +257,50 @@ export const SurveyChatPage: React.FC = () => {
         target_count: segmentFilter?.totalMatched ?? 0,
       },
     });
-
     if (!job) {
       setMessages((prev) => [
         ...prev,
-        {
-          id: Date.now() + 1,
-          role: "bot",
-          text: "설문 생성 요청을 전송하지 못했습니다. 백엔드 상태를 확인해주세요.",
-        },
+        { id: Date.now(), role: "bot", text: "설문 생성 요청을 전송하지 못했습니다. 백엔드 상태를 확인해주세요." },
       ]);
       return;
     }
-
     setActiveJob(job);
     setMessages((prev) => [
       ...prev,
-      {
-        id: Date.now() + 1,
-        role: "bot",
-        text: "설문 생성 job을 시작했습니다. AI가 초안을 생성하는 중입니다.",
-      },
+      { id: Date.now(), role: "bot", text: "설문 생성 job을 시작했습니다. AI가 초안을 생성하는 중입니다." },
     ]);
+  };
+
+  // 기존 문항이 없을 때 프로젝트·세그먼트 컨텍스트 기반 자동 생성
+  useEffect(() => {
+    if (!questionsLoaded || hasExistingQuestions || autoGenTriggeredRef.current) return;
+    void (async () => {
+      const pid = projectId;
+      if (!pid) return;
+      const proj = await projectApi.getProject(pid);
+      if (!proj || autoGenTriggeredRef.current) return;
+      autoGenTriggeredRef.current = true;
+      const prompt = buildAutoPrompt(proj);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: "bot",
+          text: `'${proj.name}' 프로젝트${segmentFilter ? ` — ${segmentFilter.totalMatched}명 분석 대상` : ""}을 기반으로 설문 초안을 자동 생성합니다.`,
+        },
+      ]);
+      await triggerGenerate(prompt);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionsLoaded, hasExistingQuestions, projectId]);
+
+  const sendMessage = async () => {
+    const message = input.trim();
+    if (!message) return;
+    const newMsg: ChatMessage = { id: Date.now(), role: "user", text: message };
+    setMessages((prev) => [...prev, newMsg]);
+    setInput("");
+    await triggerGenerate(message);
   };
 
   const deleteQuestion = (id: number | string) => {
@@ -596,6 +655,11 @@ export const SurveyChatPage: React.FC = () => {
                               Mandatory Validation
                             </div>
                           </div>
+                          {q.rationale && (
+                            <p className="mt-3 text-[11px] text-[var(--muted-foreground)] leading-relaxed border-l-2 border-[var(--primary-light-border)] pl-3">
+                              {q.rationale}
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
