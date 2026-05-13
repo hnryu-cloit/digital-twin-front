@@ -83,7 +83,7 @@ export const SurveyChatPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS);
   const [input, setInput] = useState("");
-  const { projectId } = useProject();
+  const { projectId, project } = useProject();
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [openMenu, setOpenMenu] = useState<number | string | null>(null);
   const [editingId, setEditingId] = useState<number | string | null>(null);
@@ -212,10 +212,7 @@ export const SurveyChatPage: React.FC = () => {
   }, [activeJob, projectId]);
 
   const buildAutoPrompt = (proj: ProjectDetail) => {
-    const lines = [
-      `프로젝트 '${proj.name}'의 리서치 설문을 생성해주세요.`,
-      `목적: ${proj.purpose}`,
-    ];
+    const lines = [`프로젝트 '${proj.name}'의 리서치 설문을 생성해주세요.`, `목적: ${proj.purpose}`];
     if (segmentFilter) {
       const segNames = segmentFilter.segments.map((s) => s.name).join(", ");
       lines.push(`분석 대상: ${segmentFilter.filterSummary || segNames} (총 ${segmentFilter.totalMatched}명)`);
@@ -490,8 +487,7 @@ export const SurveyChatPage: React.FC = () => {
                     Survey Template
                   </p>
                   <p className="mt-1 text-[13px] font-semibold text-foreground">
-                    {templates.find((item) => item.template_id === selectedTemplateId)?.description ??
-                      "설문 유형에 맞는 템플릿을 선택하세요."}
+                    {project?.purpose ?? "설문 유형에 맞는 템플릿을 선택하세요."}
                   </p>
                 </div>
                 <select
