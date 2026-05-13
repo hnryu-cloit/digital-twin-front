@@ -260,6 +260,7 @@ export const DashboardPage: React.FC = () => {
           if (Array.isArray(f.sns)) setSelectedSns(f.sns as SnsActivity[]);
           if (Array.isArray(f.contentChannels)) setSelectedContentChannels(f.contentChannels as string[]);
           if (Array.isArray(f.brandLoyalty)) setSelectedBrandLoyalty(f.brandLoyalty as BrandLoyalty[]);
+          if (Array.isArray(f.segments)) setSelectedSegments(f.segments as string[]);
           if (Array.isArray(f.keywords)) setCustomKeywords(f.keywords as string[]);
           if (Array.isArray(f.customCountries)) setCustomCountries(f.customCountries as string[]);
           if (Array.isArray(f.customOccupations)) setCustomOccupations(f.customOccupations as string[]);
@@ -312,6 +313,7 @@ export const DashboardPage: React.FC = () => {
 
   /* sidebar open state */
   const [openSections, setOpenSections] = useState({
+    segment: true,
     age: true,
     gender: true,
     occupation: false,
@@ -327,6 +329,9 @@ export const DashboardPage: React.FC = () => {
     loyalty: false,
     keyword: true,
   });
+
+  /* ── 세그먼트 ── */
+  const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   const toggle = (key: keyof typeof openSections) => setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   /* ── Research Recommendation ── */
@@ -353,12 +358,23 @@ export const DashboardPage: React.FC = () => {
 
   const applyRecommendedFilters = () => {
     if (!recommendation) return;
-    // 예: 연령대와 지역 필터 자동 설정
-    if (recommendation.suggested_filters.age_ranges) {
+    if (recommendation.suggested_filters.age_ranges?.length) {
       setSelectedAgeGroups(recommendation.suggested_filters.age_ranges);
     }
-    if (recommendation.suggested_filters.regions) {
+    if (recommendation.suggested_filters.regions?.length) {
       setSelectedRegions(recommendation.suggested_filters.regions);
+    }
+    if (recommendation.suggested_filters.segments?.length) {
+      setSelectedSegments(recommendation.suggested_filters.segments);
+    }
+    if (recommendation.suggested_filters.keywords?.length) {
+      setCustomKeywords((prev) => {
+        const merged = [...prev];
+        recommendation.suggested_filters.keywords!.forEach((kw) => {
+          if (!merged.includes(kw)) merged.push(kw);
+        });
+        return merged;
+      });
     }
     setRecommendationOpen(false);
   };
@@ -366,6 +382,7 @@ export const DashboardPage: React.FC = () => {
   /* ── 필터 파생값 (narrative useEffect deps보다 먼저 선언) ── */
   const allKeywords = [...customKeywords];
   const hasFilters =
+    selectedSegments.length > 0 ||
     selectedAgeGroups.length > 0 ||
     !gender.male ||
     !gender.female ||
@@ -383,6 +400,7 @@ export const DashboardPage: React.FC = () => {
 
   const matchedPersonas = useMemo(() => {
     return allPersonas.filter((p) => {
+      if (selectedSegments.length > 0 && !selectedSegments.some((s) => p.segments.includes(s))) return false;
       if (selectedAgeGroups.length > 0) {
         if (
           !AGE_GROUPS.filter((g) => selectedAgeGroups.includes(g.label)).some((g) => p.age >= g.min && p.age <= g.max)
@@ -421,6 +439,7 @@ export const DashboardPage: React.FC = () => {
     });
   }, [
     allPersonas,
+    selectedSegments,
     selectedAgeGroups,
     gender,
     selectedOccupations,
@@ -457,6 +476,7 @@ export const DashboardPage: React.FC = () => {
 
   /* ── reset ── */
   const resetFilters = () => {
+    setSelectedSegments([]);
     setSelectedAgeGroups([]);
     setGender({ male: true, female: true });
     setSelectedOccupations([]);
@@ -485,6 +505,7 @@ export const DashboardPage: React.FC = () => {
   /* ── active filter count ── */
   const activeFilterCount =
     [
+      selectedSegments,
       selectedAgeGroups,
       selectedOccupations,
       selectedRegions,
@@ -546,6 +567,10 @@ export const DashboardPage: React.FC = () => {
   const buyChannelOptions = filterOptions?.buy_channels.map((item) => item.label) ?? [];
   const contentChannelOptions = filterOptions?.content_channels.map((item) => item.label) ?? [];
   const productOptions = filterOptions?.product_groups ?? [];
+  const segmentOptions = useMemo(() => {
+    const names = new Set(allPersonas.map((p) => p.segments[0]).filter(Boolean));
+    return Array.from(names).sort();
+  }, [allPersonas]);
 
   if (loading) {
     return (
@@ -586,6 +611,39 @@ export const DashboardPage: React.FC = () => {
 
           <div className="flex-1 overflow-y-auto px-2 py-3 hide-scrollbar">
             <div className="flex flex-col gap-0.5">
+              {/* ══ 세그먼트 ══ */}
+              <div className="px-4 pt-3 pb-1.5">
+                <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtle-foreground)]">
+                  세그먼트
+                </p>
+              </div>
+
+              <div className="rounded-2xl overflow-hidden">
+                <SectionHeader
+                  icon={<Layers size={14} />}
+                  title="고객 세그먼트"
+                  open={openSections.segment}
+                  onToggle={() => toggle("segment")}
+                  count={selectedSegments.length}
+                />
+                {openSections.segment && (
+                  <div className="px-4 pb-4 flex flex-wrap gap-1.5">
+                    {segmentOptions.map((seg) => {
+                      const active = selectedSegments.includes(seg);
+                      return (
+                        <button
+                          key={seg}
+                          onClick={() => toggleArr(setSelectedSegments, seg)}
+                          className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold transition-all ${active ? "border-primary bg-[var(--primary-light-bg)] text-primary" : "border-[var(--border)] bg-[var(--panel-soft)] text-[var(--subtle-foreground)] hover:border-primary/40 hover:text-primary"}`}
+                        >
+                          {seg}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* ══ 인구통계 ══ */}
               <div className="px-4 pt-3 pb-1.5">
                 <p className="text-[9px] font-black uppercase tracking-[0.18em] text-[var(--subtle-foreground)]">

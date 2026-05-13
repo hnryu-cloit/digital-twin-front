@@ -1034,8 +1034,11 @@ export interface ResearchRecommendationResponse {
     age_ranges?: string[];
     regions?: string[];
     keywords?: string[];
+    segments?: string[];
   };
+  estimated_count?: number;
   rationale: string;
+  priority_segments?: string[];
 }
 
 export interface ActionPlanResponse {
