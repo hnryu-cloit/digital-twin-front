@@ -69,8 +69,12 @@ export const ReportHistoryPage: React.FC = () => {
   useEffect(() => {
     if (!projectId) return;
     const loadReports = async () => {
-      const { items } = await reportApi.listReports(projectId, 1, 50);
-      setReportItems(items.map(mapReportItem));
+      try {
+        const { items } = await reportApi.listReports(projectId, 1, 50);
+        setReportItems(items.map(mapReportItem));
+      } catch (error) {
+        console.error("ReportHistoryPage: loadReports 실패", error);
+      }
     };
     void loadReports();
   }, [projectId]);
@@ -132,7 +136,7 @@ export const ReportHistoryPage: React.FC = () => {
             </p>
             <div className="flex items-center gap-4">
               <span className="text-[11px] font-bold text-[var(--subtle-foreground)] flex items-center gap-1.5">
-                <Clock size={12} /> 최근 업데이트: 2026-03-13
+                <Clock size={12} /> 최근 업데이트: {reportItems[0]?.createdAt ?? "-"}
               </span>
             </div>
           </div>
@@ -216,7 +220,7 @@ export const ReportHistoryPage: React.FC = () => {
           ))}
 
           <div className="flex justify-center pt-10">
-            <AppPagination current={1} total={3} onChange={() => {}} />
+            <AppPagination current={1} total={Math.ceil(filteredItems.length / 10)} onChange={() => {}} />
           </div>
         </div>
       </div>

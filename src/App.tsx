@@ -6,6 +6,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { SurveyChatPage } from "@/pages/SurveyChatPage";
 import { LiveAnalysisPage } from "@/pages/LiveAnalysisPage";
 import { ReportPage } from "@/pages/ReportPage";
+import { ReportPrintPage } from "@/pages/ReportPrintPage";
 import { PersonaManagerPage } from "@/pages/PersonaManagerPage";
 import { ReportHistoryPage } from "@/pages/ReportHistoryPage";
 import { SettingsPage } from "@/pages/SettingsPage";
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
       </Route>
       <Route path="/settings" element={<SettingsPage />} />
       <Route path="/settings/:tab" element={<SettingsPage />} />
+      <Route path="/report/print/:reportId" element={<ReportPrintPage />} />
     </Routes>
   );
 };

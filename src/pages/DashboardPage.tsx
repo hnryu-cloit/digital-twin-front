@@ -200,8 +200,7 @@ export const DashboardPage: React.FC = () => {
           segmentApi.getFilterOptions(),
           projectId ? projectApi.getSegmentFilter(projectId) : Promise.resolve(null),
         ]);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mapped: FilterPersona[] = (items || []).map((item: any) => ({
+        const mapped: FilterPersona[] = (items || []).map((item) => ({
           id: item.id,
           name: item.name || "이름 없음",
           age: item.age || 30,

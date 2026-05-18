@@ -10,3 +10,31 @@
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+.report-print-section {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+@page {
+  size: A4;
+  margin: 12mm 10mm;
+}
+
+@media print {
+  html,
+  body,
+  #root {
+    background: #f5f7fb !important;
+  }
+
+  .report-print-root {
+    padding: 0 !important;
+  }
+
+  .report-print-section {
+    margin-bottom: 18px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

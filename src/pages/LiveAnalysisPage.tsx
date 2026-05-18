@@ -41,6 +41,11 @@ interface ChatResponse {
   consistencyStatus: "Good" | "Warn" | "Error";
   timestamp: string;
   cot: string[];
+  contextVariant?: string;
+  contextSummary?: string;
+  contextEvidence?: Array<Record<string, unknown>>;
+  evaluationScores?: Record<string, number>;
+  evaluationRationale?: string;
 }
 
 interface QuestionResult {
@@ -82,6 +87,11 @@ function mapFeedItem(item: SimulationFeedItem): ChatResponse {
     consistencyStatus: item.consistency_status,
     timestamp: formatTimestamp(item.timestamp),
     cot: item.cot,
+    contextVariant: item.context_variant,
+    contextSummary: item.context_summary,
+    contextEvidence: item.context_evidence,
+    evaluationScores: item.evaluation_scores,
+    evaluationRationale: item.evaluation_rationale,
   };
 }
 
@@ -225,6 +235,8 @@ export const LiveAnalysisPage: React.FC = () => {
           const segment = evt.segment as string;
           const answers = (evt.answers as Array<Record<string, unknown>>) ?? [];
           for (const answer of answers) {
+            const contextVariant = (answer.context_variant as string) ?? "profile_semantic";
+            if (contextVariant !== "profile_semantic") continue;
             const feedItem: ChatResponse = {
               id: `resp-${Date.now()}-${Math.random()}`,
               personaName,
@@ -237,10 +249,17 @@ export const LiveAnalysisPage: React.FC = () => {
               consistencyStatus: ((answer.integrity_score as number) ?? 85) >= 90 ? "Good" : "Warn",
               timestamp: formatTimestamp(new Date().toISOString()),
               cot: (answer.cot as string[]) ?? [],
+              contextVariant,
+              contextSummary: (answer.context_summary as string) ?? "",
+              contextEvidence: (answer.context_evidence as Array<Record<string, unknown>>) ?? [],
+              evaluationScores: (answer.evaluation_scores as Record<string, number>) ?? {},
+              evaluationRationale: (answer.evaluation_rationale as string) ?? "",
             };
             setChatFeed((prev) => [feedItem, ...prev].slice(0, 100));
           }
-          setCompletedResponses((prev) => prev + answers.length);
+          setCompletedResponses(
+            (prev) => prev + answers.filter((answer) => answer.context_variant === "profile_semantic").length
+          );
         }
 
         if (type === "progress") {

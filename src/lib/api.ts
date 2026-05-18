@@ -261,8 +261,25 @@ function formatRelativeTime(isoString: string): string {
 }
 
 // 백엔드 응답 → 프론트엔드 Project 매핑
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapProject(raw: any): Project {
+interface RawProject {
+  id: string;
+  name?: string;
+  title?: string;
+  type?: string;
+  status?: string;
+  progress?: number;
+  response_count?: number;
+  responses?: number;
+  target_responses?: number;
+  target?: number;
+  updated_at?: string;
+  updatedAt?: string;
+  created_at?: string;
+  workflow_stage?: string;
+  tags?: string[];
+}
+
+function mapProject(raw: RawProject): Project {
   return {
     id: raw.id,
     title: raw.name ?? raw.title ?? "",
@@ -397,6 +414,7 @@ export const personaApi = {
     excel_path?: string;
     output_dir?: string;
     overwrite_existing?: boolean;
+    pre_cluster_filter?: Record<string, unknown>;
   }): Promise<AIJob | null> => {
     try {
       const { data } = await apiClient.post("/personas/generate-job", payload);
@@ -644,6 +662,11 @@ export interface SimulationFeedItem {
   consistency_status: "Good" | "Warn" | "Error";
   timestamp: string;
   cot: string[];
+  context_variant: string;
+  context_summary: string;
+  context_evidence: Array<Record<string, unknown>>;
+  evaluation_scores: Record<string, number>;
+  evaluation_rationale: string;
 }
 
 export interface ResponseDistributionItem {
@@ -662,6 +685,9 @@ export interface ResponseListItem {
   rationale: string;
   integrity_score: number;
   timestamp: string;
+  context_variant: string;
+  context_summary: string;
+  evaluation_scores: Record<string, number>;
   consistency_status: "Good" | "Warn" | "Error";
 }
 

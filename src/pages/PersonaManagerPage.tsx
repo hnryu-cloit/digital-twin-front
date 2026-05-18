@@ -109,6 +109,8 @@ export const PersonaManagerPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeJob, setActiveJob] = useState<AIJob | null>(null);
   const [detailTarget, setDetailTarget] = useState<Persona | undefined>();
+  const [applyStoredFilter, setApplyStoredFilter] = useState(false);
+  const [savedFilter, setSavedFilter] = useState<Record<string, unknown> | null>(null);
 
   const fetchPersonas = async (pid: string | null, pg: number, q: string, ps: number) => {
     try {
@@ -128,15 +130,19 @@ export const PersonaManagerPage: React.FC = () => {
       setProjectId(pid);
       setPage(1);
       setSearchQuery("");
-      const [response, projectDetail, options] = await Promise.all([
+      setApplyStoredFilter(false);
+      const [response, projectDetail, options, filterData] = await Promise.all([
         personaApi.getPersonas(pid ?? undefined, 1, CARD_PAGE_SIZE, ""),
         pid ? projectApi.getProject(pid) : Promise.resolve(null),
         projectApi.getProjectOptions(),
+        pid ? projectApi.getSegmentFilter(pid) : Promise.resolve(null),
       ]);
       setProjectOptions(options);
       setProject(projectDetail);
       setPersonas(mapPersonaItems(response.items));
       setTotal(response.total);
+      const pf = (filterData as Record<string, unknown> | null)?.persona_filter;
+      setSavedFilter(pf && typeof pf === "object" ? (pf as Record<string, unknown>) : null);
     } catch (error) {
       console.error("Failed to load persona data:", error);
       setPersonas([]);
@@ -230,8 +236,8 @@ export const PersonaManagerPage: React.FC = () => {
     const job = await personaApi.generateJob({
       project_id: projectId,
       n_synthetic_customers: Math.max(project?.target_responses ?? 1000, 1000),
-      n_personas: 7,
       overwrite_existing: true,
+      ...(applyStoredFilter && savedFilter ? { pre_cluster_filter: savedFilter } : {}),
     });
     if (job) {
       setActiveJob(job);
@@ -307,6 +313,17 @@ export const PersonaManagerPage: React.FC = () => {
               onChange={(event) => handleSearchChange(event.target.value)}
             />
           </div>
+          {projectId && savedFilter && (
+            <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--muted-foreground)] cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={applyStoredFilter}
+                onChange={(e) => setApplyStoredFilter(e.target.checked)}
+                className="rounded"
+              />
+              저장된 필터 기반 분석
+            </label>
+          )}
           <Button
             size="sm"
             className="gap-2 text-[13px] font-bold px-5 active:scale-95"
