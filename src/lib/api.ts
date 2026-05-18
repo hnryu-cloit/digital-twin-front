@@ -1,9 +1,11 @@
 import axios from "axios";
 import { STORAGE_KEYS } from "@/lib/storageKeys";
 
-// 백엔드 FastAPI 기본 URL (로컬 개발 환경 기준)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api";
+
+// 백엔드 FastAPI 기본 URL
 export const apiClient = axios.create({
-  baseURL: "http://localhost:8000/api",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -17,7 +19,7 @@ let _defaultProjectIdPromise: Promise<string | null> | null = null;
 async function ensureToken(): Promise<string | null> {
   if (_cachedToken) return _cachedToken;
   try {
-    const res = await axios.post("http://localhost:8000/api/auth/login", {
+    const res = await axios.post(`${API_BASE_URL}/auth/login`, {
       email: "admin@digital-twin.ai",
       password: "Admin1234!",
     });
@@ -136,6 +138,10 @@ export interface Persona {
   product_group: string;
   churn_risk?: string;
   dynamic_insights?: DynamicInsight[];
+  interests?: string[];
+  purchase_history?: string[];
+  purchase_intent?: number;
+  brand_attitude?: number;
 }
 
 export interface DynamicInsight {
@@ -284,7 +290,7 @@ function mapProject(raw: RawProject): Project {
     id: raw.id,
     title: raw.name ?? raw.title ?? "",
     type: raw.type ?? "",
-    status: STATUS_MAP[raw.status] ?? "초안",
+    status: raw.status ? (STATUS_MAP[raw.status] ?? "초안") : "초안",
     progress: raw.progress ?? 0,
     responses: raw.response_count ?? raw.responses ?? 0,
     target: raw.target_responses ?? raw.target ?? 0,
@@ -827,7 +833,7 @@ export const simulationApi = {
     (async () => {
       try {
         const resp = await fetch(
-          `http://localhost:8000/api/simulations/stream?project_id=${encodeURIComponent(projectId)}&batch_size=${batchSize}`,
+          `${API_BASE_URL}/simulations/stream?project_id=${encodeURIComponent(projectId)}&batch_size=${batchSize}`,
           {
             headers: { Authorization: `Bearer ${token}` },
             signal: controller.signal,

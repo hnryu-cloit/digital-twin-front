@@ -200,43 +200,47 @@ export const DashboardPage: React.FC = () => {
           segmentApi.getFilterOptions(),
           projectId ? projectApi.getSegmentFilter(projectId) : Promise.resolve(null),
         ]);
-        const mapped: FilterPersona[] = (items || []).map((item) => ({
-          id: item.id,
-          name: item.name || "이름 없음",
-          age: item.age || 30,
-          gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as "남성" | "여성",
-          occupation: item.occupation || "직업 미상",
-          occupationCat: (item.occupation_category || "직장인") as OccupationCat,
-          region: item.region || "대한민국",
-          householdType: item.household_type || "1인 가구",
-          device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
-          segments: [item.segment || "기타"],
-          techLevel: normalizeTechLevel(findInsightValue(item.dynamic_insights, ["기술 수준", "숙련도"])),
-          interests: item.interests?.length ? item.interests : [],
-          keywords: item.keywords?.length ? item.keywords : [],
-          spendingLevel: normalizeSpendingLevel(
-            findInsightValue(item.dynamic_insights, ["소비 성향", "지출", "구매 성향"])
-          ),
-          purchaseIntent: (item.purchase_intent >= 80 ? "높음" : item.purchase_intent >= 60 ? "보통" : "낮음") as
-            | "높음"
-            | "보통"
-            | "낮음",
-          brandLoyalty: (item.brand_attitude >= 80
-            ? "높음"
-            : item.brand_attitude >= 65
-              ? "중간"
-              : "낮음") as BrandLoyalty,
-          snsActivity: (item.preferred_channel === "Instagram" || item.preferred_channel === "TikTok"
-            ? "활발"
-            : item.preferred_channel === "YouTube"
-              ? "보통"
-              : "낮음") as SnsActivity,
-          contentChannels: item.preferred_channel
-            ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel]
-            : ["YouTube"],
-          buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",
-          dynamicInsights: Array.isArray(item.dynamic_insights) ? item.dynamic_insights : [],
-        }));
+        const mapped: FilterPersona[] = (items || []).map((item) => {
+          const purchaseIntentScore = item.purchase_intent ?? 0;
+          const brandAttitudeScore = item.brand_attitude ?? 0;
+          return {
+            id: item.id,
+            name: item.name || "이름 없음",
+            age: item.age || 30,
+            gender: (item.gender === "남성" || item.gender === "여성" ? item.gender : "남성") as "남성" | "여성",
+            occupation: item.occupation || "직업 미상",
+            occupationCat: (item.occupation_category || "직장인") as OccupationCat,
+            region: item.region || "대한민국",
+            householdType: item.household_type || "1인 가구",
+            device: item.product_group || item.purchase_history?.[0] || "Galaxy S",
+            segments: [item.segment || "기타"],
+            techLevel: normalizeTechLevel(findInsightValue(item.dynamic_insights, ["기술 수준", "숙련도"])),
+            interests: item.interests?.length ? item.interests : [],
+            keywords: item.keywords?.length ? item.keywords : [],
+            spendingLevel: normalizeSpendingLevel(
+              findInsightValue(item.dynamic_insights, ["소비 성향", "지출", "구매 성향"])
+            ),
+            purchaseIntent: (purchaseIntentScore >= 80 ? "높음" : purchaseIntentScore >= 60 ? "보통" : "낮음") as
+              | "높음"
+              | "보통"
+              | "낮음",
+            brandLoyalty: (brandAttitudeScore >= 80
+              ? "높음"
+              : brandAttitudeScore >= 65
+                ? "중간"
+                : "낮음") as BrandLoyalty,
+            snsActivity: (item.preferred_channel === "Instagram" || item.preferred_channel === "TikTok"
+              ? "활발"
+              : item.preferred_channel === "YouTube"
+                ? "보통"
+                : "낮음") as SnsActivity,
+            contentChannels: item.preferred_channel
+              ? [CHANNEL_MAP[item.preferred_channel] ?? item.preferred_channel]
+              : ["YouTube"],
+            buyChannel: item.buy_channel ?? BUY_CHANNEL_MAP[item.preferred_channel] ?? "공식몰",
+            dynamicInsights: Array.isArray(item.dynamic_insights) ? item.dynamic_insights : [],
+          };
+        });
         setAllPersonas(mapped);
         setFilterOptions(options ?? null);
 
