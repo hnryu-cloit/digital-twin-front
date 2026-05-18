@@ -1,4 +1,5 @@
 node_modules/
+dist/
 /design system/
 .env
 .DS_Store
