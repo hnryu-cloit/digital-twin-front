@@ -117,8 +117,15 @@ export default defineConfig({
 
 ### 환경변수 (`.env`)
 
-현재 코드에서 `import.meta.env` 사용이 없어 **필수 환경변수가 없습니다**.
-API Base URL 변경이 필요하면 `src/lib/api.ts`의 `baseURL`을 수정하세요.
+`.env.example`을 복사해 `.env` 파일을 만들고 값을 설정합니다.
+
+```bash
+cp .env.example .env
+```
+
+| 변수 | 기본값 | 설명 |
+|------|--------|------|
+| `VITE_API_BASE_URL` | `http://localhost:8000/api` | 백엔드 API base URL |
 
 ---
 
@@ -286,6 +293,8 @@ docs/
 | 페르소나 동적 인사이트 UI | ✅ 완료 |
 | VIBE_CODING_GUIDE 준수 (컴포넌트 분리·커스텀 훅·스토리지 키 중앙화) | ✅ 완료 |
 | 저장된 필터 기반 페르소나 재분석 (PersonaManagerPage 체크박스) | ✅ 완료 |
+| API base URL 환경변수화 (`VITE_API_BASE_URL`) | ✅ 완료 |
+| Persona 인터페이스 필드 확장 (interests/purchase_history/purchase_intent/brand_attitude) | ✅ 완료 |
 | 테스트 코드 | 🔲 미구현 |
 
 ---
