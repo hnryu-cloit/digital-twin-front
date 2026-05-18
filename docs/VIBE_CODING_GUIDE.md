@@ -62,19 +62,17 @@ npm run lint
 - `index.ts`를 통해 export를 모아두지 않는다.
 - import 경로가 길어지더라도 명시적인 파일 경로 import를 사용한다.
 
-### 3. API 함수명은 HTTP 메서드 기준으로 작성한다
+### 3. API 함수명은 도메인 의미를 우선한다
 
-| HTTP | 함수명 접두어 |
-|---|---|
-| GET | `get...` |
-| POST | `post...` |
-| PUT | `put...` |
-| PATCH | `patch...` |
-| DELETE | `delete...` |
+API 함수명은 호출부에서 의도가 바로 드러나도록 도메인 동사를 우선 사용한다.
 
-`fetch`, `create`, `save`, `load` 혼합 규칙은 사용하지 않는다.
+권장 기준:
+- 단순 조회는 `get...` 또는 기존 호환 함수의 경우 `fetch...`를 허용한다.
+- 생성은 `create...`, 저장/갱신은 `save...` 또는 더 구체적인 도메인 동사를 허용한다.
+- HTTP 메서드명이 도메인 의도를 더 명확하게 표현하는 경우에만 `post...`, `put...`, `patch...`, `delete...` 접두어를 사용한다.
+- 기존 API 함수명은 리네이밍 비용이 크면 유지한다. 단, 신규 함수는 같은 도메인 객체 안의 기존 네이밍 흐름과 맞춘다.
 
-예시: `getProjects`, `postGeneratePersona`, `patchProjectSettings`, `deleteReport`
+예시: `getProjects`, `createProject`, `saveQuestions`, `postGeneratePersona`, `deleteReport`
 
 ### 4. 폴더 구조보다 배치 기준이 더 중요하다
 
